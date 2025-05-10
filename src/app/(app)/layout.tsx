@@ -21,7 +21,6 @@ import { Home, UsersRound, GitFork, UploadCloud, Settings, FileText, Share2, Bel
 import { Button } from "@/components/ui/button";
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
 const navItems = [
@@ -36,30 +35,11 @@ const bottomNavItems = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { currentUser, loading } = useAuth();
+  const { currentUser } = useAuth(); // currentUser will be the mock user
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && !currentUser) {
-      router.replace('/login');
-    }
-  }, [currentUser, loading, router]);
-
-  if (loading || !currentUser) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-            <Logo size="lg" />
-            <Skeleton className="h-8 w-48 mt-2" />
-            <div className="flex space-x-2 mt-4">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <Skeleton className="h-10 w-10 rounded-full" />
-            </div>
-        </div>
-      </div>
-    );
-  }
+  // Removed useEffect that redirects to /login, as login is now bypassed.
+  // Removed loading skeleton as currentUser is immediately available.
   
   return (
     <SidebarProvider defaultOpen>
@@ -124,7 +104,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Bell className="h-5 w-5 text-muted-foreground" />
             <span className="sr-only">Notifications</span>
           </Button>
-          <UserNav />
+          {currentUser && <UserNav />} {/* UserNav still relies on currentUser from context */}
         </header>
         <main className="flex-1 p-4 sm:p-6 bg-secondary/50">
             {children}
@@ -133,3 +113,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
