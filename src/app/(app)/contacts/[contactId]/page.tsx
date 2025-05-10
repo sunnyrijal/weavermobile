@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -12,13 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2 } from "lucide-react";
 import React, { useState, useEffect } from 'react';
 
 const getInitials = (name: string) => {
   const names = name.split(' ');
   if (names.length > 1) {
-    return names[0][0] + names[names.length - 1][0];
+    return names[0][0].toUpperCase() + names[names.length - 1][0].toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
 };
@@ -26,9 +29,23 @@ const getInitials = (name: string) => {
 export default function ContactDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const contactId = params.contactId as string;
 
-  const contact = mockContacts.find((c) => c.id === contactId);
+  // Local state for contact to allow "mock" updates for notes
+  const [contact, setContact] = useState<Contact | undefined | null>(undefined);
+  const [notesInput, setNotesInput] = useState('');
+  const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+
+  useEffect(() => {
+    const foundContact = mockContacts.find((c) => c.id === contactId);
+    setContact(foundContact);
+    if (foundContact) {
+      setNotesInput(foundContact.notes || "");
+    }
+  }, [contactId]);
+
 
   const [formattedBirthday, setFormattedBirthday] = useState<string | null>(null);
   const [formattedCreatedAt, setFormattedCreatedAt] = useState<string | null>(null);
@@ -36,8 +53,7 @@ export default function ContactDetailPage() {
 
   useEffect(() => {
     if (contact?.birthday) {
-      // Ensure date is parsed and displayed in UTC to avoid timezone differences
-      const date = typeof contact.birthday === 'string' ? new Date(contact.birthday) : contact.birthday;
+      const date = typeof contact.birthday === 'string' ? new Date(contact.birthday + 'T00:00:00Z') : contact.birthday; // Ensure UTC interpretation
       setFormattedBirthday(date.toLocaleDateString('en-US', { 
           year: 'numeric', 
           month: 'long', 
@@ -49,11 +65,13 @@ export default function ContactDetailPage() {
     }
 
     if (contact?.createdAt) {
-        const date = typeof contact.createdAt === 'string' ? new Date(contact.createdAt) : contact.createdAt;
+        const date = contact.createdAt instanceof Date ? contact.createdAt : new Date(contact.createdAt);
         setFormattedCreatedAt(date.toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
             timeZone: 'UTC' 
         }));
     } else {
@@ -61,11 +79,13 @@ export default function ContactDetailPage() {
     }
 
     if (contact?.updatedAt) {
-        const date = typeof contact.updatedAt === 'string' ? new Date(contact.updatedAt) : contact.updatedAt;
+        const date = contact.updatedAt instanceof Date ? contact.updatedAt : new Date(contact.updatedAt);
         setFormattedUpdatedAt(date.toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
             timeZone: 'UTC' 
         }));
     } else {
@@ -74,14 +94,48 @@ export default function ContactDetailPage() {
   }, [contact?.birthday, contact?.createdAt, contact?.updatedAt]);
 
 
+  const handleSaveNotes = async () => {
+    if (!contact) return;
+    setIsSavingNotes(true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Update mock data (this won't persist if page reloads or for other users)
+    // For demonstration, update the local state of the contact
+    const updatedContact = { ...contact, notes: notesInput, updatedAt: new Date() };
+    setContact(updatedContact);
+
+    // Find and update in global mockContacts array if needed for some consistency during session
+    // This is a hack for mock data. In a real app, data would be refetched or managed by a state library.
+    const contactIndex = mockContacts.findIndex(c => c.id === contactId);
+    if (contactIndex !== -1) {
+        mockContacts[contactIndex] = { ...mockContacts[contactIndex], notes: notesInput, updatedAt: new Date() };
+    }
+
+    console.log("Updated notes for contact:", contactId, "New notes:", notesInput);
+    toast({ title: "Notes Saved", description: "Your notes have been updated." });
+    setIsSavingNotes(false);
+    setIsNotesDialogOpen(false);
+  };
+
+  if (contact === undefined) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="w-16 h-16 text-muted-foreground animate-spin mb-4" />
+        <p className="text-muted-foreground">Loading contact details...</p>
+      </div>
+    );
+  }
+
+
   if (!contact) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Users className="w-16 h-16 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-semibold mb-2">Contact Not Found</h1>
         <p className="text-muted-foreground mb-4">The contact you are looking for does not exist.</p>
-        <Button onClick={() => router.push("/dashboard")}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+        <Button onClick={() => router.push("/contacts")}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Contacts
         </Button>
       </div>
     );
@@ -99,21 +153,23 @@ export default function ContactDetailPage() {
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <Button variant="default">
-          <Edit3 className="mr-2 h-4 w-4" /> Edit Contact
+        <Button variant="default" asChild>
+          <Link href={`/contacts/${contact.id}/edit`}>
+            <Edit3 className="mr-2 h-4 w-4" /> Edit Contact
+          </Link>
         </Button>
       </div>
 
       <Card className="shadow-xl overflow-hidden">
         <div className="relative h-48 bg-muted">
-          {/* Placeholder for a cover photo */}
           <Image 
-            src={`https://picsum.photos/seed/${contact.id}_cover/1000/200`} 
+            src={contact.photoURL || `https://picsum.photos/seed/${contact.id}_cover/1000/200`} 
             alt={`${contact.name} cover photo`} 
             fill={true}
             style={{objectFit:"cover"}}
             data-ai-hint="landscape nature"
             className="opacity-50"
+            priority
           />
           <div className="absolute bottom-0 left-0 p-6 flex items-end space-x-4">
             <Avatar className="w-32 h-32 border-4 border-background shadow-lg">
@@ -168,7 +224,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born {formattedBirthday || 'Loading...'}</span>
+                        <span>Born {formattedBirthday || 'N/A'}</span>
                       </div>
                     )}
                   </CardContent>
@@ -204,11 +260,11 @@ export default function ContactDetailPage() {
               
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags & Category</CardTitle>
+                  <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Category</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                   {contact.category && <div className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></div>}
-                  <div className="flex flex-wrap gap-2">
+                   {contact.category && <span className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></span>}
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
                     ))}
@@ -291,7 +347,38 @@ export default function ContactDetailPage() {
                     )}
                 </CardContent>
                  <CardFooter>
-                    <Button variant="outline">Edit Notes</Button>
+                    <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">Edit Notes</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Edit Notes for {contact.name}</DialogTitle>
+                                <DialogDescription>
+                                    Make changes to your personal notes for this contact. Click save when you're done.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="notes-input" className="sr-only">Notes</Label>
+                                    <Textarea 
+                                        id="notes-input"
+                                        value={notesInput}
+                                        onChange={(e) => setNotesInput(e.target.value)}
+                                        className="col-span-4 min-h-[150px]"
+                                        placeholder="Type your notes here..."
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsNotesDialogOpen(false)} disabled={isSavingNotes}>Cancel</Button>
+                                <Button type="button" onClick={handleSaveNotes} disabled={isSavingNotes}>
+                                    {isSavingNotes && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Notes
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </CardFooter>
                </Card>
             </TabsContent>
@@ -299,11 +386,10 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-          <p>Contact created on: {formattedCreatedAt || 'Loading...'}</p>
-          <p className="ml-auto">Last updated: {formattedUpdatedAt || 'Loading...'}</p>
+          <p>Contact created on: {formattedCreatedAt || 'N/A'}</p>
+          <p className="ml-auto">Last updated: {formattedUpdatedAt || 'N/A'}</p>
         </CardFooter>
       </Card>
     </div>
   );
 }
-

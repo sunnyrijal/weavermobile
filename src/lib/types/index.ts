@@ -1,5 +1,6 @@
-
 import type { Timestamp } from 'firebase/firestore'; // Only for type, mock will use Date
+import type { z } from 'zod';
+import type { contactFormSchema } from '@/components/contacts/ContactForm'; // Assuming ContactForm will export its schema
 
 export interface UserProfile {
   uid: string;
@@ -69,3 +70,6 @@ export interface ImportedContactPreview {
 }
 
 export type ContactViewMode = 'list' | 'grid' | 'tree';
+
+// Form specific types
+export type ContactFormValues = z.infer<typeof contactFormSchema>;
