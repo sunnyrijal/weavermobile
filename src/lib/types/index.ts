@@ -1,0 +1,71 @@
+
+import type { Timestamp } from 'firebase/firestore'; // Only for type, mock will use Date
+
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  createdAt?: Date | Timestamp;
+  userPreferences?: {
+    defaultView?: 'list' | 'grid' | 'tree';
+  };
+}
+
+export interface Relationship {
+  relatedContactId: string;
+  type: string; // e.g., "Parent", "Sibling", "Partner", "Child", "Colleague", "Pet", "Friend"
+  customLabel?: string;
+}
+
+export interface Contact {
+  id: string; // Firestore document ID
+  ownerId: string; // User UID
+  name: string;
+  photoURL?: string; // URL to image in Firebase Storage
+  birthday?: string; // YYYY-MM-DD
+  locationDetails?: string; // e.g., "Ohio → Univ. of Cincinnati, Mechanical Engineer"
+  occupation?: string;
+  company?: string;
+  socialProfiles?: {
+    linkedin?: string;
+    instagram?: string;
+    twitter?: string;
+    facebook?: string;
+    [key: string]: string | undefined; // For other social platforms
+  };
+  phone?: string;
+  email?: string;
+  category?: string; // e.g., "Family", "Friend", "Colleague", "Professional", or custom
+  importSource?: string; // e.g., "Manual", "LinkedIn", "Phone"
+  tags: string[];
+  notes?: string;
+  photosTogether: string[]; // Array of URLs to images in Firebase Storage
+  relationships: Relationship[];
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+}
+
+// For Relationship Map visualization
+export interface NodeData extends Contact {
+  isCentral?: boolean;
+}
+
+export interface EdgeData {
+  id: string; // Unique ID for the edge
+  source: string; // contactId
+  target: string; // contactId
+  label?: string; // relationship type or customLabel
+  type: string; // relationship type
+}
+
+// Example for OAuth preview
+export interface ImportedContactPreview {
+  sourceId: string; // ID from the external platform
+  name: string;
+  photoURL?: string;
+  email?: string;
+  [key: string]: any; // Other metadata
+}
+
+export type ContactViewMode = 'list' | 'grid' | 'tree';
