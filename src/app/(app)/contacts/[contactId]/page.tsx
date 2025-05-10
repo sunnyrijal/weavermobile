@@ -50,7 +50,13 @@ export default function ContactDetailPage() {
   const formatDate = (dateInput?: Date | string) => {
     if (!dateInput) return 'N/A';
     const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    // Ensure date is parsed and displayed in UTC to avoid timezone differences
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        timeZone: 'UTC' 
+    });
   };
 
 
@@ -71,8 +77,8 @@ export default function ContactDetailPage() {
           <Image 
             src={`https://picsum.photos/seed/${contact.id}_cover/1000/200`} 
             alt={`${contact.name} cover photo`} 
-            layout="fill" 
-            objectFit="cover" 
+            fill={true}
+            style={{objectFit:"cover"}}
             data-ai-hint="landscape nature"
             className="opacity-50"
           />
@@ -168,7 +174,7 @@ export default function ContactDetailPage() {
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags & Category</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                   {contact.category && <div className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></div>}
+                   {contact.category && <p className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></p>}
                   <div className="flex flex-wrap gap-2">
                     {contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
