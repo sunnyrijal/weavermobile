@@ -7,63 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud } from "lucide-react";
 import type { Contact, ContactViewMode } from '@/lib/types';
+import { mockContacts } from '@/lib/mockData'; // Import mockContacts
 import Image from 'next/image';
 import Link from 'next/link';
-
-// Mock data for contacts - replace with actual data fetching
-const mockContacts: Contact[] = [
-  {
-    id: "1",
-    ownerId: "user1",
-    name: "Chandra Oli",
-    photoURL: "https://picsum.photos/seed/chandra/100/100",
-    category: "Friend",
-    tags: ["BNKS", "Univ. of Cincinnati"],
-    locationDetails: "Ohio → Univ. of Cincinnati, Mechanical Engineer",
-    relationships: [],
-    photosTogether: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: "2",
-    ownerId: "user1",
-    name: "Ritisha KC",
-    photoURL: "https://picsum.photos/seed/ritisha/100/100",
-    category: "Partner",
-    tags: ["Nursing Student", "Cincinnati"],
-    relationships: [],
-    photosTogether: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: "3",
-    ownerId: "user1",
-    name: "Abhas Oli",
-    photoURL: "https://picsum.photos/seed/abhas/100/100",
-    category: "Friend",
-    tags: ["Beloit College", "Computer Science"],
-    locationDetails: "Wisconsin → Beloit College, Computer Science",
-    relationships: [],
-    photosTogether: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: "4",
-    ownerId: "user1",
-    name: "Sam Hendrickson",
-    photoURL: "https://picsum.photos/seed/sam/100/100",
-    category: "Friend",
-    tags: ["Gustavus Adolphus", "Biology"],
-    locationDetails: "Minnesota, Biology Major",
-    relationships: [],
-    photosTogether: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
 
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
@@ -128,7 +74,7 @@ export default function DashboardPage() {
     return matchesSearch && matchesFilter;
   });
   
-  const filterCategories = ["All", "Family", "Friend", "Colleague", "Professional"];
+  const filterCategories = ["All", "Family", "Friend", "Colleague", "Professional", "Partner"];
 
   return (
     <div className="space-y-6">
@@ -200,7 +146,7 @@ export default function DashboardPage() {
       </div>
       
       <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-4">
           {filterCategories.map(category => (
             <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
           ))}
