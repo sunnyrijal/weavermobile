@@ -1,22 +1,13 @@
 
-import type {Metadata} from 'next';
-import {Geist, Geist_Mono} from 'next/font/google';
+import type { Metadata } from 'next';
+// Removed Geist font imports as 'geist' package is not a dependency
 import './globals.css';
+import { cn } from '@/lib/utils';
 import { AppProviders } from '@/components/providers/AppProviders';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
 
 export const metadata: Metadata = {
   title: 'NetworkNest',
-  description: 'Organize, visualize, and deepen your personal and professional connections.',
+  description: 'Your Personal Relationship Manager',
 };
 
 export default function RootLayout({
@@ -26,9 +17,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body 
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning={true}
+      <body
+        className={cn(
+          'min-h-screen bg-background font-sans antialiased'
+          // Removed GeistSans.variable and GeistMono.variable
+        )}
+        suppressHydrationWarning={true} 
       >
         <AppProviders>
           {children}
