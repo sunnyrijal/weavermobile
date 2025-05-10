@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { mockContacts } from "@/lib/mockData";
-import type { Contact, Relationship } from "@/lib/types";
+import type { Contact } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare } from "lucide-react";
+import React, { useState, useEffect } from 'react';
 
 const getInitials = (name: string) => {
   const names = name.split(' ');
@@ -28,6 +29,50 @@ export default function ContactDetailPage() {
   const contactId = params.contactId as string;
 
   const contact = mockContacts.find((c) => c.id === contactId);
+
+  const [formattedBirthday, setFormattedBirthday] = useState<string | null>(null);
+  const [formattedCreatedAt, setFormattedCreatedAt] = useState<string | null>(null);
+  const [formattedUpdatedAt, setFormattedUpdatedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (contact?.birthday) {
+      // Ensure date is parsed and displayed in UTC to avoid timezone differences
+      const date = typeof contact.birthday === 'string' ? new Date(contact.birthday) : contact.birthday;
+      setFormattedBirthday(date.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          timeZone: 'UTC' 
+      }));
+    } else {
+        setFormattedBirthday('N/A');
+    }
+
+    if (contact?.createdAt) {
+        const date = typeof contact.createdAt === 'string' ? new Date(contact.createdAt) : contact.createdAt;
+        setFormattedCreatedAt(date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            timeZone: 'UTC' 
+        }));
+    } else {
+        setFormattedCreatedAt('N/A');
+    }
+
+    if (contact?.updatedAt) {
+        const date = typeof contact.updatedAt === 'string' ? new Date(contact.updatedAt) : contact.updatedAt;
+        setFormattedUpdatedAt(date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            timeZone: 'UTC' 
+        }));
+    } else {
+        setFormattedUpdatedAt('N/A');
+    }
+  }, [contact?.birthday, contact?.createdAt, contact?.updatedAt]);
+
 
   if (!contact) {
     return (
@@ -47,18 +92,6 @@ export default function ContactDetailPage() {
     return relatedContact ? relatedContact.name : "Unknown Contact";
   };
   
-  const formatDate = (dateInput?: Date | string) => {
-    if (!dateInput) return 'N/A';
-    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-    // Ensure date is parsed and displayed in UTC to avoid timezone differences
-    return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        timeZone: 'UTC' 
-    });
-  };
-
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -135,7 +168,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born {formatDate(contact.birthday)}</span>
+                        <span>Born {formattedBirthday || 'Loading...'}</span>
                       </div>
                     )}
                   </CardContent>
@@ -174,7 +207,7 @@ export default function ContactDetailPage() {
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags & Category</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                   {contact.category && <p className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></p>}
+                   {contact.category && <div className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></div>}
                   <div className="flex flex-wrap gap-2">
                     {contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
@@ -266,8 +299,8 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-          <p>Contact created on: {formatDate(contact.createdAt as Date)}</p>
-          <p className="ml-auto">Last updated: {formatDate(contact.updatedAt as Date)}</p>
+          <p>Contact created on: {formattedCreatedAt || 'Loading...'}</p>
+          <p className="ml-auto">Last updated: {formattedUpdatedAt || 'Loading...'}</p>
         </CardFooter>
       </Card>
     </div>
