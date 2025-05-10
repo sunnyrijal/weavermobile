@@ -1,4 +1,3 @@
-
 // This page can be developed further if a dedicated contacts overview is needed
 // separate from the dashboard's implementation.
 // For now, the dashboard page at /dashboard handles contact listing and filtering.
