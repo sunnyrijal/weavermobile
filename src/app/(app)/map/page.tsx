@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Share2, ZoomIn, ZoomOut, Users, Download } from "lucide-react";
+import { Share2, ZoomIn, ZoomOut, Users, Download, Heart } from "lucide-react"; // Added Heart icon
 import React, { useState, useCallback, useEffect } from 'react';
 
 // Basic Node and Edge types for the placeholder
@@ -183,3 +183,4 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
+
