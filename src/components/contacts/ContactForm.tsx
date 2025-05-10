@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ContactFormValues } from "@/lib/types/forms";
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, University } from "lucide-react"; // Added University icon
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -37,6 +38,7 @@ export const contactFormSchema = z.object({
   phone: z.string().optional(),
   occupation: z.string().optional(),
   company: z.string().optional(),
+  college: z.string().optional(), // Added college to schema
   category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", ""]).optional(),
   locationDetails: z.string().optional(),
   birthday: z.date().optional().nullable(),
@@ -62,6 +64,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         phone: '',
         occupation: '',
         company: '',
+        college: '', // Added college default value
         category: '',
         locationDetails: '',
         birthday: null,
@@ -151,6 +154,23 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               />
             </div>
             
+            <FormField
+              control={form.control}
+              name="college"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                    <University className="mr-2 h-4 w-4 text-muted-foreground" />
+                    College / University
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., University of Example" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="locationDetails"

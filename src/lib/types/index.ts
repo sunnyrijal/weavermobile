@@ -28,6 +28,7 @@ export interface Contact {
   locationDetails?: string; // e.g., "Ohio → Univ. of Cincinnati, Mechanical Engineer"
   occupation?: string;
   company?: string;
+  college?: string; // Added college field
   socialProfiles?: {
     linkedin?: string;
     instagram?: string;

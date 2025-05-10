@@ -12,6 +12,7 @@ export const mockContacts: Contact[] = [
     locationDetails: "Ohio → Univ. of Cincinnati, Mechanical Engineer",
     occupation: "Software Engineer",
     company: "Tech Innovations Inc.",
+    college: "University of Cincinnati",
     socialProfiles: {
       linkedin: "linkedin.com/in/chandraoli",
       twitter: "twitter.com/chandraoli",
@@ -41,6 +42,7 @@ export const mockContacts: Contact[] = [
     locationDetails: "Cincinnati, OH",
     occupation: "Nursing Student",
     company: "University Hospital",
+    college: "University of Cincinnati", // Example
      socialProfiles: {
       instagram: "instagram.com/ritishakc",
     },
@@ -61,7 +63,8 @@ export const mockContacts: Contact[] = [
     tags: ["Beloit College", "Computer Science", "Gaming"],
     locationDetails: "Wisconsin → Beloit College, Computer Science",
     occupation: "Student",
-    company: "Beloit College",
+    company: "Beloit College", // Using company for current institution if student
+    college: "Beloit College",
     email: "abhas.oli@example.com",
     birthday: "2002-11-05",
     notes: "Younger brother's friend. Very bright and into competitive gaming.",
@@ -80,12 +83,25 @@ export const mockContacts: Contact[] = [
     locationDetails: "Minnesota, Biology Major",
     occupation: "Research Assistant",
     company: "Mayo Clinic",
+    college: "Gustavus Adolphus College",
      socialProfiles: {
       linkedin: "linkedin.com/in/samhendrickson",
     },
     email: "sam.hendrickson@example.com",
     notes: "Former colleague from a summer internship. Passionate about genetics.",
-    relationships: [],
+    relationships: [
+        { relatedContactId: "emily_g", type: "Partner", customLabel: "Partner (Emily Grenecer)" },
+        { relatedContactId: "alpine_d", type: "Pet", customLabel: "Alpine (Dog)" },
+        { relatedContactId: "shula_d", type: "Pet", customLabel: "Shula (Dog)" },
+        { relatedContactId: "sara_h", type: "Parent", customLabel: "Sara Hendrickson (Mother)"},
+        { relatedContactId: "john_h", type: "Parent", customLabel: "John Hendrickson (Father)"},
+        { relatedContactId: "greta_h", type: "Sibling", customLabel: "Greta Hendrickson (Sister)"},
+        { relatedContactId: "philip_e", type: "Uncle", customLabel: "Philip Eidsvold (Uncle)"},
+        { relatedContactId: "ty_b", type: "Uncle", customLabel: "Ty Baucum (Uncle)"},
+        { relatedContactId: "ryan_h", type: "Uncle", customLabel: "Ryan Hendrickson (Uncle)"},
+        { relatedContactId: "jim_e", type: "Grandparent", customLabel: "Jim Eidsvold (Grandfather)"},
+        { relatedContactId: "anne_e", type: "Grandparent", customLabel: "Anne Eidsvold (Grandmother)"},
+    ],
     photosTogether: [],
     createdAt: new Date("2022-09-01T10:00:00Z"),
     updatedAt: new Date("2024-03-10T16:00:00Z"),
@@ -100,6 +116,7 @@ export const mockContacts: Contact[] = [
     locationDetails: "Stanford University",
     occupation: "Professor of Physics",
     company: "Stanford University",
+    college: "Stanford University", // Assuming she also works where she studied, or it's her primary affiliation
     email: "emily.carter@stanford.edu",
     notes: "PhD advisor and mentor. Incredibly supportive and knowledgeable.",
     relationships: [],
@@ -107,4 +124,16 @@ export const mockContacts: Contact[] = [
     createdAt: new Date("2018-08-20T10:00:00Z"),
     updatedAt: new Date("2024-02-15T12:45:00Z"),
   },
+  // Contacts for Sam Hendrickson's network
+  { id: "emily_g", ownerId: "user1", name: "Emily Grenecer", occupation: "Peace Corps Volunteer", locationDetails: "Portland, Maine", tags: ["Partner", "Peace Corps"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Partner" }], photosTogether: [] },
+  { id: "alpine_d", ownerId: "user1", name: "Alpine (Dog)", category: "Pet", tags: ["Dog", "Black Labrador"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Owner" }], photosTogether: [] },
+  { id: "shula_d", ownerId: "user1", name: "Shula (Dog)", category: "Pet", tags: ["Dog", "Black Labrador"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Owner" }], photosTogether: [] },
+  { id: "sara_h", ownerId: "user1", name: "Sara Hendrickson", category: "Family", tags: ["Parent", "Mother"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Child" }], photosTogether: [] },
+  { id: "john_h", ownerId: "user1", name: "John Hendrickson", occupation: "DNR Engineer", locationDetails: "Duluth", category: "Family", tags: ["Parent", "Father"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Child" }], photosTogether: [] },
+  { id: "greta_h", ownerId: "user1", name: "Greta Hendrickson", occupation: "Student", locationDetails: "College in NY", category: "Family", tags: ["Sibling", "Sister", "Skiing"], college: "College in NY", createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Sibling" }], photosTogether: [] },
+  { id: "philip_e", ownerId: "user1", name: "Philip Eidsvold", occupation: "VP Marketing", company: "One10", locationDetails: "Edina, MN", category: "Family", tags: ["Uncle", "Marketing"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Nephew/Niece" }], photosTogether: [] },
+  { id: "ty_b", ownerId: "user1", name: "Ty Baucum", occupation: "Owner", company: "Wovenbyrd", category: "Family", tags: ["Uncle", "Business Owner"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Nephew/Niece" }], photosTogether: [] },
+  { id: "ryan_h", ownerId: "user1", name: "Ryan Hendrickson", category: "Family", tags: ["Uncle"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Nephew/Niece" }], photosTogether: [] },
+  { id: "jim_e", ownerId: "user1", name: "Jim Eidsvold", category: "Family", tags: ["Grandparent", "Grandfather"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Grandchild" }], photosTogether: [] },
+  { id: "anne_e", ownerId: "user1", name: "Anne Eidsvold", category: "Family", tags: ["Grandparent", "Grandmother"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Grandchild" }], photosTogether: [] },
 ];

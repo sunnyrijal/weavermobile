@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import React, { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { mockContacts } from "@/lib/mockData"; // Import mockContacts to add new contact
 
 export default function NewContactPage() {
   const { toast } = useToast();
@@ -37,8 +38,8 @@ export default function NewContactPage() {
       createdAt: new Date(),
       updatedAt: new Date(),
       birthday: values.birthday ? format(values.birthday, "yyyy-MM-dd") : undefined,
+      college: values.college || undefined, // Add college
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
-      // For mock purposes, socialProfiles, photosTogether, relationships are empty or derived if needed
       socialProfiles: {},
       photosTogether: [],
       relationships: [],
@@ -46,7 +47,9 @@ export default function NewContactPage() {
 
     console.log("New Contact Data:", newContactData);
     // In a real app, you would add this to Firestore or your backend
-    // For now, we just log it and show a success toast
+    // For now, add to mockContacts for demo purposes
+    mockContacts.push(newContactData);
+
 
     toast({
       title: "Contact Added",
@@ -72,11 +75,11 @@ const format = (date: Date, formatStr: string): string => {
     // Basic yyyy-MM-dd for simplicity here
     if (formatStr === "yyyy-MM-dd") {
         const d = new Date(date);
-        const month = '' + (d.getMonth() + 1);
-        const day = '' + d.getDate();
-        const year = d.getFullYear();
-
-        return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
+        // Adjust for timezone offset to get correct UTC date
+        const year = d.getUTCFullYear();
+        const month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+        const day = d.getUTCDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
     // For "PPP" format used by react-day-picker display
      if (formatStr === "PPP") {

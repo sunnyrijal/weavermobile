@@ -59,17 +59,23 @@ export default function EditContactPage() {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const updatedContactData = {
+    const updatedContactData: Contact = {
       ...contact, // Spread existing contact data
       ...values,  // Spread form values
       updatedAt: new Date(),
       birthday: values.birthday ? format(values.birthday, "yyyy-MM-dd") : undefined,
+      college: values.college || undefined, // Add college
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
     };
 
     console.log("Updated Contact Data:", updatedContactData);
     // In a real app, you would update this in Firestore or your backend
-    // And potentially update the mockContacts array for immediate reflection (not done here for simplicity)
+    // Update mockContacts array for immediate reflection
+    const contactIndex = mockContacts.findIndex(c => c.id === contactId);
+    if (contactIndex !== -1) {
+        mockContacts[contactIndex] = updatedContactData;
+    }
+
 
     toast({
       title: "Contact Updated",
@@ -110,6 +116,7 @@ export default function EditContactPage() {
     phone: contact.phone || '',
     occupation: contact.occupation || '',
     company: contact.company || '',
+    college: contact.college || '', // Add college to default values
     category: contact.category as ContactFormValues['category'] || '',
     locationDetails: contact.locationDetails || '',
     birthday: contact.birthday ? new Date(contact.birthday + 'T00:00:00') : null, // Ensure correct date parsing for UTC

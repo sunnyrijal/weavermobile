@@ -15,16 +15,46 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University } from "lucide-react"; // Added University
 import React, { useState, useEffect } from 'react';
 
 const getInitials = (name: string) => {
+  if (!name) return "NN";
   const names = name.split(' ');
   if (names.length > 1) {
     return names[0][0].toUpperCase() + names[names.length - 1][0].toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
 };
+
+
+// Function to format date for display, ensuring client-side only execution
+const formatDateForDisplay = (dateString?: string | Date): string | null => {
+  if (!dateString) return 'N/A';
+  const date = typeof dateString === 'string' ? new Date(dateString + 'T00:00:00Z') : dateString; // Assume YYYY-MM-DD is UTC
+  if (isNaN(date.getTime())) return 'N/A'; // Invalid date
+  return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'UTC' 
+  });
+};
+
+const formatDateTimeForDisplay = (dateTimeString?: string | Date): string | null => {
+    if (!dateTimeString) return 'N/A';
+    const date = dateTimeString instanceof Date ? dateTimeString : new Date(dateTimeString);
+    if (isNaN(date.getTime())) return 'N/A'; // Invalid date
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC' // Display in UTC or adjust as needed
+    });
+};
+
 
 export default function ContactDetailPage() {
   const params = useParams();
@@ -38,60 +68,28 @@ export default function ContactDetailPage() {
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
+  // State for formatted dates to avoid hydration mismatch
+  const [formattedBirthday, setFormattedBirthday] = useState<string | null>(null);
+  const [formattedCreatedAt, setFormattedCreatedAt] = useState<string | null>(null);
+  const [formattedUpdatedAt, setFormattedUpdatedAt] = useState<string | null>(null);
+
+
   useEffect(() => {
     const foundContact = mockContacts.find((c) => c.id === contactId);
     setContact(foundContact);
     if (foundContact) {
       setNotesInput(foundContact.notes || "");
+      // Set formatted dates here to ensure they are computed on client side
+      setFormattedBirthday(formatDateForDisplay(foundContact.birthday));
+      setFormattedCreatedAt(formatDateTimeForDisplay(foundContact.createdAt));
+      setFormattedUpdatedAt(formatDateTimeForDisplay(foundContact.updatedAt));
+    } else {
+      // Reset dates if contact not found
+      setFormattedBirthday(null);
+      setFormattedCreatedAt(null);
+      setFormattedUpdatedAt(null);
     }
   }, [contactId]);
-
-
-  const [formattedBirthday, setFormattedBirthday] = useState<string | null>(null);
-  const [formattedCreatedAt, setFormattedCreatedAt] = useState<string | null>(null);
-  const [formattedUpdatedAt, setFormattedUpdatedAt] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (contact?.birthday) {
-      const date = typeof contact.birthday === 'string' ? new Date(contact.birthday + 'T00:00:00Z') : contact.birthday; // Ensure UTC interpretation
-      setFormattedBirthday(date.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric',
-          timeZone: 'UTC' 
-      }));
-    } else {
-        setFormattedBirthday('N/A');
-    }
-
-    if (contact?.createdAt) {
-        const date = contact.createdAt instanceof Date ? contact.createdAt : new Date(contact.createdAt);
-        setFormattedCreatedAt(date.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'UTC' 
-        }));
-    } else {
-        setFormattedCreatedAt('N/A');
-    }
-
-    if (contact?.updatedAt) {
-        const date = contact.updatedAt instanceof Date ? contact.updatedAt : new Date(contact.updatedAt);
-        setFormattedUpdatedAt(date.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'UTC' 
-        }));
-    } else {
-        setFormattedUpdatedAt('N/A');
-    }
-  }, [contact?.birthday, contact?.createdAt, contact?.updatedAt]);
 
 
   const handleSaveNotes = async () => {
@@ -100,16 +98,15 @@ export default function ContactDetailPage() {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Update mock data (this won't persist if page reloads or for other users)
-    // For demonstration, update the local state of the contact
-    const updatedContact = { ...contact, notes: notesInput, updatedAt: new Date() };
+    const newUpdatedAt = new Date();
+    const updatedContact = { ...contact, notes: notesInput, updatedAt: newUpdatedAt };
     setContact(updatedContact);
+    setFormattedUpdatedAt(formatDateTimeForDisplay(newUpdatedAt)); // Update formatted date
 
-    // Find and update in global mockContacts array if needed for some consistency during session
-    // This is a hack for mock data. In a real app, data would be refetched or managed by a state library.
+
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
-        mockContacts[contactIndex] = { ...mockContacts[contactIndex], notes: notesInput, updatedAt: new Date() };
+        mockContacts[contactIndex] = { ...mockContacts[contactIndex], notes: notesInput, updatedAt: newUpdatedAt };
     }
 
     console.log("Updated notes for contact:", contactId, "New notes:", notesInput);
@@ -224,14 +221,14 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born {formattedBirthday || 'N/A'}</span>
+                        <span>Born {formattedBirthday}</span>
                       </div>
                     )}
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Professional Details</CardTitle>
+                    <CardTitle className="text-lg">Professional &amp; Education</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                     {contact.occupation && (
@@ -244,6 +241,12 @@ export default function ContactDetailPage() {
                       <div className="flex items-center">
                         <Building className="mr-3 h-5 w-5 text-muted-foreground" />
                         <span>{contact.company}</span>
+                      </div>
+                    )}
+                    {contact.college && (
+                      <div className="flex items-center">
+                        <University className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <span>Studied at {contact.college}</span>
                       </div>
                     )}
                     {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
@@ -265,7 +268,7 @@ export default function ContactDetailPage() {
                 <CardContent className="space-y-2">
                    {contact.category && <span className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></span>}
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {contact.tags.map((tag) => (
+                    {contact.tags && contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
                     ))}
                   </div>
@@ -386,8 +389,8 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-          <p>Contact created on: {formattedCreatedAt || 'N/A'}</p>
-          <p className="ml-auto">Last updated: {formattedUpdatedAt || 'N/A'}</p>
+          <p>Contact created on: {formattedCreatedAt}</p>
+          <p className="ml-auto">Last updated: {formattedUpdatedAt}</p>
         </CardFooter>
       </Card>
     </div>

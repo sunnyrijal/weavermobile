@@ -13,6 +13,7 @@ const placeholderContactFormSchema = z.object({
   phone: z.string().optional(),
   occupation: z.string().optional(),
   company: z.string().optional(),
+  college: z.string().optional(), // Added college field
   category: z.string().optional(),
   locationDetails: z.string().optional(),
   birthday: z.date().optional().nullable(),
