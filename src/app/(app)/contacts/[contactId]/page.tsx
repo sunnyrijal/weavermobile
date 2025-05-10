@@ -168,7 +168,7 @@ export default function ContactDetailPage() {
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags & Category</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                   {contact.category && <p className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></p>}
+                   {contact.category && <div className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></div>}
                   <div className="flex flex-wrap gap-2">
                     {contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
@@ -267,3 +267,4 @@ export default function ContactDetailPage() {
     </div>
   );
 }
+
