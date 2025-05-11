@@ -25,10 +25,11 @@ interface GroupLabel {
   text: string;
   cx: number; // center x for the label group
   cy: number; // center y for the label group
+  originalText: string; // To match relationship type/customLabel
 }
 
-const CARD_WIDTH = 160; // Increased width for better text fit
-const CARD_HEIGHT = 190; // Increased height for more content
+const CARD_WIDTH = 160; 
+const CARD_HEIGHT = 190; 
 const LABEL_WIDTH = 120;
 const LABEL_HEIGHT = 30;
 
@@ -59,7 +60,7 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
       case 'Family': return { backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', borderColor: 'hsl(var(--primary))' };
       case 'Partner': return { backgroundColor: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))', borderColor: 'hsl(var(--destructive))' };
       case 'Friend': return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))' };
-      case 'Pet': return { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))', borderColor: 'hsl(var(--accent))' }; // Orange for pet
+      case 'Pet': return { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))', borderColor: 'hsl(var(--accent))' }; 
       default: return {};
     }
   }
@@ -99,60 +100,51 @@ RelationshipMapCard.displayName = 'RelationshipMapCard';
 
 const RelationshipMapPlaceholder = () => {
   const router = useRouter();
-  const { toast } = useToast();
   
   const samContact = mockContacts.find(c => c.id === '4'); // Sam Hendrickson
   if (!samContact) return <p>Central contact (Sam Hendrickson) not found.</p>;
 
-  const V_SPACE_CARD = 40; // Increased vertical space between cards
-  const H_SPACE_CARD_GROUP = 30; // Horizontal space between cards in a group (if side-by-side)
-  const V_SPACE_LABEL_CARD = 20; // Space between label and first card
-  const V_SPACE_GROUP = 60; // Space between distinct groups
+  const V_SPACE_CARD = 40; 
+  const H_SPACE_CARD_GROUP = 30; 
+  const V_SPACE_LABEL_CARD = 20; 
+  const V_SPACE_GROUP = 60; 
   
   const X_POS_COL1 = 150;
-  const X_POS_COL2 = X_POS_COL1 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP; // Adjusted X for central column
-  const X_POS_COL3 = X_POS_COL2 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP; // Adjusted X for right column
+  const X_POS_COL2 = X_POS_COL1 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP; 
+  const X_POS_COL3 = X_POS_COL2 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP; 
 
 
   const initialNodes: Node[] = [
     // Sam (Central)
-    { id: samContact.id, contact: samContact, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT/2 }, // Centered more vertically
+    { id: samContact.id, contact: samContact, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT/2 }, 
 
     // Column 1: Partner & Grandparents
-    // Partner
-    ...mockContacts.filter(c => c.id === 'emily_g').map(c => ({ id: c.id, contact: c, x: X_POS_COL1 - CARD_WIDTH/2, y: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD })),
-    // Grandparents (Below Partner)
-    ...mockContacts.filter(c => c.id === 'jim_e').map((c,i) => ({ id: c.id, contact: c, x: X_POS_COL1 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + i * (CARD_HEIGHT + V_SPACE_CARD)})),
-    ...mockContacts.filter(c => c.id === 'anne_e').map((c,i) => ({ id: c.id, contact: c, x: X_POS_COL1 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (i+1) * (CARD_HEIGHT + V_SPACE_CARD)})), // i+1 to offset from Jim
+    { id: 'emily_g', contact: mockContacts.find(c=>c.id==='emily_g')!, x: X_POS_COL1 - CARD_WIDTH/2, y: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD },
+    { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: X_POS_COL1 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) },
+    { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: X_POS_COL1 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD)}, 
     
     // Column 2 (Central Column): Parents & Pets
-    // Parents (Above Sam)
-    ...mockContacts.filter(c => c.id === 'john_h').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + LABEL_HEIGHT + V_SPACE_LABEL_CARD })),
-    ...mockContacts.filter(c => c.id === 'sara_h').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + (CARD_HEIGHT + V_SPACE_CARD) })),
-    // Pets (Below Sam)
-    ...mockContacts.filter(c => c.id === 'alpine_d').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) })),
-    ...mockContacts.filter(c => c.id === 'shula_d').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD)})),
+    { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + LABEL_HEIGHT + V_SPACE_LABEL_CARD },
+    { id: 'sara_h', contact: mockContacts.find(c=>c.id==='sara_h')!, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + (CARD_HEIGHT + V_SPACE_CARD) },
+    { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) },
+    { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD)},
 
     // Column 3: Sister & Uncles
-    // Sister
-    ...mockContacts.filter(c => c.id === 'greta_h').map(c => ({ id: c.id, contact: c, x: X_POS_COL3 - CARD_WIDTH/2, y: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD })),
-    // Uncles (Below Sister)
-    ...mockContacts.filter(c => c.id === 'philip_e').map((c,i) => ({ id: c.id, contact: c, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + i * (CARD_HEIGHT + V_SPACE_CARD) })),
-    ...mockContacts.filter(c => c.id === 'ty_b').map((c,i) => ({ id: c.id, contact: c, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (i+1) * (CARD_HEIGHT + V_SPACE_CARD) })),
-    ...mockContacts.filter(c => c.id === 'ryan_h').map((c,i) => ({ id: c.id, contact: c, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (i+2) * (CARD_HEIGHT + V_SPACE_CARD) })),
-  ].filter(Boolean) as Node[];
-
+    { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: X_POS_COL3 - CARD_WIDTH/2, y: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD },
+    { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) },
+    { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD) },
+    { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + 2 * (CARD_HEIGHT + V_SPACE_CARD) },
+  ].filter(node => node.contact) as Node[]; // Filter out any nodes where contact might be undefined
 
   const groupLabels: GroupLabel[] = [
-    { text: "Partner", cx: X_POS_COL1, cy: 100 },
-    { text: "Grandparents", cx: X_POS_COL1, cy: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
-    
-    { text: "Parents", cx: X_POS_COL2, cy: 20 },
-    { text: "Pets", cx: X_POS_COL2, cy: 20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP },
-    
-    { text: "Sister", cx: X_POS_COL3, cy: 100 },
-    { text: "Uncles", cx: X_POS_COL3, cy: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
+    { text: "Partner", originalText: "Partner (Emily Grenecer)", cx: X_POS_COL1, cy: 100 },
+    { text: "Grandparents", originalText: "Grandparent", cx: X_POS_COL1, cy: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
+    { text: "Parents", originalText: "Parent", cx: X_POS_COL2, cy: 20 },
+    { text: "Pets", originalText: "Pet", cx: X_POS_COL2, cy: 20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP },
+    { text: "Sister", originalText: "Sibling", cx: X_POS_COL3, cy: 100 },
+    { text: "Uncles", originalText: "Uncle", cx: X_POS_COL3, cy: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
   ];
+
 
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
@@ -162,7 +154,7 @@ const RelationshipMapPlaceholder = () => {
     setDraggingNode(nodeId);
     const node = nodes.find(n => n.id === nodeId);
     const svgElement = (e.currentTarget as SVGForeignObjectElement).ownerSVGElement;
-    if (node && node.x != null && node.y != null && svgElement) { 
+    if (node && typeof node.x === 'number' && typeof node.y === 'number' && svgElement) { 
       const CTM = svgElement.getScreenCTM();
       if (CTM) {
         const svgPoint = svgElement.createSVGPoint();
@@ -187,7 +179,9 @@ const RelationshipMapPlaceholder = () => {
 
         setNodes(prevNodes =>
         prevNodes.map(n =>
-            n.id === draggingNode ? { ...n, x: transformedPoint.x - offset.x, y: transformedPoint.y - offset.y } : n
+            n.id === draggingNode && typeof offset.x === 'number' && typeof offset.y === 'number'
+             ? { ...n, x: transformedPoint.x - offset.x, y: transformedPoint.y - offset.y } 
+             : n
         )
         );
     }
@@ -203,8 +197,10 @@ const RelationshipMapPlaceholder = () => {
   
   const viewBoxWidth = Math.max(1000, X_POS_COL3 + CARD_WIDTH/2 + 50);
   const viewBoxHeight = Math.max(1250, 
-    (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + 3 * (CARD_HEIGHT + V_SPACE_CARD) + 50 // Estimate height for uncles column
+    (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + 3 * (CARD_HEIGHT + V_SPACE_CARD) + 50 
   );
+
+  const samNodeDetails = nodes.find(n => n.id === samContact.id);
 
 
   return (
@@ -219,66 +215,70 @@ const RelationshipMapPlaceholder = () => {
       viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
       preserveAspectRatio="xMidYMid meet"
     >
-      {/* Connection Lines */}
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto" fill="hsl(var(--border))">
+          <polygon points="0 0, 10 3.5, 0 7" />
+        </marker>
+      </defs>
+
+      {/* Lines from Sam to Group Labels */}
+      {samNodeDetails && groupLabels.map(label => (
+        <line
+          key={`line-sam-to-group-${label.text.replace(/\s+/g, '-')}`}
+          x1={samNodeDetails.x + CARD_WIDTH / 2}
+          y1={samNodeDetails.y + CARD_HEIGHT / 2}
+          x2={label.cx}
+          y2={label.cy} // Connect to center of label
+          stroke="hsl(var(--border))"
+          strokeWidth="2"
+          markerEnd="url(#arrowhead)"
+        />
+      ))}
+
+      {/* Lines from Group Labels to Nodes */}
       {nodes.map(node => {
-        if (node.id === samContact.id) return null; // Don't draw lines from Sam to himself
-        
-        // Find the group label this node might belong to (simplistic: based on x-coordinate)
-        let parentGroupLabel: GroupLabel | undefined;
-        if (Math.abs(node.x + CARD_WIDTH/2 - X_POS_COL1) < CARD_WIDTH) parentGroupLabel = groupLabels.find(gl => gl.cx === X_POS_COL1 && node.y > gl.cy);
-        else if (Math.abs(node.x + CARD_WIDTH/2 - X_POS_COL2) < CARD_WIDTH && node.id !== samContact.id) parentGroupLabel = groupLabels.find(gl => gl.cx === X_POS_COL2 && node.y > gl.cy && node.y < samContact.y - CARD_HEIGHT/2 || node.y > samContact.y + CARD_HEIGHT/2); // Parents above, Pets below Sam
-        else if (Math.abs(node.x + CARD_WIDTH/2 - X_POS_COL3) < CARD_WIDTH) parentGroupLabel = groupLabels.find(gl => gl.cx === X_POS_COL3 && node.y > gl.cy);
+        if (node.id === samContact.id || !samNodeDetails) return null; 
 
-        let startX = samContact.x + CARD_WIDTH / 2;
-        let startY = samContact.y + CARD_HEIGHT / 2;
-        let endX = node.x + CARD_WIDTH / 2;
-        let endY = node.y + CARD_HEIGHT / 2;
-
-        // If connected to a group label, draw line from Sam to group label, then group label to node
-        if (parentGroupLabel) {
-          // Sam to Group Label
-          const lineToLabelId = `line-sam-to-${parentGroupLabel.text.replace(/\s+/g, '-')}`;
-          // Check if this line is already drawn (to avoid duplicates for multi-contact groups)
-          if (!document.getElementById(lineToLabelId)) {
-             // Line from Sam to the center of the group label
-            const samToLabelStartX = samContact.x + CARD_WIDTH / 2;
-            const samToLabelStartY = samContact.y + CARD_HEIGHT / 2;
-            const samToLabelEndX = parentGroupLabel.cx;
-            const samToLabelEndY = parentGroupLabel.cy;
-            
-            // Draw line from Sam to Group Label (only once per group)
-             if (!document.getElementById(`line-sam-to-${parentGroupLabel.text.replace(/\s+/g, '-')}`)) {
-              // Only draw if not already drawn for this group
-              // (This simple check might not be robust enough for complex state updates)
-              // A better approach might be to manage drawn lines in state.
-             }
-          }
-          // Line from Group Label to Node
-          startX = parentGroupLabel.cx;
-          startY = parentGroupLabel.cy + LABEL_HEIGHT / 2; // From bottom-center of label
-          endY = node.y; // To top-center of card
-        }
-
-        // Define marker for arrowhead
-        <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--border))"/>
-          </marker>
-        </defs>
-        
-        // Line from Sam to Node (or Sam to Group, Group to Node)
-         return (
-          <line
-            key={`line-${samContact.id}-to-${node.id}`}
-            x1={startX}
-            y1={startY}
-            x2={endX}
-            y2={endY}
-            stroke="hsl(var(--border))"
-            strokeWidth="2"
-            markerEnd="url(#arrowhead)"
-          />
+        // Find the group label for this node based on Sam's relationships
+        const samRelationship = samContact.relationships?.find(rel => rel.relatedContactId === node.id);
+        const groupLabelText = samRelationship?.customLabel || samRelationship?.type;
+        const parentGroupLabel = groupLabels.find(gl => 
+          groupLabelText?.includes(gl.originalText) || // For custom labels like "Partner (Emily Grenecer)"
+          groupLabelText === gl.text || // For simple type matches
+          (gl.originalText === "Pet" && node.contact.category === "Pet") // Fallback for pets
         );
+
+        if (parentGroupLabel) {
+          return (
+            <line
+              key={`line-group-${parentGroupLabel.text.replace(/\s+/g, '-')}-to-${node.id}`}
+              x1={parentGroupLabel.cx}
+              y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} // From bottom-center of label
+              x2={node.x + CARD_WIDTH / 2}               // To horizontal center of node card
+              y2={node.y}                                // To top-center of node card
+              stroke="hsl(var(--border))"
+              strokeWidth="2"
+              markerEnd="url(#arrowhead)"
+            />
+          );
+        }
+        // Optional: Draw direct lines from Sam to nodes not fitting any group label category (if any)
+        // else {
+        //   return (
+        //     <line
+        //       key={`line-sam-direct-to-${node.id}`}
+        //       x1={samNodeDetails.x + CARD_WIDTH / 2}
+        //       y1={samNodeDetails.y + CARD_HEIGHT / 2}
+        //       x2={node.x + CARD_WIDTH / 2}
+        //       y2={node.y} // Connect to top of node
+        //       stroke="hsl(var(--border))"
+        //       strokeWidth="1.5" // Thinner or dashed for direct if desired
+        //       strokeDasharray="4 2"
+        //       markerEnd="url(#arrowhead)"
+        //     />
+        //   );
+        // }
+        return null;
       })}
 
 
@@ -294,9 +294,9 @@ const RelationshipMapPlaceholder = () => {
             />
             <text 
                 x={LABEL_WIDTH/2} 
-                y={LABEL_HEIGHT/2 + 5} // Adjusted for vertical centering
+                y={LABEL_HEIGHT/2 + 5} 
                 fontFamily="sans-serif" 
-                fontSize="13px" // Slightly smaller font for labels
+                fontSize="13px" 
                 fill="hsl(var(--accent-foreground))" 
                 textAnchor="middle"
                 fontWeight="bold"
@@ -341,9 +341,10 @@ export default function RelationshipMapPage() {
   const [mapInstance, setMapInstance] = useState<SVGElement | null>(null);
 
   const handleDownloadSVG = () => {
-    if (mapInstance) {
+    const svgElement = document.getElementById('relationship-map-svg');
+    if (svgElement) {
       const serializer = new XMLSerializer();
-      const source = serializer.serializeToString(mapInstance);
+      const source = serializer.serializeToString(svgElement);
       const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -356,12 +357,7 @@ export default function RelationshipMapPage() {
     }
   };
   
-  useEffect(() => {
-    const svgElement = document.getElementById('relationship-map-svg');
-    if (svgElement) {
-      setMapInstance(svgElement as SVGElement);
-    }
-  }, []);
+  // Removed useEffect that sets mapInstance as it's not directly used for download anymore.
 
 
   return (
@@ -387,7 +383,7 @@ export default function RelationshipMapPage() {
       <div className="flex-grow shadow-md overflow-hidden bg-card rounded-lg border border-border">
           <CardContent className="p-4 h-full"> 
               <p className="text-xs text-muted-foreground mb-2 text-center sm:text-left">
-                Hover over cards for quick info. Drag cards to reposition. Lines indicate connections to Sam.
+                Hover over cards for quick info. Drag cards to reposition. Lines indicate connections.
               </p>
               <div className="h-[calc(100%-25px)] w-full"> 
                   <RelationshipMapPlaceholder />
@@ -419,7 +415,7 @@ export default function RelationshipMapPage() {
                     <li>Drag cards to reposition them on the map.</li>
                     <li>Hover over a contact card for quick information.</li>
                     <li>Click "View Profile" on a card to navigate to the contact's detail page.</li>
-                    <li>Lines connect Sam (central node) to other individuals or groups.</li>
+                    <li>Lines connect Sam (central node) to group labels, and group labels to individuals.</li>
                 </ul>
             </div>
         </CardContent>
