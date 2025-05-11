@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -76,6 +77,7 @@ export function GlobalSearchInput() {
         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
         else if (event.error === 'not-allowed') errorMessage = "Microphone access denied. Enable it in browser settings.";
+        else if (event.error === 'network') errorMessage = "Network error during speech recognition. Please check your internet connection.";
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
       };
       
