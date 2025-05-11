@@ -3,97 +3,173 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Share2, ZoomIn, ZoomOut, Users, Download, Heart } from "lucide-react"; 
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Share2, ZoomIn, ZoomOut, Download, Users, Heart, Briefcase, PawPrint, Link as LinkIcon } from "lucide-react"; 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { mockContacts } from "@/lib/mockData"; // Import mockContacts
-import type { Contact } from "@/lib/types"; // Import Contact type
+import { mockContacts } from "@/lib/mockData";
+import type { Contact } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
-
-// Basic Node and Edge types for the placeholder
 interface Node {
   id: string;
-  label: string;
-  x?: number;
-  y?: number;
-  isGroup?: boolean; // To identify group nodes
+  contact: Contact; // Store the full contact object
+  x: number;
+  y: number;
 }
 
 interface Edge {
   id: string;
   source: string;
   target: string;
+  type: 'Family' | 'Partner' | 'Friend' | 'Pet' | 'Colleague' | 'Other';
 }
 
-// This is a VERY basic placeholder for the relationship map.
-// A real implementation would use a library like React Flow, Vis.js, or D3.js.
+const CARD_WIDTH = 160;
+const CARD_HEIGHT = 190; // Adjusted for more content
+
+const RelationshipMapCard = ({ contact, onButtonClick }: { contact: Contact; onButtonClick: (contactId: string) => void; }) => {
+  const getInitials = (name: string) => {
+    if (!name) return "NN";
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return names[0][0].toUpperCase() + names[names.length - 1][0].toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const getCategoryBadgeVariant = (category?: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (category) {
+      case 'Family': return 'default'; // Blueish in dark theme due to primary
+      case 'Partner': return 'destructive'; // Reddish
+      case 'Friend': return 'secondary'; // greenish/tealish with accent
+      case 'Pet': return 'outline'; // orange-ish with ring/accent
+      case 'Colleague': return 'secondary';
+      default: return 'outline';
+    }
+  };
+  
+  // Define specific text colors for badges for better contrast on dark cards
+  const getCategoryBadgeTextColor = (category?: string): string => {
+     switch (category) {
+      case 'Family': return 'text-primary-foreground';
+      case 'Partner': return 'text-destructive-foreground';
+      case 'Friend': return 'text-accent-foreground'; // Assuming accent is light
+      case 'Pet': return 'text-accent-foreground';
+      case 'Colleague': return 'text-secondary-foreground';
+      default: return 'text-foreground';
+    }
+  }
+
+
+  return (
+    <div className="bg-gray-800 text-white rounded-lg shadow-xl p-3 flex flex-col items-center justify-between" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
+      <Avatar className="w-16 h-16 mb-2 border-2 border-gray-700">
+        <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="profile avatar"/>
+        <AvatarFallback className="bg-gray-600 text-xl">{getInitials(contact.name)}</AvatarFallback>
+      </Avatar>
+      <p className="font-semibold text-sm text-center truncate w-full">{contact.name}</p>
+      {contact.category && (
+        <Badge 
+            variant={getCategoryBadgeVariant(contact.category)} 
+            className={`mt-1 text-xs ${getCategoryBadgeTextColor(contact.category)} 
+            ${contact.category === 'Family' ? 'bg-blue-500 border-blue-500' : ''}
+            ${contact.category === 'Pet' ? 'bg-orange-500 border-orange-500' : ''}
+            ${contact.category === 'Friend' ? 'bg-green-500 border-green-500' : ''}
+            ${contact.category === 'Partner' ? 'bg-red-500 border-red-500' : ''}
+            `}
+        >
+            {contact.category}
+        </Badge>
+      )}
+      <p className="text-xs text-gray-400 mt-1 text-center truncate w-full">
+        {contact.occupation || contact.college || contact.locationDetails || 'N/A'}
+      </p>
+      <Button 
+        size="sm" 
+        variant="outline" 
+        className="mt-2 w-full bg-gray-700 hover:bg-gray-600 border-gray-600 text-white text-xs"
+        onClick={() => onButtonClick(contact.id)}
+      >
+        View Profile
+      </Button>
+    </div>
+  );
+};
+
+
 const RelationshipMapPlaceholder = () => {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [nodes, setNodes] = useState<Node[]>([
-    // SAM - Central Node (ID matches mockContacts for Sam Hendrickson)
-    { id: '4', label: 'SAM (You)', x: 400, y: 300 },
+  const samContact = mockContacts.find(c => c.id === '4'); // Sam Hendrickson
+  if (!samContact) return <p>Central contact (Sam Hendrickson) not found.</p>;
 
-    // Direct Connections (IDs match mockContacts)
-    { id: 'emily_g', label: 'Emily Grenecer', x: 400, y: 180 }, // Partner
-    { id: 'greta_h', label: 'Greta Hendrikson', x: 400, y: 420 }, // Sister
-
-    // Group Nodes
-    { id: 'pets_group', label: 'Pets', x: 550, y: 250, isGroup: true },
-    { id: 'parents_group', label: 'Parents', x: 250, y: 250, isGroup: true },
-    { id: 'grandparents_group', label: 'Grandparents', x: 550, y: 350, isGroup: true },
-    { id: 'uncles_group', label: 'Uncles', x: 250, y: 350, isGroup: true },
-
-    // Individuals connected to Groups (IDs match mockContacts)
+  const initialNodes: Node[] = [
+    { id: samContact.id, contact: samContact, x: 400, y: 300 },
+    // Partner
+    ...mockContacts.filter(c => c.id === 'emily_g').map(c => ({ id: c.id, contact: c, x: 400, y: 100 })),
     // Pets
-    { id: 'shula_d', label: 'Shula (dog)', x: 650, y: 230 },
-    { id: 'alpine_d', label: 'Alpine (dog)', x: 650, y: 270 },
+    ...mockContacts.filter(c => c.id === 'shula_d').map(c => ({ id: c.id, contact: c, x: 200, y: 500 })),
+    ...mockContacts.filter(c => c.id === 'alpine_d').map(c => ({ id: c.id, contact: c, x: 380, y: 500 })),
     // Parents
-    { id: 'sara_h', label: 'Sara Hendrickson', x: 150, y: 230 },
-    { id: 'john_h', label: 'John Hendrickson', x: 150, y: 270 },
+    ...mockContacts.filter(c => c.id === 'sara_h').map(c => ({ id: c.id, contact: c, x: 100, y: 200 })),
+    ...mockContacts.filter(c => c.id === 'john_h').map(c => ({ id: c.id, contact: c, x: 100, y: 400 })),
+    // Sister
+    ...mockContacts.filter(c => c.id === 'greta_h').map(c => ({ id: c.id, contact: c, x: 400, y: 500 })), // Near Pets visually
     // Grandparents
-    { id: 'anne_e', label: 'Anne Eidsvold', x: 650, y: 330 },
-    { id: 'jim_e', label: 'Jim Eidsvold', x: 650, y: 370 },
+    ...mockContacts.filter(c => c.id === 'anne_e').map(c => ({ id: c.id, contact: c, x: 700, y: 100 })),
+    ...mockContacts.filter(c => c.id === 'jim_e').map(c => ({ id: c.id, contact: c, x: 700, y: 300 })),
     // Uncles
-    { id: 'philip_e', label: 'Philip Eidsvold', x: 150, y: 330 },
-    { id: 'ty_b', label: 'Ty Baucum', x: 150, y: 350 },
-    { id: 'ryan_h', label: 'Ryan Hendrickson', x: 150, y: 370 },
-  ]);
-
-  const [edges, setEdges] = useState<Edge[]>([
-    // SAM to Direct Connections
-    { id: 'e_sam_emily', source: '4', target: 'emily_g' },
-    { id: 'e_sam_greta_h', source: '4', target: 'greta_h' },
-
-    // SAM to Groups
-    { id: 'e_sam_pets_group', source: '4', target: 'pets_group' },
-    { id: 'e_sam_parents_group', source: '4', target: 'parents_group' },
-    { id: 'e_sam_grandparents_group', source: '4', target: 'grandparents_group' },
-    { id: 'e_sam_uncles_group', source: '4', target: 'uncles_group' },
-
-    // Groups to Individuals
-    { id: 'e_pets_shula', source: 'pets_group', target: 'shula_d' },
-    { id: 'e_pets_alpine', source: 'pets_group', target: 'alpine_d' },
-    { id: 'e_parents_sara_h', source: 'parents_group', target: 'sara_h' },
-    { id: 'e_parents_john_h', source: 'parents_group', target: 'john_h' },
-    { id: 'e_grandparents_anne_e', source: 'grandparents_group', target: 'anne_e' },
-    { id: 'e_grandparents_jim_e', source: 'grandparents_group', target: 'jim_e' },
-    { id: 'e_uncles_philip_e', source: 'uncles_group', target: 'philip_e' },
-    { id: 'e_uncles_ty_b', source: 'uncles_group', target: 'ty_b' },
-    { id: 'e_uncles_ryan_h', source: 'uncles_group', target: 'ryan_h' },
-  ]);
+    ...mockContacts.filter(c => c.id === 'philip_e').map(c => ({ id: c.id, contact: c, x: 600, y: 500 })),
+    ...mockContacts.filter(c => c.id === 'ty_b').map(c => ({ id: c.id, contact: c, x: 780, y: 500 })),
+    ...mockContacts.filter(c => c.id === 'ryan_h').map(c => ({ id: c.id, contact: c, x: 960, y_original_idea: 500, x: 700, y: 500 })), // Adjusted x,y for unique position
+  ].filter((node, index, self) => node && self.findIndex(n => n.id === node.id) === index) // Remove undefined and duplicates
+   .map((node, index, arr) => { // Ensure unique X, Y for uncles if they ended up same
+      if (node.contact.category === 'Family' && node.contact.tags?.includes('Uncle')) {
+          const uncleIndex = arr.filter(n => n.contact.category === 'Family' && n.contact.tags?.includes('Uncle')).findIndex(u => u.id === node.id);
+          return {...node, x: 600 + uncleIndex * (CARD_WIDTH + 50) , y: 500 };
+      }
+      return node;
+   })
+   // Adjust Greta's position
+    .map(node => node.id === 'greta_h' ? { ...node, x: 220, y: 300 } : node);
 
 
+  const initialEdges: Edge[] = samContact.relationships
+    .map(rel => {
+        const targetContact = mockContacts.find(c => c.id === rel.relatedContactId);
+        if (!targetContact) return null;
+        
+        let type: Edge['type'] = 'Other';
+        if (targetContact.category === 'Family' || rel.type === 'Parent' || rel.type === 'Sibling' || rel.type === 'Grandparent' || rel.type === 'Uncle') type = 'Family';
+        else if (targetContact.category === 'Partner' || rel.type === 'Partner') type = 'Partner';
+        else if (targetContact.category === 'Friend' || rel.type === 'Friend') type = 'Friend';
+        else if (targetContact.category === 'Pet' || rel.type === 'Pet') type = 'Pet';
+        else if (targetContact.category === 'Colleague' || rel.type === 'Colleague') type = 'Colleague';
+
+        return {
+            id: `e_${samContact.id}_${rel.relatedContactId}`,
+            source: samContact.id,
+            target: rel.relatedContactId,
+            type: type,
+        };
+    })
+    .filter(edge => edge !== null) as Edge[];
+
+
+  const [nodes, setNodes] = useState<Node[]>(initialNodes);
+  const [edges] = useState<Edge[]>(initialEdges);
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const handleMouseDown = (e: React.MouseEvent<SVGGElement, MouseEvent>, nodeId: string) => {
+  const handleMouseDown = (e: React.MouseEvent<SVGForeignObjectElement, MouseEvent>, nodeId: string) => {
     setDraggingNode(nodeId);
     const node = nodes.find(n => n.id === nodeId);
-    const svgElement = (e.currentTarget as SVGGElement).ownerSVGElement;
+    const svgElement = (e.currentTarget as SVGForeignObjectElement).ownerSVGElement;
     if (node && node.x && node.y && svgElement) {
       const CTM = svgElement.getScreenCTM();
       if (CTM) {
@@ -128,138 +204,101 @@ const RelationshipMapPlaceholder = () => {
   const handleMouseUp = () => {
     setDraggingNode(null);
   };
+  
+  const handleViewProfileClick = (contactId: string) => {
+     router.push(`/contacts/${contactId}`);
+  };
 
-  const handleNodeClick = (nodeId: string, isGroup?: boolean) => {
-    if (isGroup) return; // Do nothing for group nodes for now
-
-    const contactExists = mockContacts.find(c => c.id === nodeId);
-    if (contactExists) {
-      router.push(`/contacts/${nodeId}`);
-    } else {
-      toast({
-        title: "Contact not found",
-        description: `Details for this contact (ID: ${nodeId}) are not available.`,
-        variant: "destructive"
-      });
-      console.warn(`Contact with ID ${nodeId} not found in mockContacts. Cannot navigate.`);
+  const getEdgeColor = (type: Edge['type']) => {
+    switch (type) {
+      case 'Family': return '#3b82f6'; // Blue
+      case 'Partner': return '#ef4444'; // Red
+      case 'Friend': return '#22c55e'; // Green
+      case 'Pet': return '#f97316'; // Orange
+      case 'Colleague': return '#6b7280'; // Gray
+      default: return '#a1a1aa'; // Muted
     }
   };
   
-
   return (
     <svg 
       id="relationship-map-svg"
       width="100%" 
       height="100%" 
-      className="border rounded-lg bg-card shadow-sm"
+      className="border rounded-lg bg-gray-900 shadow-sm" // Dark background for SVG
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp} 
-      viewBox="0 0 800 600" 
+      viewBox="0 0 1200 700" // Adjusted viewBox for more space
       preserveAspectRatio="xMidYMid meet"
     >
       {edges.map(edge => {
         const sourceNode = nodes.find(n => n.id === edge.source);
         const targetNode = nodes.find(n => n.id === edge.target);
-        if (!sourceNode || !targetNode || typeof sourceNode.x !== 'number' || typeof sourceNode.y !== 'number' || typeof targetNode.x !== 'number' || typeof targetNode.y !== 'number') return null;
+        if (!sourceNode || !targetNode) return null;
         
         return (
           <line
             key={edge.id}
-            x1={sourceNode.x}
-            y1={sourceNode.y}
-            x2={targetNode.x}
-            y2={targetNode.y}
-            stroke="hsl(var(--muted-foreground))"
-            strokeWidth="1.5" 
+            x1={sourceNode.x + CARD_WIDTH / 2}
+            y1={sourceNode.y + CARD_HEIGHT / 2}
+            x2={targetNode.x + CARD_WIDTH / 2}
+            y2={targetNode.y + CARD_HEIGHT / 2}
+            stroke={getEdgeColor(edge.type)}
+            strokeWidth="2" 
           />
         );
       })}
-      {nodes.map(node => {
-        const contactInfo = !node.isGroup ? mockContacts.find(c => c.id === node.id) : null;
-        return (
-          <Tooltip key={node.id}>
+      {nodes.map(node => (
+        <TooltipProvider key={node.id}>
+          <Tooltip>
             <TooltipTrigger asChild>
-              <g 
-                transform={`translate(${node.x || 0}, ${node.y || 0})`} 
-                onMouseDown={(e) => handleMouseDown(e, node.id)} 
-                onClick={() => handleNodeClick(node.id, node.isGroup)}
-                className="active:cursor-grabbing"
-                style={{ cursor: !node.isGroup ? 'pointer' : 'grab' }}
-              >
-                <rect 
-                  width="100" 
-                  height="40"  
-                  x="-50"      
-                  y="-20"      
-                  rx="5"       
-                  ry="5"       
-                  fill={
-                    node.id === '4' ? 'hsl(var(--primary))' : // Central node (SAM)
-                    node.isGroup ? 'hsl(var(--muted))' : 'hsl(var(--secondary))'
-                  }
-                  stroke="hsl(var(--border))"
-                  strokeWidth="1.5"
-                />
-                <text
-                  textAnchor="middle"
-                  dy=".3em" 
-                  fill={
-                    node.id === '4' ? 'hsl(var(--primary-foreground))' : 
-                    node.isGroup ? 'hsl(var(--muted-foreground))' : 'hsl(var(--secondary-foreground))'
-                  }
-                  fontSize="10"
-                  fontFamily="sans-serif"
-                  className="pointer-events-none select-none"
+                <foreignObject 
+                    x={node.x} 
+                    y={node.y} 
+                    width={CARD_WIDTH} 
+                    height={CARD_HEIGHT}
+                    onMouseDown={(e) => handleMouseDown(e, node.id)}
+                    className="active:cursor-grabbing cursor-grab"
                 >
-                  {node.label.length > 12 && node.label.includes(" ") ? 
-                    node.label.split(" ").map((part, index, arr) => (
-                      <tspan key={index} x="0" dy={index === 0 ? "0" : "1.2em"}>
-                        {part}
-                        {arr.length > 2 && index === 1 && node.label.length > 20 ? "..." : ""}
-                      </tspan>
-                    ))
-                  : (node.label.length > 12 ? node.label.substring(0,10) + "..." : node.label)}
-                </text>
-              </g>
+                    {/* Required div for foreignObject in some browsers */}
+                    <div xmlns="http://www.w3.org/1999/xhtml" className="w-full h-full"> 
+                        <RelationshipMapCard contact={node.contact} onButtonClick={handleViewProfileClick} />
+                    </div>
+                </foreignObject>
             </TooltipTrigger>
-            <TooltipContent>
-              <p className="font-semibold">{node.label}</p>
-              {contactInfo && !node.isGroup && (
-                <>
-                  {contactInfo.occupation && <p className="text-xs">Occupation: {contactInfo.occupation}</p>}
-                  {contactInfo.category && <p className="text-xs">Category: {contactInfo.category}</p>}
-                   <p className="text-xs text-muted-foreground mt-1">Click to view details</p>
-                </>
-              )}
-              {node.isGroup && <p className="text-xs text-muted-foreground mt-1">Group Hub</p>}
-               {!node.isGroup && !contactInfo && node.id !== '4' && <p className="text-xs text-destructive mt-1">Details not available</p>}
+            <TooltipContent className="bg-gray-800 text-white border-gray-700">
+              <p className="font-semibold">{node.contact.name}</p>
+              {node.contact.occupation && <p className="text-xs">Occupation: {node.contact.occupation}</p>}
+              {node.contact.category && <p className="text-xs">Category: {node.contact.category}</p>}
             </TooltipContent>
           </Tooltip>
-        );
-      })}
+        </TooltipProvider>
+      ))}
     </svg>
   );
 };
 
+const legendItems = [
+  { type: 'Family', color: 'bg-blue-500', label: 'Family' },
+  { type: 'Partner', color: 'bg-red-500', label: 'Partner' },
+  { type: 'Friend', color: 'bg-green-500', label: 'Friend' },
+  { type: 'Pet', color: 'bg-orange-500', label: 'Pet' },
+  { type: 'Colleague', color: 'bg-gray-500', label: 'Colleague' },
+];
+
 
 export default function RelationshipMapPage() {
   return (
-    // TooltipProvider is already in SidebarProvider, so not needed here explicitly
-    // unless this component can be rendered outside that context.
-    // For safety, adding it here doesn't hurt if SidebarProvider's one doesn't cover modals/portals from map.
-    // However, current shadcn/ui Tooltip typically works well with a single root provider.
-    // For now, we assume SidebarProvider's TooltipProvider is sufficient.
-
     <div className="space-y-6 h-full flex flex-col">
-      <Card className="shadow-md">
+      <Card className="shadow-md bg-card">
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-2xl flex items-center gap-2">
+              <CardTitle className="text-2xl flex items-center gap-2 text-foreground">
                 <Share2 className="text-primary" /> Interactive Relationship Map
               </CardTitle>
-              <CardDescription>Visualize and explore your network connections. (Example: Sam Hendrickson's Network)</CardDescription>
+              <CardDescription className="text-muted-foreground">Visualize and explore your network connections. (Example: Sam Hendrickson's Network)</CardDescription>
             </div>
             <div className="flex gap-2">
                 <Button variant="outline" size="icon"><ZoomIn className="h-4 w-4"/></Button>
@@ -270,33 +309,49 @@ export default function RelationshipMapPage() {
         </CardHeader>
       </Card>
       
-      <Card className="flex-grow shadow-md overflow-hidden">
-        <CardContent className="p-4 h-full">
-            <p className="text-sm text-muted-foreground mb-4">
-              Hover over nodes for quick info. Click on contacts to view details. Drag nodes to reposition.
-            </p>
-            <div className="h-[calc(100%-40px)] w-full"> 
-                <RelationshipMapPlaceholder />
-            </div>
-        </CardContent>
-      </Card>
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card className="md:col-span-1 shadow-md bg-card">
+            <CardHeader>
+                <CardTitle className="text-lg text-foreground">Relationship Types</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                {legendItems.map(item => (
+                    <div key={item.type} className="flex items-center gap-2">
+                        <div className={cn("w-4 h-1 rounded-full", item.color)}></div>
+                        <span className="text-sm text-muted-foreground">{item.label}</span>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
 
-      <Card className="shadow-md">
+        <Card className="md:col-span-3 flex-grow shadow-md overflow-hidden bg-card">
+            <CardContent className="p-4 h-[600px] md:h-full"> {/* Ensure height for SVG container */}
+                <p className="text-sm text-muted-foreground mb-2">
+                  Hover over cards for quick info. Drag cards to reposition.
+                </p>
+                <div className="h-[calc(100%-30px)] w-full"> 
+                    <RelationshipMapPlaceholder />
+                </div>
+            </CardContent>
+        </Card>
+      </div>
+
+
+      <Card className="shadow-md bg-card">
         <CardHeader>
-            <CardTitle className="text-lg">Map Legend</CardTitle>
+            <CardTitle className="text-lg text-foreground">Map Legend & Interactions</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row gap-4 text-sm">
             <div className="space-y-1">
-                <div className="flex items-center gap-2"><div style={{width: '16px', height: '16px', borderRadius: '3px', backgroundColor: 'hsl(var(--primary))'}}></div> Central Person</div>
-                <div className="flex items-center gap-2"><div style={{width: '16px', height: '16px', borderRadius: '3px', backgroundColor: 'hsl(var(--secondary))'}}></div> Connected Contact</div>
-                <div className="flex items-center gap-2"><div style={{width: '16px', height: '16px', borderRadius: '3px', backgroundColor: 'hsl(var(--muted))'}}></div> Category Hub</div>
+                <p className="font-medium mb-1 text-foreground">Node Types:</p>
+                <div className="flex items-center gap-2"><div className="w-10 h-10 rounded-md bg-gray-800 flex items-center justify-center"><Users className="w-5 h-5 text-white"/></div> <span className="text-muted-foreground">Contact Card</span></div>
             </div>
             <div className="md:ml-auto">
-                <p className="font-medium mb-1">Interactions:</p>
+                <p className="font-medium mb-1 text-foreground">Interactions:</p>
                 <ul className="list-disc list-inside text-muted-foreground">
-                    <li>Drag nodes to reposition them.</li>
+                    <li>Drag cards to reposition them.</li>
                     <li>Hover for quick info.</li>
-                    <li>Click on contact nodes to view details.</li>
+                    <li>Click "View Profile" on a card to see details.</li>
                 </ul>
             </div>
         </CardContent>
@@ -304,4 +359,3 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
-
