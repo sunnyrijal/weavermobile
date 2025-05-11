@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff } from "lucide-react";
+import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff } from "lucide-react";
 import type { Contact, ContactViewMode } from '@/lib/types';
 import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
@@ -69,6 +69,9 @@ export default function DashboardPage() {
 
   const [isListeningToVoice, setIsListeningToVoice] = useState(false);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  
+  const [showAllContacts, setShowAllContacts] = useState(false);
+  const mainContactIds = ["1", "3", "4"]; // Chandra Oli, Abhas Oli, Sam Hendrickson
 
   useEffect(() => {
     // Clean up speech recognition instance if component unmounts while listening
@@ -116,8 +119,12 @@ export default function DashboardPage() {
         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
         else if (event.error === 'not-allowed') errorMessage = "Microphone access denied. Enable it in browser settings.";
-        else if (event.error === 'network') errorMessage = "Network error during speech recognition. Please check your internet connection.";
-        toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
+        else if (event.error === 'network') {
+            errorMessage = "Network error during speech recognition. Please check your internet connection and try again.";
+            toast({ title: "Voice Search Network Error", description: "Please ensure you are connected to the internet for voice search.", variant: "destructive" });
+        } else {
+             toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
+        }
       };
 
       recognition.onstart = () => {
@@ -142,8 +149,9 @@ export default function DashboardPage() {
     }
   };
 
+  const baseContacts = showAllContacts ? mockContacts : mockContacts.filter(c => mainContactIds.includes(c.id));
 
-  const filteredContacts = mockContacts.filter(contact => {
+  const filteredContacts = baseContacts.filter(contact => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch = contact.name.toLowerCase().includes(searchTermLower) ||
                           (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTermLower)) ||
@@ -214,6 +222,13 @@ export default function DashboardPage() {
           </Button>
         </div>
         <div className="flex items-center gap-2">
+           <Button 
+            variant="outline" 
+            onClick={() => setShowAllContacts(prev => !prev)}
+            className="whitespace-nowrap"
+            >
+            {showAllContacts ? <><EyeOff className="mr-2 h-4 w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-4 w-4" /> Show All Contacts</>}
+          </Button>
           <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')} aria-label="List view">
             <List className="h-5 w-5" />
           </Button>
@@ -252,7 +267,7 @@ export default function DashboardPage() {
             <div className="text-center py-10 text-muted-foreground">
               <Users className="mx-auto h-12 w-12 mb-4" />
               <p className="text-lg font-medium">No contacts found.</p>
-              <p>Try adjusting your search or filters, or add new contacts.</p>
+              <p>{showAllContacts ? "Try adjusting your search or filters, or add new contacts." : "Clear filters or 'Show All Contacts' to see more."}</p>
             </div>
           )}
         </TabsContent>
@@ -290,3 +305,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
