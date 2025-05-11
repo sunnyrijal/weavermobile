@@ -48,7 +48,7 @@ const H_SPACING_BETWEEN_PAIRED_CARDS = 30;
 const SVG_PADDING_HORIZONTAL = 50;
 const SVG_PADDING_VERTICAL = 50;
 
-// Calculate Y positions for rows - moved to module scope
+// Calculate Y positions for rows
 const Y_ROW1_LABEL_CY = Y_OFFSET_TOP + LABEL_HEIGHT / 2;
 const Y_ROW1_CARD_Y = Y_OFFSET_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
@@ -362,11 +362,11 @@ export default function RelationshipMapPage() {
       COL2_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
       COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2
     );
-    const maxY = Y_ROW3_CARD_Y + CARD_HEIGHT; // Based on Pets or Ryan being lowest
+    const maxY = Y_ROW3_CARD_Y + CARD_HEIGHT; 
     
     const width = maxX + SVG_PADDING_HORIZONTAL;
     const height = maxY + SVG_PADDING_VERTICAL;
-    return { width: Math.max(1100, width), height: Math.max(1000, height) }; // Keep a minimum size
+    return { width: Math.max(1100, width), height: Math.max(1000, height) }; 
   }, []);
 
   const currentViewBoxString = useMemo(() => {
@@ -380,9 +380,9 @@ export default function RelationshipMapPage() {
       const oldScale = prevScale;
       let newScale = direction === 'in' ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
       
-      newScale = Math.max(0.2, Math.min(newScale, 5)); // Clamp scale
+      newScale = Math.max(0.2, Math.min(newScale, 5)); 
 
-      if (newScale === oldScale) return oldScale; // No change if clamped to current
+      if (newScale === oldScale) return oldScale; 
 
       const oldWidth = initialViewBoxDimensions.width / oldScale;
       const oldHeight = initialViewBoxDimensions.height / oldScale;
@@ -440,7 +440,7 @@ export default function RelationshipMapPage() {
               <p className="text-xs text-muted-foreground mb-2 text-center sm:text-left">
                 Hover over cards for quick info. Drag cards to reposition. Lines indicate connections.
               </p>
-              <div className="h-[calc(100%-25px)] w-full"> 
+              <div className="h-[calc(100%-25px)] w-full overflow-auto"> 
                   <RelationshipMapPlaceholder viewBox={currentViewBoxString} />
               </div>
           </CardContent>
