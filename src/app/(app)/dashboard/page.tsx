@@ -1,15 +1,15 @@
-
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud } from "lucide-react";
+import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff } from "lucide-react";
 import type { Contact, ContactViewMode } from '@/lib/types';
-import { mockContacts } from '@/lib/mockData'; // Import mockContacts
+import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useToast } from "@/hooks/use-toast";
 
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
@@ -64,12 +64,91 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<ContactViewMode>('grid');
   const [activeFilter, setActiveFilter] = useState<string>("All");
+  const { toast } = useToast();
 
-  // In a real app, this would be an API call with filtering and searching
+  const [isListeningToVoice, setIsListeningToVoice] = useState(false);
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+
+  useEffect(() => {
+    // Clean up speech recognition instance if component unmounts while listening
+    return () => {
+      if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop();
+        speechRecognitionRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleVoiceSearchClick = async () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionAPI) {
+      toast({ title: "Voice Search Not Supported", description: "Your browser doesn't support voice recognition.", variant: "destructive" });
+      return;
+    }
+
+    if (isListeningToVoice && speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+      // onend will set isListeningToVoice to false
+      return;
+    }
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
+
+      const recognition = new SpeechRecognitionAPI();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      speechRecognitionRef.current = recognition;
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setSearchTerm(transcript);
+        toast({ title: "Search term updated", description: `Searching for: "${transcript}"` });
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event.error);
+        let errorMessage = "Speech recognition error.";
+        if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
+        else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
+        else if (event.error === 'not-allowed') errorMessage = "Microphone access denied. Enable it in browser settings.";
+        toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
+      };
+
+      recognition.onstart = () => {
+        setIsListeningToVoice(true);
+        toast({ title: "Listening...", description: "Speak now to search contacts." });
+      };
+
+      recognition.onend = () => {
+        setIsListeningToVoice(false);
+        if (speechRecognitionRef.current) {
+           try { speechRecognitionRef.current.stop(); } catch(e) {/* already stopped */}
+        }
+        speechRecognitionRef.current = null; 
+      };
+
+      recognition.start();
+
+    } catch (err) {
+      console.error("Error accessing microphone", err);
+      toast({ title: "Microphone Access Error", description: "Could not access microphone. Please ensure permission is granted in browser settings.", variant: "destructive" });
+      setIsListeningToVoice(false);
+    }
+  };
+
+
   const filteredContacts = mockContacts.filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTerm.toLowerCase())) ||
-                          (contact.locationDetails && contact.locationDetails.toLowerCase().includes(searchTerm.toLowerCase()));
+    const searchTermLower = searchTerm.toLowerCase();
+    const matchesSearch = contact.name.toLowerCase().includes(searchTermLower) ||
+                          (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTermLower)) ||
+                          (contact.locationDetails && contact.locationDetails.toLowerCase().includes(searchTermLower)) ||
+                          (contact.occupation && contact.occupation.toLowerCase().includes(searchTermLower)) ||
+                          (contact.company && contact.company.toLowerCase().includes(searchTermLower)) ||
+                          (contact.college && contact.college.toLowerCase().includes(searchTermLower));
     const matchesFilter = activeFilter === "All" || (contact.category && contact.category === activeFilter);
     return matchesSearch && matchesFilter;
   });
@@ -123,13 +202,13 @@ export default function DashboardPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
             type="search" 
-            placeholder="Search contacts, tags..." 
+            placeholder="Search contacts, tags, company..." 
             className="pl-10 pr-10 py-2.5 text-base md:text-sm w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8">
-            <Mic className="h-5 w-5 text-muted-foreground" />
+          <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleVoiceSearchClick} title="Search with voice">
+            {isListeningToVoice ? <MicOff className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
           </Button>
         </div>
         <div className="flex items-center gap-2">

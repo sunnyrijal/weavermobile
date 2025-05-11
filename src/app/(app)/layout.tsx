@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,10 +16,9 @@ import {
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/shared/Logo";
 import { UserNav } from "@/components/layout/UserNav";
-import { Home, UsersRound, GitFork, UploadCloud, Settings, FileText, Share2, Bell } from 'lucide-react';
+import { Home, UsersRound, GitFork, UploadCloud, Settings, FileText, Share2, Bell, MicOff } from 'lucide-react'; // Added MicOff
 import { Button } from "@/components/ui/button";
-import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { GlobalSearchInput } from '@/components/layout/GlobalSearchInput'; // Import GlobalSearchInput
 import Link from 'next/link';
 
 const navItems = [
@@ -35,11 +33,8 @@ const bottomNavItems = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { currentUser } = useAuth(); // currentUser will be the mock user
+  const { currentUser } = useAuth(); 
   const router = useRouter();
-
-  // Removed useEffect that redirects to /login, as login is now bypassed.
-  // Removed loading skeleton as currentUser is immediately available.
   
   return (
     <SidebarProvider defaultOpen>
@@ -92,19 +87,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex-1">
              {/* Optional: Breadcrumbs or Page Title */}
           </div>
-          <div className="relative flex-1 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search contacts, tags..."
-              className="w-full rounded-lg bg-muted pl-8 md:w-[200px] lg:w-[320px] focus-visible:ring-accent"
-            />
-          </div>
+          <GlobalSearchInput /> {/* Use the new component here */}
           <Button variant="ghost" size="icon" className="rounded-full">
             <Bell className="h-5 w-5 text-muted-foreground" />
             <span className="sr-only">Notifications</span>
           </Button>
-          {currentUser && <UserNav />} {/* UserNav still relies on currentUser from context */}
+          {currentUser && <UserNav />}
         </header>
         <main className="flex-1 p-4 sm:p-6 bg-secondary/50">
             {children}
@@ -113,4 +101,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-

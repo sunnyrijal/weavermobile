@@ -1,6 +1,5 @@
-
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import type { Contact, ContactViewMode } from '@/lib/types';
 import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
   <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -26,6 +26,8 @@ const ContactCardItem = ({ contact }: { contact: Contact }) => (
     <CardContent className="p-4">
       <CardTitle className="text-lg mb-1">{contact.name}</CardTitle>
       <CardDescription className="text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
+      {contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.occupation}{contact.company ? ` at ${contact.company}` : ''}</p>}
+      {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">Studied at {contact.college}</p>}
       {contact.locationDetails && <p className="text-xs text-muted-foreground truncate">{contact.locationDetails}</p>}
     </CardContent>
     <CardFooter className="p-4 pt-0">
@@ -49,7 +51,7 @@ const ContactListItem = ({ contact }: { contact: Contact }) => (
       />
       <div>
         <p className="font-medium">{contact.name}</p>
-        <p className="text-sm text-muted-foreground">{contact.category || 'N/A'}</p>
+        <p className="text-sm text-muted-foreground">{contact.occupation || contact.college || contact.category || 'N/A'}</p>
       </div>
     </div>
     <Button variant="ghost" size="sm" asChild>
@@ -59,14 +61,33 @@ const ContactListItem = ({ contact }: { contact: Contact }) => (
 );
 
 export default function ContactsPage() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const searchParams = useSearchParams();
+  const initialSearchQuery = searchParams.get('search') || '';
+  
+  const [searchTerm, setSearchTerm] = useState(initialSearchQuery);
   const [viewMode, setViewMode] = useState<ContactViewMode>('grid');
   const [activeFilter, setActiveFilter] = useState<string>("All");
 
+  useEffect(() => {
+    // Update searchTerm if the query parameter changes after initial load
+    const query = searchParams.get('search');
+    if (query && query !== searchTerm) {
+      setSearchTerm(query);
+    }
+  }, [searchParams, searchTerm]);
+
+
   const filteredContacts = mockContacts.filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTerm.toLowerCase())) ||
-                          (contact.locationDetails && contact.locationDetails.toLowerCase().includes(searchTerm.toLowerCase()));
+    const searchTermLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+        contact.name.toLowerCase().includes(searchTermLower) ||
+        (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTermLower)) ||
+        (contact.locationDetails && contact.locationDetails.toLowerCase().includes(searchTermLower)) ||
+        (contact.occupation && contact.occupation.toLowerCase().includes(searchTermLower)) ||
+        (contact.company && contact.company.toLowerCase().includes(searchTermLower)) ||
+        (contact.college && contact.college.toLowerCase().includes(searchTermLower)) ||
+        (contact.email && contact.email.toLowerCase().includes(searchTermLower));
+
     const matchesFilter = activeFilter === "All" || (contact.category && contact.category === activeFilter);
     return matchesSearch && matchesFilter;
   });
@@ -94,7 +115,7 @@ export default function ContactsPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
                     type="search" 
-                    placeholder="Search contacts, tags, locations..." 
+                    placeholder="Search contacts, tags, company, college..." 
                     className="pl-10 pr-4 py-2.5 text-base md:text-sm w-full"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
