@@ -25,12 +25,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, University } from "lucide-react"; // Added University icon
+import { CalendarIcon, University } from "lucide-react"; 
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format as formatDateFn } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import React from 'react';
+import React, { useEffect } from 'react'; // Added useEffect
 
 export const contactFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -38,13 +38,12 @@ export const contactFormSchema = z.object({
   phone: z.string().optional(),
   occupation: z.string().optional(),
   company: z.string().optional(),
-  college: z.string().optional(), // Added college to schema
+  college: z.string().optional(), 
   category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", ""]).optional(),
   locationDetails: z.string().optional(),
   birthday: z.date().optional().nullable(),
   photoURL: z.string().url({ message: "Invalid URL for photo." }).optional().or(z.literal('')),
-  tags: z.string().optional(), // Comma-separated tags
-  // socialProfiles are not included in this basic form for simplicity
+  tags: z.string().optional(), 
 });
 
 
@@ -58,23 +57,50 @@ interface ContactFormProps {
 export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoading = false }: ContactFormProps) {
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
+    // Default values are now primarily controlled by the parent component via the defaultValues prop.
+    // The form will re-initialize if its key changes or if defaultValues prop is updated and form.reset is called.
     defaultValues: {
         name: '',
         email: '',
         phone: '',
         occupation: '',
         company: '',
-        college: '', // Added college default value
+        college: '', 
+        category: '',
+        locationDetails: '',
+        birthday: null,
+        photoURL: '',
+        tags: '',
+        ...defaultValues, // Spread defaultValues from props here
+      },
+  });
+
+  // Effect to update form values if defaultValues prop changes after initial mount.
+  // This is useful if defaultValues are loaded asynchronously or changed by AI.
+  useEffect(() => {
+    if (defaultValues) {
+      // Create a new object for reset to ensure all fields are considered
+      const resetValues = {
+        name: '',
+        email: '',
+        phone: '',
+        occupation: '',
+        company: '',
+        college: '',
         category: '',
         locationDetails: '',
         birthday: null,
         photoURL: '',
         tags: '',
         ...defaultValues,
-      },
-  });
+      };
+      form.reset(resetValues);
+    }
+  }, [defaultValues, form.reset]);
+
 
   return (
+    // The parent component (NewContactPage) will control the key to force re-mount if needed.
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
@@ -192,7 +218,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
@@ -228,7 +254,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP")
+                                    formatDateFn(field.value, "PPP") // Use formatDateFn to avoid naming conflict
                                 ) : (
                                     <span>Pick a date</span>
                                 )}
@@ -296,3 +322,5 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
     </Form>
   );
 }
+
+    
