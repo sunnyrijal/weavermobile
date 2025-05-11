@@ -12,6 +12,7 @@ interface Node {
   label: string;
   x?: number;
   y?: number;
+  isGroup?: boolean; // To identify group nodes
 }
 
 interface Edge {
@@ -24,68 +25,90 @@ interface Edge {
 // A real implementation would use a library like React Flow, Vis.js, or D3.js.
 const RelationshipMapPlaceholder = () => {
   const [nodes, setNodes] = useState<Node[]>([
-    { id: 'sam', label: 'SAM', x: 400, y: 250 },
-    { id: 'emily', label: 'Emily Gerencer', x: 400, y: 100 },
-    { id: 'shula', label: 'Shula (dog)', x: 600, y: 180 },
-    { id: 'alpine', label: 'Alpine (dog)', x: 600, y: 280 },
-    { id: 'anne_e', label: 'Ann Eidsvold', x: 600, y: 400 },
-    { id: 'jim_e', label: 'Jim Eidsvold', x: 500, y: 400 },
-    { id: 'greta_h', label: 'Greta Hendrikson', x: 400, y: 400 },
-    { id: 'sara_h', label: 'Sarah Hendrikson', x: 250, y: 350 },
-    { id: 'john_h', label: 'John Hendrikson', x: 150, y: 350 },
-    { id: 'ryan_h', label: 'Ryan Hendrikson', x: 200, y: 100 },
-    { id: 'philip_e', label: 'Philip Eidsvold', x: 100, y: 180 },
-    { id: 'ty_b', label: 'Ty Baucum', x: 100, y: 80 },
+    // SAM - Central Node
+    { id: 'sam', label: 'SAM', x: 400, y: 300 },
+
+    // Direct Connections
+    { id: 'emily', label: 'Emily Grenecer', x: 400, y: 180 }, // Partner
+    { id: 'greta_h', label: 'Greta Hendrikson', x: 400, y: 420 }, // Sister
+
+    // Group Nodes
+    { id: 'pets_group', label: 'Pets', x: 550, y: 250, isGroup: true },
+    { id: 'parents_group', label: 'Parents', x: 250, y: 250, isGroup: true },
+    { id: 'grandparents_group', label: 'Grandparents', x: 550, y: 350, isGroup: true },
+    { id: 'uncles_group', label: 'Uncles', x: 250, y: 350, isGroup: true },
+
+    // Individuals connected to Groups
+    // Pets
+    { id: 'shula', label: 'Shula (dog)', x: 650, y: 230 },
+    { id: 'alpine', label: 'Alpine (dog)', x: 650, y: 270 },
+    // Parents
+    { id: 'sara_h', label: 'Sara Hendrickson', x: 150, y: 230 },
+    { id: 'john_h', label: 'John Hendrickson', x: 150, y: 270 },
+    // Grandparents
+    { id: 'anne_e', label: 'Anne Eidsvold', x: 650, y: 330 },
+    { id: 'jim_e', label: 'Jim Eidsvold', x: 650, y: 370 },
+    // Uncles
+    { id: 'philip_e', label: 'Philip Eidsvold', x: 150, y: 330 },
+    { id: 'ty_b', label: 'Ty Baucum', x: 150, y: 350 }, // Adjusted Y for spacing
+    { id: 'ryan_h', label: 'Ryan Hendrickson', x: 150, y: 370 }, // Adjusted Y for spacing
   ]);
 
   const [edges, setEdges] = useState<Edge[]>([
+    // SAM to Direct Connections
     { id: 'e_sam_emily', source: 'sam', target: 'emily' },
-    { id: 'e_sam_shula', source: 'sam', target: 'shula' },
-    { id: 'e_sam_alpine', source: 'sam', target: 'alpine' },
-    { id: 'e_sam_anne_e', source: 'sam', target: 'anne_e' },
-    { id: 'e_sam_jim_e', source: 'sam', target: 'jim_e' },
     { id: 'e_sam_greta_h', source: 'sam', target: 'greta_h' },
-    { id: 'e_sam_sara_h', source: 'sam', target: 'sara_h' },
-    { id: 'e_sam_john_h', source: 'sam', target: 'john_h' },
-    { id: 'e_sam_ryan_h', source: 'sam', target: 'ryan_h' },
-    { id: 'e_sam_philip_e', source: 'sam', target: 'philip_e' },
-    { id: 'e_philip_ty', source: 'philip_e', target: 'ty_b' },
+
+    // SAM to Groups
+    { id: 'e_sam_pets_group', source: 'sam', target: 'pets_group' },
+    { id: 'e_sam_parents_group', source: 'sam', target: 'parents_group' },
+    { id: 'e_sam_grandparents_group', source: 'sam', target: 'grandparents_group' },
+    { id: 'e_sam_uncles_group', source: 'sam', target: 'uncles_group' },
+
+    // Groups to Individuals
+    // Pets
+    { id: 'e_pets_shula', source: 'pets_group', target: 'shula' },
+    { id: 'e_pets_alpine', source: 'pets_group', target: 'alpine' },
+    // Parents
+    { id: 'e_parents_sara_h', source: 'parents_group', target: 'sara_h' },
+    { id: 'e_parents_john_h', source: 'parents_group', target: 'john_h' },
+    // Grandparents
+    { id: 'e_grandparents_anne_e', source: 'grandparents_group', target: 'anne_e' },
+    { id: 'e_grandparents_jim_e', source: 'grandparents_group', target: 'jim_e' },
+    // Uncles
+    { id: 'e_uncles_philip_e', source: 'uncles_group', target: 'philip_e' },
+    { id: 'e_uncles_ty_b', source: 'uncles_group', target: 'ty_b' },
+    { id: 'e_uncles_ryan_h', source: 'uncles_group', target: 'ryan_h' },
   ]);
+
 
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const handleMouseDown = (e: React.MouseEvent<SVGCircleElement, MouseEvent>, nodeId: string) => {
+  const handleMouseDown = (e: React.MouseEvent<SVGGElement, MouseEvent>, nodeId: string) => {
     setDraggingNode(nodeId);
     const node = nodes.find(n => n.id === nodeId);
-    if (node && node.x && node.y) {
-      // Calculate offset relative to the SVG element to handle SVG scaling/positioning
-      const svgRect = (e.currentTarget as SVGSVGElement).ownerSVGElement!.getBoundingClientRect();
-      
-      // Get CTM for transforming client coordinates to SVG coordinates
-      const CTM = (e.currentTarget as SVGSVGElement).ownerSVGElement!.getScreenCTM();
+    // Ensure SVG element is correctly referenced for CTM
+    const svgElement = (e.currentTarget as SVGGElement).ownerSVGElement;
+    if (node && node.x && node.y && svgElement) {
+      const CTM = svgElement.getScreenCTM();
       if (CTM) {
-        const svgPoint = (e.currentTarget as SVGSVGElement).ownerSVGElement!.createSVGPoint();
+        const svgPoint = svgElement.createSVGPoint();
         svgPoint.x = e.clientX;
         svgPoint.y = e.clientY;
         const transformedPoint = svgPoint.matrixTransform(CTM.inverse());
         setOffset({ x: transformedPoint.x - node.x, y: transformedPoint.y - node.y });
-      } else {
-         // Fallback if CTM is null (less accurate for scaled SVGs)
-        const clientX = e.clientX - svgRect.left;
-        const clientY = e.clientY - svgRect.top;
-        setOffset({ x: clientX - node.x, y: clientY - node.y });
       }
     }
   };
   
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
     if (!draggingNode) return;
-  
-    // Get CTM for transforming client coordinates to SVG coordinates
-    const CTM = e.currentTarget.getScreenCTM();
+    
+    const svgElement = e.currentTarget;
+    const CTM = svgElement.getScreenCTM();
     if (CTM) {
-        const svgPoint = e.currentTarget.createSVGPoint();
+        const svgPoint = svgElement.createSVGPoint();
         svgPoint.x = e.clientX;
         svgPoint.y = e.clientY;
         const transformedPoint = svgPoint.matrixTransform(CTM.inverse());
@@ -95,16 +118,6 @@ const RelationshipMapPlaceholder = () => {
             n.id === draggingNode ? { ...n, x: transformedPoint.x - offset.x, y: transformedPoint.y - offset.y } : n
         )
         );
-    } else {
-        // Fallback if CTM is null (less accurate for scaled SVGs)
-        const svgRect = e.currentTarget.getBoundingClientRect();
-        const clientX = e.clientX - svgRect.left;
-        const clientY = e.clientY - svgRect.top;
-        setNodes(prevNodes =>
-          prevNodes.map(n =>
-            n.id === draggingNode ? { ...n, x: clientX - offset.x, y: clientY - offset.y } : n
-          )
-        );
     }
   };
 
@@ -112,24 +125,17 @@ const RelationshipMapPlaceholder = () => {
     setDraggingNode(null);
   };
   
-  useEffect(() => {
-    const svgElement = document.getElementById('relationship-map-svg');
-    if (svgElement && svgElement.parentElement) {
-      // Basic responsiveness, real libraries handle this better.
-    }
-  }, []);
-
 
   return (
     <svg 
       id="relationship-map-svg"
       width="100%" 
-      height="600" 
+      height="100%" // Make SVG take full height of its container
       className="border rounded-lg bg-card shadow-sm"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp} 
-      viewBox="0 0 800 500" 
+      viewBox="0 0 800 600" // Adjusted viewBox
       preserveAspectRatio="xMidYMid meet"
     >
       {edges.map(edge => {
@@ -137,15 +143,6 @@ const RelationshipMapPlaceholder = () => {
         const targetNode = nodes.find(n => n.id === edge.target);
         if (!sourceNode || !targetNode || typeof sourceNode.x !== 'number' || typeof sourceNode.y !== 'number' || typeof targetNode.x !== 'number' || typeof targetNode.y !== 'number') return null;
         
-        // Calculate curved path for specific connections if needed, e.g., parents to children
-        // For now, simple lines. The image uses mostly straight lines with some gentle curves.
-        // Example of a quadratic bezier for a slight curve (adjust control points as needed)
-        // const midX = (sourceNode.x + targetNode.x) / 2;
-        // const midY = (sourceNode.y + targetNode.y) / 2;
-        // const controlX = midX; // For straight line, control point is on the line
-        // const controlY = midY - 30; // Adjust for curve intensity/direction
-        // const pathData = `M ${sourceNode.x} ${sourceNode.y} Q ${controlX} ${controlY} ${targetNode.x} ${targetNode.y}`;
-
         return (
           <line
             key={edge.id}
@@ -154,46 +151,43 @@ const RelationshipMapPlaceholder = () => {
             x2={targetNode.x}
             y2={targetNode.y}
             stroke="hsl(var(--muted-foreground))"
-            strokeWidth="1.5" // Slightly thinner lines
+            strokeWidth="1.5" 
           />
-          // <path 
-          //   key={edge.id}
-          //   d={pathData}
-          //   stroke="hsl(var(--muted-foreground))"
-          //   strokeWidth="1.5"
-          //   fill="none"
-          // />
         );
       })}
       {nodes.map(node => (
-        <g key={node.id} transform={`translate(${node.x || 0}, ${node.y || 0})`}>
-          <rect // Using rect instead of circle for boxes, approximate image
-            width="100" // Adjust width as needed
-            height="40"  // Adjust height as needed
-            x="-50"      // Center the rect
-            y="-20"      // Center the rect
-            rx="5"       // Rounded corners
-            ry="5"       // Rounded corners
-            fill={node.id === 'sam' ? 'hsl(var(--primary))' : 'hsl(var(--secondary))'}
+        <g key={node.id} transform={`translate(${node.x || 0}, ${node.y || 0})`} onMouseDown={(e) => handleMouseDown(e, node.id)} className="cursor-grab active:cursor-grabbing">
+          <rect 
+            width="100" 
+            height="40"  
+            x="-50"      
+            y="-20"      
+            rx="5"       
+            ry="5"       
+            fill={
+              node.id === 'sam' ? 'hsl(var(--primary))' : 
+              node.isGroup ? 'hsl(var(--muted))' : 'hsl(var(--secondary))'
+            }
             stroke="hsl(var(--border))"
             strokeWidth="1.5"
-            onMouseDown={(e) => handleMouseDown(e as any, node.id)} // Cast to any to bypass circle specific event
-            className="cursor-grab active:cursor-grabbing"
           />
           <text
             textAnchor="middle"
-            dy=".3em" // Vertically center text
-            fill={node.id === 'sam' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--secondary-foreground))'}
+            dy=".3em" 
+            fill={
+              node.id === 'sam' ? 'hsl(var(--primary-foreground))' : 
+              node.isGroup ? 'hsl(var(--muted-foreground))' : 'hsl(var(--secondary-foreground))'
+            }
             fontSize="10"
             fontFamily="sans-serif"
             className="pointer-events-none select-none"
           >
-            {/* Basic multi-line text attempt (SVG text is tricky) */}
             {node.label.length > 12 && node.label.includes(" ") ? 
               node.label.split(" ").map((part, index, arr) => (
                 <tspan key={index} x="0" dy={index === 0 ? "0" : "1.2em"}>
                   {part}
-                  {index === arr.length -1 && node.label.length > 24 ? "..." : ""}
+                  {/* Basic truncation for very long multi-line text */}
+                  {arr.length > 2 && index === 1 && node.label.length > 20 ? "..." : ""}
                 </tspan>
               ))
             : (node.label.length > 12 ? node.label.substring(0,10) + "..." : node.label)}
@@ -226,13 +220,12 @@ export default function RelationshipMapPage() {
         </CardHeader>
       </Card>
       
-      <Card className="flex-grow shadow-md overflow-hidden">
-        <CardContent className="p-4 h-full">
+      <Card className="flex-grow shadow-md overflow-hidden"> {/* Ensure this card can grow */}
+        <CardContent className="p-4 h-full"> {/* Ensure content area takes full height */}
             <p className="text-sm text-muted-foreground mb-4">
-              This is an updated placeholder for the interactive relationship map based on the provided image. Drag nodes to reposition. 
-              A full implementation would use a dedicated graph library and could include features like node expansion, dynamic data, and the orange relationship type boxes.
+              Drag nodes to reposition them. Lines represent connections between individuals and category hubs.
             </p>
-            <div className="h-[calc(100%-60px)]"> {/* Adjusted height for the paragraph */}
+            <div className="h-[calc(100%-40px)] w-full"> {/* Adjust height for the paragraph and ensure width */}
                 <RelationshipMapPlaceholder />
             </div>
         </CardContent>
@@ -240,21 +233,20 @@ export default function RelationshipMapPage() {
 
       <Card className="shadow-md">
         <CardHeader>
-            <CardTitle className="text-lg">Map Legend & Controls (Example)</CardTitle>
+            <CardTitle className="text-lg">Map Legend</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row gap-4 text-sm">
             <div className="space-y-1">
-                <div className="flex items-center gap-2"><div style={{width: '16px', height: '16px', borderRadius: '3px', backgroundColor: 'hsl(var(--primary))'}}></div> Central Person (SAM)</div>
+                <div className="flex items-center gap-2"><div style={{width: '16px', height: '16px', borderRadius: '3px', backgroundColor: 'hsl(var(--primary))'}}></div> Central Person</div>
                 <div className="flex items-center gap-2"><div style={{width: '16px', height: '16px', borderRadius: '3px', backgroundColor: 'hsl(var(--secondary))'}}></div> Connected Contact</div>
-                <div className="flex items-center gap-2"><Users className="w-4 h-4 text-green-500" /> Family (e.g., Parents, Sister)</div>
-                <div className="flex items-center gap-2"><Heart className="w-4 h-4 text-red-500" /> Partner (e.g., Girlfriend)</div>
+                <div className="flex items-center gap-2"><div style={{width: '16px', height: '16px', borderRadius: '3px', backgroundColor: 'hsl(var(--muted))'}}></div> Category Hub</div>
             </div>
             <div className="md:ml-auto">
                 <p className="font-medium mb-1">Interactions:</p>
                 <ul className="list-disc list-inside text-muted-foreground">
                     <li>Drag nodes to reposition them.</li>
                     <li>Click on a node to view details (future).</li>
-                    <li>Hover for quick info (future).</li>
+                    <li>Zoom and pan controls (future).</li>
                 </ul>
             </div>
         </CardContent>
