@@ -1,11 +1,10 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Share2, ZoomIn, ZoomOut, Download, Users, Heart, Briefcase, PawPrint, Link as LinkIcon } from "lucide-react"; 
+import { Share2, ZoomIn, ZoomOut, Download, Users, Link as LinkIcon, UsersRound, UserSquare2, Group, Heart, Briefcase, PawPrint } from "lucide-react"; 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,20 +15,22 @@ import { cn } from "@/lib/utils";
 
 interface Node {
   id: string;
-  contact: Contact; // Store the full contact object
+  contact: Contact; 
   x: number;
   y: number;
 }
 
-interface Edge {
-  id: string;
-  source: string;
-  target: string;
-  type: 'Family' | 'Partner' | 'Friend' | 'Pet' | 'Colleague' | 'Other';
+interface GroupLabel {
+  text: string;
+  cx: number; // center x for the label group
+  cy: number; // center y for the label group
 }
 
 const CARD_WIDTH = 160;
-const CARD_HEIGHT = 190; // Adjusted for more content
+const CARD_HEIGHT = 190; 
+const LABEL_WIDTH = 120;
+const LABEL_HEIGHT = 30;
+
 
 const RelationshipMapCard = ({ contact, onButtonClick }: { contact: Contact; onButtonClick: (contactId: string) => void; }) => {
   const getInitials = (name: string) => {
@@ -43,27 +44,25 @@ const RelationshipMapCard = ({ contact, onButtonClick }: { contact: Contact; onB
 
   const getCategoryBadgeVariant = (category?: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (category) {
-      case 'Family': return 'default'; // Blueish in dark theme due to primary
-      case 'Partner': return 'destructive'; // Reddish
-      case 'Friend': return 'secondary'; // greenish/tealish with accent
-      case 'Pet': return 'outline'; // orange-ish with ring/accent
+      case 'Family': return 'default'; 
+      case 'Partner': return 'destructive'; 
+      case 'Friend': return 'secondary'; 
+      case 'Pet': return 'outline'; 
       case 'Colleague': return 'secondary';
       default: return 'outline';
     }
   };
   
-  // Define specific text colors for badges for better contrast on dark cards
   const getCategoryBadgeTextColor = (category?: string): string => {
      switch (category) {
       case 'Family': return 'text-primary-foreground';
       case 'Partner': return 'text-destructive-foreground';
-      case 'Friend': return 'text-accent-foreground'; // Assuming accent is light
+      case 'Friend': return 'text-accent-foreground'; 
       case 'Pet': return 'text-accent-foreground';
       case 'Colleague': return 'text-secondary-foreground';
       default: return 'text-foreground';
     }
   }
-
 
   return (
     <div className="bg-gray-800 text-white rounded-lg shadow-xl p-3 flex flex-col items-center justify-between" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
@@ -103,66 +102,57 @@ const RelationshipMapCard = ({ contact, onButtonClick }: { contact: Contact; onB
 
 const RelationshipMapPlaceholder = () => {
   const router = useRouter();
-  const { toast } = useToast();
-
+  
   const samContact = mockContacts.find(c => c.id === '4'); // Sam Hendrickson
   if (!samContact) return <p>Central contact (Sam Hendrickson) not found.</p>;
 
+  const V_SPACE_CARD = 30; 
+  const V_SPACE_LABEL_CARD = 15; 
+  const V_SPACE_GROUP = 50; 
+  
+  const X_POS_COL1 = 150;
+  const X_POS_COL2 = 500;
+  const X_POS_COL3 = 850;
+
   const initialNodes: Node[] = [
-    { id: samContact.id, contact: samContact, x: 400, y: 300 },
+    // Sam (Central)
+    { id: samContact.id, contact: samContact, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 },
+
+    // Column 1: Partner & Extended Family (Uncles)
     // Partner
-    ...mockContacts.filter(c => c.id === 'emily_g').map(c => ({ id: c.id, contact: c, x: 400, y: 100 })),
-    // Pets
-    ...mockContacts.filter(c => c.id === 'shula_d').map(c => ({ id: c.id, contact: c, x: 200, y: 500 })),
-    ...mockContacts.filter(c => c.id === 'alpine_d').map(c => ({ id: c.id, contact: c, x: 380, y: 500 })),
+    ...mockContacts.filter(c => c.id === 'emily_g').map(c => ({ id: c.id, contact: c, x: X_POS_COL1 - CARD_WIDTH/2, y: 150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD })),
+    // Extended Family (Uncles)
+    ...mockContacts.filter(c => c.id === 'philip_e').map(c => ({ id: c.id, contact: c, x: X_POS_COL1 - CARD_WIDTH/2, y: (150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) })),
+    ...mockContacts.filter(c => c.id === 'ty_b').map(c => ({ id: c.id, contact: c, x: X_POS_COL1 - CARD_WIDTH/2, y: (150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD) })),
+    ...mockContacts.filter(c => c.id === 'ryan_h').map(c => ({ id: c.id, contact: c, x: X_POS_COL1 - CARD_WIDTH/2, y: (150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD)*2 })),
+    
+    // Column 2: Parents & Pets
     // Parents
-    ...mockContacts.filter(c => c.id === 'sara_h').map(c => ({ id: c.id, contact: c, x: 100, y: 200 })),
-    ...mockContacts.filter(c => c.id === 'john_h').map(c => ({ id: c.id, contact: c, x: 100, y: 400 })),
-    // Sister
-    ...mockContacts.filter(c => c.id === 'greta_h').map(c => ({ id: c.id, contact: c, x: 400, y: 500 })), // Near Pets visually
-    // Grandparents
-    ...mockContacts.filter(c => c.id === 'anne_e').map(c => ({ id: c.id, contact: c, x: 700, y: 100 })),
-    ...mockContacts.filter(c => c.id === 'jim_e').map(c => ({ id: c.id, contact: c, x: 700, y: 300 })),
-    // Uncles
-    ...mockContacts.filter(c => c.id === 'philip_e').map(c => ({ id: c.id, contact: c, x: 600, y: 500 })),
-    ...mockContacts.filter(c => c.id === 'ty_b').map(c => ({ id: c.id, contact: c, x: 780, y: 500 })),
-    ...mockContacts.filter(c => c.id === 'ryan_h').map(c => ({ id: c.id, contact: c, x: 960, y_original_idea: 500, x: 700, y: 500 })), // Adjusted x,y for unique position
-  ].filter((node, index, self) => node && self.findIndex(n => n.id === node.id) === index) // Remove undefined and duplicates
-   .map((node, index, arr) => { // Ensure unique X, Y for uncles if they ended up same
-      if (node.contact.category === 'Family' && node.contact.tags?.includes('Uncle')) {
-          const uncleIndex = arr.filter(n => n.contact.category === 'Family' && n.contact.tags?.includes('Uncle')).findIndex(u => u.id === node.id);
-          return {...node, x: 600 + uncleIndex * (CARD_WIDTH + 50) , y: 500 };
-      }
-      return node;
-   })
-   // Adjust Greta's position
-    .map(node => node.id === 'greta_h' ? { ...node, x: 220, y: 300 } : node);
+    ...mockContacts.filter(c => c.id === 'john_h').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) })),
+    ...mockContacts.filter(c => c.id === 'sara_h').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD) })),
+    // Pets
+    ...mockContacts.filter(c => c.id === 'alpine_d').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + (CARD_HEIGHT + V_SPACE_CARD) + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) })),
+    ...mockContacts.filter(c => c.id === 'shula_d').map(c => ({ id: c.id, contact: c, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + (CARD_HEIGHT + V_SPACE_CARD) + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD) })),
+
+    // Column 3: Siblings & Extended Family (Grandparents)
+    // Siblings
+    ...mockContacts.filter(c => c.id === 'greta_h').map(c => ({ id: c.id, contact: c, x: X_POS_COL3 - CARD_WIDTH/2, y: 150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD })),
+    // Extended Family (Grandparents)
+    ...mockContacts.filter(c => c.id === 'jim_e').map(c => ({ id: c.id, contact: c, x: X_POS_COL3 - CARD_WIDTH/2, y: (150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) })),
+    ...mockContacts.filter(c => c.id === 'anne_e').map(c => ({ id: c.id, contact: c, x: X_POS_COL3 - CARD_WIDTH/2, y: (150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD) })),
+  ].filter(Boolean) as Node[];
 
 
-  const initialEdges: Edge[] = samContact.relationships
-    .map(rel => {
-        const targetContact = mockContacts.find(c => c.id === rel.relatedContactId);
-        if (!targetContact) return null;
-        
-        let type: Edge['type'] = 'Other';
-        if (targetContact.category === 'Family' || rel.type === 'Parent' || rel.type === 'Sibling' || rel.type === 'Grandparent' || rel.type === 'Uncle') type = 'Family';
-        else if (targetContact.category === 'Partner' || rel.type === 'Partner') type = 'Partner';
-        else if (targetContact.category === 'Friend' || rel.type === 'Friend') type = 'Friend';
-        else if (targetContact.category === 'Pet' || rel.type === 'Pet') type = 'Pet';
-        else if (targetContact.category === 'Colleague' || rel.type === 'Colleague') type = 'Colleague';
-
-        return {
-            id: `e_${samContact.id}_${rel.relatedContactId}`,
-            source: samContact.id,
-            target: rel.relatedContactId,
-            type: type,
-        };
-    })
-    .filter(edge => edge !== null) as Edge[];
-
+  const groupLabels: GroupLabel[] = [
+    { text: "Partner", cx: X_POS_COL1, cy: 150 },
+    { text: "Extended Family", cx: X_POS_COL1, cy: 150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
+    { text: "Parents", cx: X_POS_COL2, cy: 20 + CARD_HEIGHT + V_SPACE_GROUP },
+    { text: "Pets", cx: X_POS_COL2, cy: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + (CARD_HEIGHT + V_SPACE_CARD) + CARD_HEIGHT + V_SPACE_GROUP) },
+    { text: "Siblings", cx: X_POS_COL3, cy: 150 },
+    { text: "Grandparents", cx: X_POS_COL3, cy: 150 + LABEL_HEIGHT/2 + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
+  ];
 
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
-  const [edges] = useState<Edge[]>(initialEdges);
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -170,7 +160,7 @@ const RelationshipMapPlaceholder = () => {
     setDraggingNode(nodeId);
     const node = nodes.find(n => n.id === nodeId);
     const svgElement = (e.currentTarget as SVGForeignObjectElement).ownerSVGElement;
-    if (node && node.x && node.y && svgElement) {
+    if (node && node.x != null && node.y != null && svgElement) { // Check for null/undefined
       const CTM = svgElement.getScreenCTM();
       if (CTM) {
         const svgPoint = svgElement.createSVGPoint();
@@ -208,47 +198,43 @@ const RelationshipMapPlaceholder = () => {
   const handleViewProfileClick = (contactId: string) => {
      router.push(`/contacts/${contactId}`);
   };
-
-  const getEdgeColor = (type: Edge['type']) => {
-    switch (type) {
-      case 'Family': return '#3b82f6'; // Blue
-      case 'Partner': return '#ef4444'; // Red
-      case 'Friend': return '#22c55e'; // Green
-      case 'Pet': return '#f97316'; // Orange
-      case 'Colleague': return '#6b7280'; // Gray
-      default: return '#a1a1aa'; // Muted
-    }
-  };
   
   return (
     <svg 
       id="relationship-map-svg"
       width="100%" 
       height="100%" 
-      className="border rounded-lg bg-gray-900 shadow-sm" // Dark background for SVG
+      className="border rounded-lg bg-muted/30 shadow-sm" 
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp} 
-      viewBox="0 0 1200 700" // Adjusted viewBox for more space
+      viewBox="0 0 1000 1250" 
       preserveAspectRatio="xMidYMid meet"
     >
-      {edges.map(edge => {
-        const sourceNode = nodes.find(n => n.id === edge.source);
-        const targetNode = nodes.find(n => n.id === edge.target);
-        if (!sourceNode || !targetNode) return null;
-        
-        return (
-          <line
-            key={edge.id}
-            x1={sourceNode.x + CARD_WIDTH / 2}
-            y1={sourceNode.y + CARD_HEIGHT / 2}
-            x2={targetNode.x + CARD_WIDTH / 2}
-            y2={targetNode.y + CARD_HEIGHT / 2}
-            stroke={getEdgeColor(edge.type)}
-            strokeWidth="2" 
-          />
-        );
-      })}
+      {groupLabels.map(label => (
+        <g key={label.text} transform={`translate(${label.cx}, ${label.cy})`}>
+            <rect 
+                x={-LABEL_WIDTH/2} 
+                y={-LABEL_HEIGHT/2} 
+                width={LABEL_WIDTH} 
+                height={LABEL_HEIGHT} 
+                rx="8" // Rounded corners for label
+                fill="var(--colors-accent)" // Use accent color from theme (Soft Coral)
+            />
+            <text 
+                x="0" 
+                y="5" // Adjust for vertical centering
+                fontFamily="sans-serif" 
+                fontSize="14" 
+                fill="var(--colors-accent-foreground)" // White text
+                textAnchor="middle"
+                fontWeight="bold"
+            >
+                {label.text}
+            </text>
+        </g>
+      ))}
+
       {nodes.map(node => (
         <TooltipProvider key={node.id}>
           <Tooltip>
@@ -261,7 +247,6 @@ const RelationshipMapPlaceholder = () => {
                     onMouseDown={(e) => handleMouseDown(e, node.id)}
                     className="active:cursor-grabbing cursor-grab"
                 >
-                    {/* Required div for foreignObject in some browsers */}
                     <div xmlns="http://www.w3.org/1999/xhtml" className="w-full h-full"> 
                         <RelationshipMapCard contact={node.contact} onButtonClick={handleViewProfileClick} />
                     </div>
@@ -278,14 +263,6 @@ const RelationshipMapPlaceholder = () => {
     </svg>
   );
 };
-
-const legendItems = [
-  { type: 'Family', color: 'bg-blue-500', label: 'Family' },
-  { type: 'Partner', color: 'bg-red-500', label: 'Partner' },
-  { type: 'Friend', color: 'bg-green-500', label: 'Friend' },
-  { type: 'Pet', color: 'bg-orange-500', label: 'Pet' },
-  { type: 'Colleague', color: 'bg-gray-500', label: 'Colleague' },
-];
 
 
 export default function RelationshipMapPage() {
@@ -309,42 +286,34 @@ export default function RelationshipMapPage() {
         </CardHeader>
       </Card>
       
-      <div className="grid md:grid-cols-4 gap-4">
-        <Card className="md:col-span-1 shadow-md bg-card">
-            <CardHeader>
-                <CardTitle className="text-lg text-foreground">Relationship Types</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-                {legendItems.map(item => (
-                    <div key={item.type} className="flex items-center gap-2">
-                        <div className={cn("w-4 h-1 rounded-full", item.color)}></div>
-                        <span className="text-sm text-muted-foreground">{item.label}</span>
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
-
-        <Card className="md:col-span-3 flex-grow shadow-md overflow-hidden bg-card">
-            <CardContent className="p-4 h-[600px] md:h-full"> {/* Ensure height for SVG container */}
-                <p className="text-sm text-muted-foreground mb-2">
-                  Hover over cards for quick info. Drag cards to reposition.
-                </p>
-                <div className="h-[calc(100%-30px)] w-full"> 
-                    <RelationshipMapPlaceholder />
-                </div>
-            </CardContent>
-        </Card>
+      <div className="flex-grow shadow-md overflow-hidden bg-card">
+          <CardContent className="p-4 h-full"> {/* Ensure height for SVG container */}
+              <p className="text-sm text-muted-foreground mb-2">
+                Hover over cards for quick info. Drag cards to reposition.
+              </p>
+              <div className="h-[calc(100%-30px)] w-full"> 
+                  <RelationshipMapPlaceholder />
+              </div>
+          </CardContent>
       </div>
-
 
       <Card className="shadow-md bg-card">
         <CardHeader>
-            <CardTitle className="text-lg text-foreground">Map Legend & Interactions</CardTitle>
+            <CardTitle className="text-lg text-foreground">Map Interactions</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row gap-4 text-sm">
             <div className="space-y-1">
                 <p className="font-medium mb-1 text-foreground">Node Types:</p>
-                <div className="flex items-center gap-2"><div className="w-10 h-10 rounded-md bg-gray-800 flex items-center justify-center"><Users className="w-5 h-5 text-white"/></div> <span className="text-muted-foreground">Contact Card</span></div>
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-md bg-gray-800 flex items-center justify-center p-1">
+                        <UserSquare2 className="w-6 h-6 text-white"/>
+                    </div> 
+                    <span className="text-muted-foreground">Contact Card</span>
+                </div>
+                 <div className="flex items-center gap-2 mt-2">
+                    <div className="px-3 py-1 rounded-md bg-accent text-accent-foreground text-xs font-semibold">Group Label</div>
+                    <span className="text-muted-foreground">Relationship Group</span>
+                </div>
             </div>
             <div className="md:ml-auto">
                 <p className="font-medium mb-1 text-foreground">Interactions:</p>
@@ -359,3 +328,4 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
+
