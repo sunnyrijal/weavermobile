@@ -48,6 +48,20 @@ const H_SPACING_BETWEEN_PAIRED_CARDS = 30;
 const SVG_PADDING_HORIZONTAL = 50;
 const SVG_PADDING_VERTICAL = 50;
 
+// Calculate Y positions for rows - moved to module scope
+const Y_ROW1_LABEL_CY = Y_OFFSET_TOP + LABEL_HEIGHT / 2;
+const Y_ROW1_CARD_Y = Y_OFFSET_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
+
+const Y_ROW2_LABEL_Y_TOP = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
+const Y_ROW2_LABEL_CY = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT / 2;
+const Y_ROW2_CARD_Y = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
+
+const Y_SAM_Y = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS; // Sam aligned with Row 2 Labels
+
+const Y_ROW3_LABEL_Y_TOP = Y_SAM_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
+const Y_ROW3_LABEL_CY = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT / 2;
+const Y_ROW3_CARD_Y = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
+
 
 const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: Contact; onButtonClick: (contactId: string) => void; }) => {
   const getInitials = (name: string) => {
@@ -119,20 +133,6 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
   const samContact = mockContacts.find(c => c.id === '4'); // Sam Hendrickson
   if (!samContact) return <p>Central contact (Sam Hendrickson) not found.</p>;
   
-  // Calculate Y positions for rows
-  const Y_ROW1_LABEL_CY = Y_OFFSET_TOP + LABEL_HEIGHT / 2;
-  const Y_ROW1_CARD_Y = Y_OFFSET_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
-
-  const Y_ROW2_LABEL_Y_TOP = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
-  const Y_ROW2_LABEL_CY = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT / 2;
-  const Y_ROW2_CARD_Y = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
-  
-  const Y_SAM_Y = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS; // Sam aligned with Row 2 Labels
-
-  const Y_ROW3_LABEL_Y_TOP = Y_SAM_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
-  const Y_ROW3_LABEL_CY = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT / 2;
-  const Y_ROW3_CARD_Y = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
-
 
   const groupLabels: GroupLabel[] = [
     { text: "Partner", originalText: "Partner (Emily Grenecer)", cx: COL1_X, cy: Y_ROW1_LABEL_CY },
@@ -151,24 +151,24 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
     // Partner: Emily (Col 1)
     { id: 'emily_g', contact: mockContacts.find(c=>c.id==='emily_g')!, x: COL1_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
     // Parents: John & Sara (Col 2) - John left, Sara right
-    { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: COL2_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
+    { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
     { id: 'sara_h', contact: mockContacts.find(c=>c.id==='sara_h')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
     // Sister: Greta (Col 3)
     { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
     
     // Row 2 Cards (aligned with Sam, but in outer columns)
     // Grandparents: Anne & Jim (Col 1) - Anne left, Jim right
-    { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+    { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
     { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: COL1_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
     // Uncles: Philip & Ty (pair), Ryan (single below) (Col 3)
     // Philip left, Ty right
-    { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: COL3_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+    { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: COL3_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
     { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: COL3_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
     { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD }, // Ryan below the pair
 
     // Row 3 Cards
     // Pets: Alpine & Shula (Col 2) - Alpine left, Shula right
-    { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y },
+    { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y },
     { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y },
 
   ].filter(node => node.contact) as Node[]; 
@@ -479,3 +479,4 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
+
