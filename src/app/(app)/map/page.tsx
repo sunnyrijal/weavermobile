@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -39,9 +38,9 @@ const V_SPACE_LABEL_CARD = 20;
 const V_SPACE_CARD = 40; // Vertical space between stacked cards in the same logical group (e.g. Ryan below Philip/Ty)
 const V_SPACE_BETWEEN_ROWS = 80; // Vertical space between distinct groups/rows of cards
 
-const COL1_X = 280; // Adjusted for pairs
-const COL2_X = 600; // Center column for Sam and pairs
-const COL3_X = 920; // Adjusted for pairs
+const COL1_X = 280; 
+const COL2_X = 600; 
+const COL3_X = 920; 
 
 const H_SPACING_BETWEEN_PAIRED_CARDS = 30;
 
@@ -52,15 +51,16 @@ const SVG_PADDING_VERTICAL = 50;
 const Y_ROW1_LABEL_CY = Y_OFFSET_TOP + LABEL_HEIGHT / 2;
 const Y_ROW1_CARD_Y = Y_OFFSET_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
-const Y_ROW2_LABEL_Y_TOP = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
+const Y_SAM_Y = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS; 
+
+const Y_ROW2_LABEL_Y_TOP = Y_SAM_Y; // Grandparents and Uncles labels align with Sam's card top for this layout
 const Y_ROW2_LABEL_CY = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT / 2;
 const Y_ROW2_CARD_Y = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
-const Y_SAM_Y = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS; // Sam aligned with Row 2 Labels
 
-const Y_ROW3_LABEL_Y_TOP = Y_SAM_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
+const Y_ROW3_LABEL_Y_TOP = Math.max(Y_SAM_Y + CARD_HEIGHT, Y_ROW2_CARD_Y + CARD_HEIGHT) + V_SPACE_BETWEEN_ROWS; // Pets label below the max height of row 2
 const Y_ROW3_LABEL_CY = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT / 2;
-const Y_ROW3_CARD_Y = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
+const Y_ROW3_CARD_Y_VAL = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
 
 const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: Contact; onButtonClick: (contactId: string) => void; }) => {
@@ -127,13 +127,19 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
 RelationshipMapCard.displayName = 'RelationshipMapCard';
 
 
-const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
+interface RelationshipMapPlaceholderProps {
+  viewBox: string;
+  scale: number;
+  currentViewBoxOrigin: { x: number; y: number };
+  onViewBoxOriginChange: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+}
+
+const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({ viewBox, scale, currentViewBoxOrigin, onViewBoxOriginChange }) => {
   const router = useRouter();
   
-  const samContact = mockContacts.find(c => c.id === '4'); // Sam Hendrickson
+  const samContact = mockContacts.find(c => c.id === '4'); 
   if (!samContact) return <p>Central contact (Sam Hendrickson) not found.</p>;
   
-
   const groupLabels: GroupLabel[] = [
     { text: "Partner", originalText: "Partner (Emily Grenecer)", cx: COL1_X, cy: Y_ROW1_LABEL_CY },
     { text: "Parents", originalText: "Parent", cx: COL2_X, cy: Y_ROW1_LABEL_CY },
@@ -144,33 +150,18 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
   ];
 
   const initialNodes: Node[] = [
-    // Sam (Central Node) - Row 2
     { id: samContact.id, contact: samContact, x: COL2_X - CARD_WIDTH/2, y: Y_SAM_Y }, 
-
-    // Row 1 Cards
-    // Partner: Emily (Col 1)
     { id: 'emily_g', contact: mockContacts.find(c=>c.id==='emily_g')!, x: COL1_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
-    // Parents: John & Sara (Col 2) - John left, Sara right
     { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
     { id: 'sara_h', contact: mockContacts.find(c=>c.id==='sara_h')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
-    // Sister: Greta (Col 3)
     { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
-    
-    // Row 2 Cards (aligned with Sam, but in outer columns)
-    // Grandparents: Anne & Jim (Col 1) - Anne left, Jim right
     { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
     { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: COL1_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
-    // Uncles: Philip & Ty (pair), Ryan (single below) (Col 3)
-    // Philip left, Ty right
     { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: COL3_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
     { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: COL3_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
-    { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD }, // Ryan below the pair
-
-    // Row 3 Cards
-    // Pets: Alpine & Shula (Col 2) - Alpine left, Shula right
-    { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y },
-    { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y },
-
+    { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD }, 
+    { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
+    { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
   ].filter(node => node.contact) as Node[]; 
 
 
@@ -179,7 +170,12 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<SVGForeignObjectElement, MouseEvent>, nodeId: string) => {
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStartCoords, setPanStartCoords] = useState<{ clientX: number, clientY: number } | null>(null);
+  const [viewBoxOriginAtPanStart, setViewBoxOriginAtPanStart] = useState<{ x: number, y: number } | null>(null);
+
+
+  const handleNodeMouseDown = useCallback((e: React.MouseEvent<SVGForeignObjectElement, MouseEvent>, nodeId: string) => {
     setDraggingNode(nodeId);
     const node = nodes.find(n => n.id === nodeId);
     const svgElement = svgRef.current;
@@ -195,32 +191,55 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
     }
   }, [nodes]);
   
-  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-    if (!draggingNode) return;
-    
-    const svgElement = svgRef.current;
-    if (!svgElement) return;
-
-    const CTM = svgElement.getScreenCTM();
-    if (CTM) {
-        const svgPoint = svgElement.createSVGPoint();
-        svgPoint.x = e.clientX;
-        svgPoint.y = e.clientY;
-        const transformedPoint = svgPoint.matrixTransform(CTM.inverse());
-
-        setNodes(prevNodes =>
-        prevNodes.map(n =>
-            n.id === draggingNode && typeof offset.x === 'number' && typeof offset.y === 'number'
-             ? { ...n, x: transformedPoint.x - offset.x, y: transformedPoint.y - offset.y } 
-             : n
-        )
-        );
+  const handleBackgroundMouseDown = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
+    if (e.target === svgRef.current) { // Ensure click is on SVG background
+      e.preventDefault();
+      setIsPanning(true);
+      setPanStartCoords({ clientX: e.clientX, clientY: e.clientY });
+      setViewBoxOriginAtPanStart(currentViewBoxOrigin);
     }
-  }, [draggingNode, offset]);
+  };
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
+    if (isPanning && panStartCoords && viewBoxOriginAtPanStart) {
+      e.preventDefault();
+      const dx = e.clientX - panStartCoords.clientX;
+      const dy = e.clientY - panStartCoords.clientY;
+      onViewBoxOriginChange({
+        x: viewBoxOriginAtPanStart.x - (dx / scale),
+        y: viewBoxOriginAtPanStart.y - (dy / scale),
+      });
+    } else if (draggingNode) {
+      const svgElement = svgRef.current;
+      if (!svgElement) return;
+      const CTM = svgElement.getScreenCTM();
+      if (CTM) {
+          const svgPoint = svgElement.createSVGPoint();
+          svgPoint.x = e.clientX;
+          svgPoint.y = e.clientY;
+          const transformedPoint = svgPoint.matrixTransform(CTM.inverse());
+          setNodes(prevNodes =>
+            prevNodes.map(n =>
+                n.id === draggingNode && typeof offset.x === 'number' && typeof offset.y === 'number'
+                 ? { ...n, x: transformedPoint.x - offset.x, y: transformedPoint.y - offset.y } 
+                 : n
+            )
+          );
+      }
+    }
+  }, [isPanning, panStartCoords, viewBoxOriginAtPanStart, scale, onViewBoxOriginChange, draggingNode, offset, nodes, setNodes]);
+
 
   const handleMouseUp = useCallback(() => {
-    setDraggingNode(null);
-  }, []);
+    if (isPanning) {
+      setIsPanning(false);
+      setPanStartCoords(null);
+      setViewBoxOriginAtPanStart(null);
+    }
+    if (draggingNode) {
+      setDraggingNode(null);
+    }
+  }, [isPanning, draggingNode]);
   
   const handleViewProfileClick = useCallback((contactId: string) => {
      router.push(`/contacts/${contactId}`);
@@ -235,7 +254,11 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
       ref={svgRef}
       width="100%" 
       height="100%" 
-      className="border rounded-lg bg-muted/20 shadow-inner" 
+      className={cn(
+        "border rounded-lg bg-muted/20 shadow-inner",
+        isPanning ? "cursor-grabbing" : "cursor-grab" 
+      )}
+      onMouseDown={handleBackgroundMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp} 
@@ -265,15 +288,19 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
       {/* Lines from Group Labels to Nodes */}
       {nodes.map(node => {
         if (node.id === samContact.id || !samNodeDetails) return null; 
-        // Find the relationship type for this node from Sam's perspective
-        const samRelationship = samContact.relationships?.find(rel => rel.relatedContactId === node.id);
-        const groupLabelText = samRelationship?.customLabel || samRelationship?.type;
         
-        // Find the parent group label for this node
+        const samRelationship = samContact.relationships?.find(rel => rel.relatedContactId === node.id);
+        let groupLabelText = samRelationship?.customLabel || samRelationship?.type;
+
+        // Special handling for pets as they are directly categorized
+        if (node.contact.category === "Pet" && !groupLabelText) {
+            groupLabelText = "Pet";
+        }
+        
         const parentGroupLabel = groupLabels.find(gl => 
           (groupLabelText && gl.originalText && groupLabelText.includes(gl.originalText)) || 
-          groupLabelText === gl.text || 
-          (gl.originalText === "Pet" && node.contact.category === "Pet") 
+          groupLabelText === gl.text ||
+          (gl.originalText === "Pet" && groupLabelText === "Pet")
         );
 
         if (parentGroupLabel) {
@@ -281,8 +308,8 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
             <line
               key={`line-group-${parentGroupLabel.text.replace(/\s+/g, '-')}-to-${node.id}`}
               x1={parentGroupLabel.cx}
-              y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} // From bottom-center of label
-              x2={node.x + CARD_WIDTH / 2}               // To top-center of card
+              y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} 
+              x2={node.x + CARD_WIDTH / 2}              
               y2={node.y}                                
               stroke="hsl(var(--border))"
               strokeWidth="2"
@@ -307,7 +334,7 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
             />
             <text 
                 x={LABEL_WIDTH/2} 
-                y={LABEL_HEIGHT/2 + 5} // Adjusted for better vertical centering
+                y={LABEL_HEIGHT/2 + 5} 
                 fontFamily="sans-serif" 
                 fontSize="13px" 
                 fill="hsl(var(--accent-foreground))" 
@@ -329,7 +356,7 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
                     y={node.y} 
                     width={CARD_WIDTH} 
                     height={CARD_HEIGHT}
-                    onMouseDown={(e) => handleMouseDown(e, node.id)}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                     className={cn("active:cursor-grabbing cursor-grab transition-all duration-100 ease-in-out", draggingNode === node.id ? "scale-105 shadow-2xl" : "")}
                 >
                     <div xmlns="http://www.w3.org/1999/xhtml" className="w-full h-full p-1"> 
@@ -360,13 +387,18 @@ export default function RelationshipMapPage() {
     const maxX = Math.max(
       COL1_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
       COL2_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
-      COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2
+      COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2,
+      COL3_X - CARD_WIDTH/2 + CARD_WIDTH // for Ryan Hendrickson (single card in col3 potentially wider than pair)
     );
-    const maxY = Y_ROW3_CARD_Y + CARD_HEIGHT; 
+    // Max Y considers Ryan below Philip/Ty pair, and Pets row
+    const maxY = Math.max(
+        Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT, // Ryan's bottom
+        Y_ROW3_CARD_Y_VAL + CARD_HEIGHT // Pets' bottom
+    ); 
     
-    const width = maxX + SVG_PADDING_HORIZONTAL;
-    const height = maxY + SVG_PADDING_VERTICAL;
-    return { width: Math.max(1100, width), height: Math.max(1000, height) }; 
+    const width = maxX + SVG_PADDING_HORIZONTAL * 2; // padding on both sides
+    const height = maxY + SVG_PADDING_VERTICAL * 2; // padding on top and bottom
+    return { width: Math.max(1200, width), height: Math.max(1100, height) }; // Increased defaults
   }, []);
 
   const currentViewBoxString = useMemo(() => {
@@ -380,7 +412,7 @@ export default function RelationshipMapPage() {
       const oldScale = prevScale;
       let newScale = direction === 'in' ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
       
-      newScale = Math.max(0.2, Math.min(newScale, 5)); 
+      newScale = Math.max(0.1, Math.min(newScale, 5)); 
 
       if (newScale === oldScale) return oldScale; 
 
@@ -438,10 +470,15 @@ export default function RelationshipMapPage() {
       <div className="flex-grow shadow-md overflow-hidden bg-card rounded-lg border border-border">
           <CardContent className="p-4 h-full"> 
               <p className="text-xs text-muted-foreground mb-2 text-center sm:text-left">
-                Hover over cards for quick info. Drag cards to reposition. Lines indicate connections.
+                Hover over cards for quick info. Drag cards to reposition. Drag background to pan. Lines indicate connections.
               </p>
-              <div className="h-[calc(100%-25px)] w-full overflow-auto"> 
-                  <RelationshipMapPlaceholder viewBox={currentViewBoxString} />
+              <div className="h-[calc(100%-25px)] w-full"> 
+                  <RelationshipMapPlaceholder 
+                    viewBox={currentViewBoxString} 
+                    scale={scale}
+                    currentViewBoxOrigin={viewBoxOrigin}
+                    onViewBoxOriginChange={setViewBoxOrigin}
+                  />
               </div>
           </CardContent>
       </div>
@@ -468,6 +505,7 @@ export default function RelationshipMapPage() {
                 <p className="font-medium mb-1 text-foreground">Interactions:</p>
                 <ul className="list-disc list-inside text-muted-foreground space-y-1">
                     <li>Drag cards to reposition them on the map.</li>
+                    <li>Drag the background to pan the map view.</li>
                     <li>Hover over a contact card for quick information.</li>
                     <li>Click "View Profile" on a card to navigate to the contact's detail page.</li>
                     <li>Lines connect Sam (central node) to group labels, and group labels to individuals.</li>
@@ -479,4 +517,3 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
-
