@@ -30,7 +30,7 @@ interface GroupLabel {
 
 // Layout Constants
 const CARD_WIDTH = 160; 
-const CARD_HEIGHT = 190; 
+const CARD_HEIGHT = 200; // Increased from 190 to allow more space for text
 const LABEL_WIDTH = 120;
 const LABEL_HEIGHT = 30;
 
@@ -124,7 +124,7 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
             {badgeText}
         </Badge>
       )}
-      <p className="text-xs text-muted-foreground mt-1 text-center truncate w-full">
+      <p className="text-xs text-muted-foreground mt-1 text-center w-full">
         {contact.occupation || contact.college || contact.locationDetails || 'N/A'}
       </p>
       <Button 
@@ -529,3 +529,4 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
+
