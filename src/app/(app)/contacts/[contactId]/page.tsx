@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { mockContacts } from "@/lib/mockData";
-import type { Contact } from "@/lib/types";
+import type { Contact, NotableEvent } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,10 +14,16 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University } from "lucide-react"; // Added University
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper } from "lucide-react"; 
 import React, { useState, useEffect } from 'react';
+import { format as formatDateFn, parseISO } from "date-fns"; // For date formatting
+import { cn } from "@/lib/utils";
+
 
 const getInitials = (name: string) => {
   if (!name) return "NN";
@@ -27,17 +34,20 @@ const getInitials = (name: string) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-
 // Function to format date for display, ensuring client-side only execution
 const formatDateForDisplay = (dateString?: string | Date): string | null => {
   if (!dateString) return 'N/A';
-  const date = typeof dateString === 'string' ? new Date(dateString + 'T00:00:00Z') : dateString; // Assume YYYY-MM-DD is UTC
+  // Ensure dateString is treated as UTC if it's YYYY-MM-DD
+  const date = typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString) 
+             ? parseISO(dateString + 'T00:00:00.000Z') 
+             : new Date(dateString);
+
   if (isNaN(date.getTime())) return 'N/A'; // Invalid date
   return date.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric',
-      timeZone: 'UTC' 
+      timeZone: 'UTC' // Explicitly use UTC
   });
 };
 
@@ -51,8 +61,15 @@ const formatDateTimeForDisplay = (dateTimeString?: string | Date): string | null
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: 'UTC' // Display in UTC or adjust as needed
+        timeZone: 'UTC' 
     });
+};
+
+const formatDateForStorage = (date: Date): string => {
+    const year = date.getUTCFullYear();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 
@@ -62,13 +79,19 @@ export default function ContactDetailPage() {
   const { toast } = useToast();
   const contactId = params.contactId as string;
 
-  // Local state for contact to allow "mock" updates for notes
   const [contact, setContact] = useState<Contact | undefined | null>(undefined);
   const [notesInput, setNotesInput] = useState('');
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+  const [eventFormValues, setEventFormValues] = useState<{ title: string; date: Date | null; description: string }>({
+    title: '',
+    date: null,
+    description: '',
+  });
+  const [isSavingEvent, setIsSavingEvent] = useState(false);
 
-  // State for formatted dates to avoid hydration mismatch
   const [formattedBirthday, setFormattedBirthday] = useState<string | null>(null);
   const [formattedCreatedAt, setFormattedCreatedAt] = useState<string | null>(null);
   const [formattedUpdatedAt, setFormattedUpdatedAt] = useState<string | null>(null);
@@ -79,12 +102,10 @@ export default function ContactDetailPage() {
     setContact(foundContact);
     if (foundContact) {
       setNotesInput(foundContact.notes || "");
-      // Set formatted dates here to ensure they are computed on client side
       setFormattedBirthday(formatDateForDisplay(foundContact.birthday));
       setFormattedCreatedAt(formatDateTimeForDisplay(foundContact.createdAt));
       setFormattedUpdatedAt(formatDateTimeForDisplay(foundContact.updatedAt));
     } else {
-      // Reset dates if contact not found
       setFormattedBirthday(null);
       setFormattedCreatedAt(null);
       setFormattedUpdatedAt(null);
@@ -95,25 +116,55 @@ export default function ContactDetailPage() {
   const handleSaveNotes = async () => {
     if (!contact) return;
     setIsSavingNotes(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const newUpdatedAt = new Date();
-    const updatedContact = { ...contact, notes: notesInput, updatedAt: newUpdatedAt };
-    setContact(updatedContact);
-    setFormattedUpdatedAt(formatDateTimeForDisplay(newUpdatedAt)); // Update formatted date
-
+    const updatedContactData = { ...contact, notes: notesInput, updatedAt: newUpdatedAt };
+    setContact(updatedContactData);
+    setFormattedUpdatedAt(formatDateTimeForDisplay(newUpdatedAt)); 
 
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
         mockContacts[contactIndex] = { ...mockContacts[contactIndex], notes: notesInput, updatedAt: newUpdatedAt };
     }
 
-    console.log("Updated notes for contact:", contactId, "New notes:", notesInput);
     toast({ title: "Notes Saved", description: "Your notes have been updated." });
     setIsSavingNotes(false);
     setIsNotesDialogOpen(false);
   };
+
+  const handleSaveNotableEvent = async () => {
+    if (!contact || !eventFormValues.title || !eventFormValues.date) {
+        toast({ title: "Missing Information", description: "Please provide at least a title and date for the event.", variant: "destructive"});
+        return;
+    }
+    setIsSavingEvent(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const newEvent: NotableEvent = {
+        id: `event-${Date.now()}`,
+        title: eventFormValues.title,
+        date: formatDateForStorage(eventFormValues.date),
+        description: eventFormValues.description || undefined,
+    };
+    const newUpdatedAt = new Date();
+    const updatedNotableEvents = [...(contact.notableEvents || []), newEvent];
+    
+    setContact(prev => prev ? ({ ...prev, notableEvents: updatedNotableEvents, updatedAt: newUpdatedAt }) : null);
+    setFormattedUpdatedAt(formatDateTimeForDisplay(newUpdatedAt));
+
+    const contactIndex = mockContacts.findIndex(c => c.id === contactId);
+    if (contactIndex !== -1) {
+        mockContacts[contactIndex].notableEvents = updatedNotableEvents;
+        mockContacts[contactIndex].updatedAt = newUpdatedAt;
+    }
+
+    toast({ title: "Event Added", description: `${newEvent.title} has been added to notable events.`});
+    setIsSavingEvent(false);
+    setIsEventDialogOpen(false);
+    setEventFormValues({ title: '', date: null, description: '' }); // Reset form
+  };
+
 
   if (contact === undefined) {
     return (
@@ -123,7 +174,6 @@ export default function ContactDetailPage() {
       </div>
     );
   }
-
 
   if (!contact) {
     return (
@@ -184,13 +234,14 @@ export default function ContactDetailPage() {
           </div>
         </div>
         
-        <CardContent className="pt-20"> {/* Increased padding top to avoid overlap with cover content */}
+        <CardContent className="pt-20">
           <Tabs defaultValue="overview">
-            <TabsList className="mb-4">
+            <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="relationships">Relationships</TabsTrigger>
               <TabsTrigger value="photos">Photos Together</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="events">Notable Events</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -266,7 +317,7 @@ export default function ContactDetailPage() {
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Category</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                   {contact.category && <span className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></span>}
+                  {contact.category && <span className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></span>}
                   <div className="flex flex-wrap gap-2 mt-2">
                     {contact.tags && contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
@@ -384,6 +435,107 @@ export default function ContactDetailPage() {
                     </Dialog>
                 </CardFooter>
                </Card>
+            </TabsContent>
+
+            <TabsContent value="events">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center"><PartyPopper className="mr-2 h-5 w-5 text-primary"/> Notable Events</CardTitle>
+                  <CardDescription>Keep track of important dates and milestones with {contact.name}.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {contact.notableEvents && contact.notableEvents.length > 0 ? (
+                    <div className="space-y-4">
+                      {contact.notableEvents.map(event => (
+                        <Card key={event.id} className="shadow-sm">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-md flex items-center justify-between">
+                              {event.title}
+                              <span className="text-xs font-normal text-muted-foreground">{formatDateForDisplay(event.date)}</span>
+                            </CardTitle>
+                          </CardHeader>
+                          {event.description && (
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground">{event.description}</p>
+                            </CardContent>
+                          )}
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">No notable events added yet for {contact.name}.</p>
+                  )}
+                </CardContent>
+                <CardFooter>
+                  <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline"><CalendarPlus className="mr-2 h-4 w-4" /> Add Event</Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Add Notable Event for {contact.name}</DialogTitle>
+                        <DialogDescription>
+                          Record a new significant date or milestone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div>
+                          <Label htmlFor="event-title">Event Title *</Label>
+                          <Input 
+                            id="event-title" 
+                            value={eventFormValues.title}
+                            onChange={(e) => setEventFormValues(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="e.g., Anniversary, Trip, Achievement"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="event-date">Event Date *</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !eventFormValues.date && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarDays className="mr-2 h-4 w-4" />
+                                {eventFormValues.date ? formatDateFn(eventFormValues.date, "PPP") : <span>Pick a date</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={eventFormValues.date}
+                                onSelect={(date) => setEventFormValues(prev => ({ ...prev, date: date || null }))}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <div>
+                          <Label htmlFor="event-description">Description (Optional)</Label>
+                          <Textarea
+                            id="event-description"
+                            value={eventFormValues.description}
+                            onChange={(e) => setEventFormValues(prev => ({...prev, description: e.target.value}))}
+                            placeholder="Add any relevant details about the event."
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => {setIsEventDialogOpen(false); setEventFormValues({title: '', date: null, description: ''});}} disabled={isSavingEvent}>
+                          Cancel
+                        </Button>
+                        <Button type="button" onClick={handleSaveNotableEvent} disabled={isSavingEvent || !eventFormValues.title || !eventFormValues.date}>
+                          {isSavingEvent && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Save Event
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </CardFooter>
+              </Card>
             </TabsContent>
 
           </Tabs>

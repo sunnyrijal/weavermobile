@@ -19,6 +19,13 @@ export interface Relationship {
   customLabel?: string;
 }
 
+export interface NotableEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD format
+  description?: string;
+}
+
 export interface Contact {
   id: string; // Firestore document ID
   ownerId: string; // User UID
@@ -44,6 +51,7 @@ export interface Contact {
   notes?: string;
   photosTogether: string[]; // Array of URLs to images in Firebase Storage
   relationships: Relationship[];
+  notableEvents?: NotableEvent[]; // Added notable events
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
 }
