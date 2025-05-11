@@ -125,7 +125,7 @@ export const mockContacts: Contact[] = [
     updatedAt: new Date("2024-02-15T12:45:00Z"),
   },
   // Contacts for Sam Hendrickson's network
-  { id: "emily_g", ownerId: "user1", name: "Emily Grenecer", occupation: "Peace Corps Volunteer", locationDetails: "Portland, Maine", tags: ["Partner", "Peace Corps"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Partner" }], photosTogether: [] },
+  { id: "emily_g", ownerId: "user1", name: "Emily Grenecer", occupation: "Peace Corps Volunteer", locationDetails: "Portland, Maine", tags: ["Partner", "Peace Corps"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Partner" }], photosTogether: [], birthday: "1999-07-25" },
   { id: "alpine_d", ownerId: "user1", name: "Alpine (Dog)", category: "Pet", tags: ["Dog", "Black Labrador"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Owner" }], photosTogether: [] },
   { id: "shula_d", ownerId: "user1", name: "Shula (Dog)", category: "Pet", tags: ["Dog", "Black Labrador"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Owner" }], photosTogether: [] },
   { id: "sara_h", ownerId: "user1", name: "Sara Hendrickson", category: "Family", tags: ["Parent", "Mother"], createdAt: new Date(), updatedAt: new Date(), relationships: [{ relatedContactId: "4", type: "Child" }], photosTogether: [] },

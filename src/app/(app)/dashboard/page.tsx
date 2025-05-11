@@ -1,17 +1,17 @@
 
 "use client";
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff } from "lucide-react";
+import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift } from "lucide-react";
 import type { Contact, ContactViewMode } from '@/lib/types';
 import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
-
+import { format, differenceInDays, parseISO, getYear, getMonth, getDate, setYear, isPast, addYears } from 'date-fns';
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
   <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -60,6 +60,82 @@ const ContactListItem = ({ contact }: { contact: Contact }) => (
   </li>
 );
 
+interface DisplayEvent {
+  id: string;
+  title: string;
+  date: Date;
+  type: 'Birthday' | 'Anniversary';
+  icon: React.ElementType;
+  daysRemaining: number;
+}
+
+const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
+  const today = new Date();
+  const upcomingThresholdDays = 30;
+  let events: DisplayEvent[] = [];
+
+  // Birthdays
+  contacts.forEach(contact => {
+    if (contact.birthday) {
+      try {
+        const [yearStr, monthStr, dayStr] = contact.birthday.split('-');
+        const birthDateThisYear = setYear(new Date(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)), getYear(today));
+        
+        let nextBirthdayDate = birthDateThisYear;
+        if (isPast(nextBirthdayDate) && differenceInDays(nextBirthdayDate, today) !== 0) {
+          nextBirthdayDate = addYears(birthDateThisYear, 1);
+        }
+        
+        const daysRemaining = differenceInDays(nextBirthdayDate, today);
+        if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
+          events.push({
+            id: `birthday-${contact.id}`,
+            title: `${contact.name}'s Birthday`,
+            date: nextBirthdayDate,
+            type: 'Birthday',
+            icon: Gift,
+            daysRemaining,
+          });
+        }
+      } catch (error) {
+        console.error(`Error parsing birthday for ${contact.name}: ${contact.birthday}`, error);
+      }
+    }
+  });
+
+  // Mock Anniversaries (as an example, since this data isn't in Contact type yet)
+  const mockAnniversariesRaw = [
+    {
+      id: 'anniv_abhas_parents',
+      title: "Abhas Oli's Parents Anniversary",
+      originalDate: new Date(2000, 7, 1), // Example: August 1st
+      type: 'Anniversary' as const,
+      icon: Heart,
+    }
+  ];
+
+  mockAnniversariesRaw.forEach(anniv => {
+    const anniversaryThisYear = setYear(anniv.originalDate, getYear(today));
+    let nextAnniversaryDate = anniversaryThisYear;
+    if (isPast(nextAnniversaryDate) && differenceInDays(nextAnniversaryDate, today) !== 0) {
+      nextAnniversaryDate = addYears(anniversaryThisYear, 1);
+    }
+    const daysRemaining = differenceInDays(nextAnniversaryDate, today);
+    if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
+      events.push({
+        id: anniv.id,
+        title: anniv.title,
+        date: nextAnniversaryDate,
+        type: anniv.type,
+        icon: anniv.icon,
+        daysRemaining,
+      });
+    }
+  });
+  
+  return events.sort((a, b) => a.daysRemaining - b.daysRemaining);
+};
+
 
 export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,6 +148,9 @@ export default function DashboardPage() {
   
   const [showAllContacts, setShowAllContacts] = useState(false);
   const mainContactIds = ["1", "3", "4"]; // Chandra Oli, Abhas Oli, Sam Hendrickson
+  
+  const upcomingEvents = useMemo(() => getUpcomingEvents(mockContacts), []);
+
 
   useEffect(() => {
     // Clean up speech recognition instance if component unmounts while listening
@@ -121,10 +200,8 @@ export default function DashboardPage() {
         else if (event.error === 'not-allowed') errorMessage = "Microphone access denied. Enable it in browser settings.";
         else if (event.error === 'network') {
             errorMessage = "Network error during speech recognition. Please check your internet connection and try again.";
-            toast({ title: "Voice Search Network Error", description: "Please ensure you are connected to the internet for voice search.", variant: "destructive" });
-        } else {
-             toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
         }
+        toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
       };
 
       recognition.onstart = () => {
@@ -164,6 +241,8 @@ export default function DashboardPage() {
   });
   
   const filterCategories = ["All", "Family", "Friend", "Colleague", "Professional", "Partner"];
+  const closeConnectionsCount = mockContacts.filter(c => c.category === 'Family' || c.category === 'Partner').length;
+
 
   return (
     <div className="space-y-6">
@@ -172,26 +251,25 @@ export default function DashboardPage() {
           <CardTitle className="text-2xl">Welcome to your NetworkNest!</CardTitle>
           <CardDescription>Manage and visualize your connections like never before.</CardDescription>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-            <Card className="bg-primary/10 border-primary/30">
+        <CardContent className="grid md:grid-cols-2 gap-4">
+            <Card className="shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><UsersRound className="text-primary"/> Total Contacts</CardTitle>
+                    <CardTitle className="text-lg">Network Overview</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-3xl font-bold">{mockContacts.length}</p>
-                    <p className="text-xs text-muted-foreground">people in your network</p>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    <div className="text-center md:text-left">
+                        <UsersRound className="h-6 w-6 text-primary mx-auto md:mx-0 mb-1"/>
+                        <p className="text-xs text-muted-foreground">Total Contacts</p>
+                        <p className="text-2xl font-bold">{mockContacts.length}</p>
+                    </div>
+                    <div className="text-center md:text-left">
+                        <Heart className="h-6 w-6 text-accent mx-auto md:mx-0 mb-1"/>
+                        <p className="text-xs text-muted-foreground">Close Connections</p>
+                        <p className="text-2xl font-bold">{closeConnectionsCount}</p>
+                    </div>
                 </CardContent>
             </Card>
-            <Card className="bg-accent/10 border-accent/30">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><Heart className="text-accent"/> Close Connections</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-3xl font-bold">{mockContacts.filter(c => c.category === 'Family' || c.category === 'Partner').length}</p>
-                    <p className="text-xs text-muted-foreground">family & partners</p>
-                </CardContent>
-            </Card>
-            <Card>
+            <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg">Quick Actions</CardTitle>
                 </CardHeader>
@@ -206,6 +284,40 @@ export default function DashboardPage() {
             </Card>
         </CardContent>
       </Card>
+
+      <Card className="shadow-md">
+        <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2"><CalendarDays className="text-primary"/> Upcoming Events</CardTitle>
+            <CardDescription>Stay on top of important dates in your network.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {upcomingEvents.length > 0 ? (
+                <ul className="space-y-3 max-h-60 overflow-y-auto">
+                    {upcomingEvents.map(event => (
+                        <li key={event.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                            <div className="flex items-center gap-3">
+                                <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : 'text-pink-500'}`} />
+                                <div>
+                                    <p className="font-medium">{event.title}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {format(event.date, 'MMMM do')}
+                                        {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
+                                    </p>
+                                </div>
+                            </div>
+                            {/* Future: Link to contact if birthday */}
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-muted-foreground">No upcoming events in the next 30 days.</p>
+            )}
+        </CardContent>
+         <CardFooter>
+             <p className="text-xs text-muted-foreground">Showing events within the next 30 days.</p>
+         </CardFooter>
+      </Card>
+
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative flex-grow w-full md:w-auto">
@@ -305,4 +417,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
