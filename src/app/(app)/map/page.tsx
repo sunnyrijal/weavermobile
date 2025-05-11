@@ -23,20 +23,30 @@ interface Node {
 
 interface GroupLabel {
   text: string;
-  cx: number; // center x for the label group
-  cy: number; // center y for the label group
+  cx: number; // center x for the label
+  cy: number; // center y for the label
   originalText: string; // To match relationship type/customLabel
 }
 
-// Define constants used for layout calculation here
+// Layout Constants
 const CARD_WIDTH = 160; 
 const CARD_HEIGHT = 190; 
 const LABEL_WIDTH = 120;
 const LABEL_HEIGHT = 30;
-const H_SPACE_CARD_GROUP = 30; 
-const V_SPACE_CARD = 40; 
-const V_SPACE_GROUP = 60; 
-const V_SPACE_LABEL_CARD = 20; 
+
+const Y_OFFSET_TOP = 50;
+const V_SPACE_LABEL_CARD = 20;
+const V_SPACE_CARD = 40; // Vertical space between stacked cards in the same logical group (e.g. Ryan below Philip/Ty)
+const V_SPACE_BETWEEN_ROWS = 80; // Vertical space between distinct groups/rows of cards
+
+const COL1_X = 280; // Adjusted for pairs
+const COL2_X = 600; // Center column for Sam and pairs
+const COL3_X = 920; // Adjusted for pairs
+
+const H_SPACING_BETWEEN_PAIRED_CARDS = 30;
+
+const SVG_PADDING_HORIZONTAL = 50;
+const SVG_PADDING_VERTICAL = 50;
 
 
 const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: Contact; onButtonClick: (contactId: string) => void; }) => {
@@ -109,41 +119,59 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
   const samContact = mockContacts.find(c => c.id === '4'); // Sam Hendrickson
   if (!samContact) return <p>Central contact (Sam Hendrickson) not found.</p>;
   
-  const X_POS_COL1 = 150;
-  const X_POS_COL2 = X_POS_COL1 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP; 
-  const X_POS_COL3 = X_POS_COL2 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP; 
+  // Calculate Y positions for rows
+  const Y_ROW1_LABEL_CY = Y_OFFSET_TOP + LABEL_HEIGHT / 2;
+  const Y_ROW1_CARD_Y = Y_OFFSET_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
+  const Y_ROW2_LABEL_Y_TOP = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
+  const Y_ROW2_LABEL_CY = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT / 2;
+  const Y_ROW2_CARD_Y = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
+  
+  const Y_SAM_Y = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS; // Sam aligned with Row 2 Labels
 
-  const initialNodes: Node[] = [
-    // Sam (Central)
-    { id: samContact.id, contact: samContact, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT/2 }, 
+  const Y_ROW3_LABEL_Y_TOP = Y_SAM_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS;
+  const Y_ROW3_LABEL_CY = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT / 2;
+  const Y_ROW3_CARD_Y = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
-    // Column 1: Partner & Grandparents
-    { id: 'emily_g', contact: mockContacts.find(c=>c.id==='emily_g')!, x: X_POS_COL1 - CARD_WIDTH/2, y: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD },
-    { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: X_POS_COL1 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) },
-    { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: X_POS_COL1 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD)}, 
-    
-    // Column 2 (Central Column): Parents & Pets
-    { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + LABEL_HEIGHT + V_SPACE_LABEL_CARD },
-    { id: 'sara_h', contact: mockContacts.find(c=>c.id==='sara_h')!, x: X_POS_COL2 - CARD_WIDTH/2, y: 20 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + (CARD_HEIGHT + V_SPACE_CARD) },
-    { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) },
-    { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: X_POS_COL2 - CARD_WIDTH/2, y: (20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD)},
-
-    // Column 3: Sister & Uncles
-    { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: X_POS_COL3 - CARD_WIDTH/2, y: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD },
-    { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) },
-    { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + (CARD_HEIGHT + V_SPACE_CARD) },
-    { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: X_POS_COL3 - CARD_WIDTH/2, y: (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + 2 * (CARD_HEIGHT + V_SPACE_CARD) },
-  ].filter(node => node.contact) as Node[]; 
 
   const groupLabels: GroupLabel[] = [
-    { text: "Partner", originalText: "Partner (Emily Grenecer)", cx: X_POS_COL1, cy: 100 },
-    { text: "Grandparents", originalText: "Grandparent", cx: X_POS_COL1, cy: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
-    { text: "Parents", originalText: "Parent", cx: X_POS_COL2, cy: 20 },
-    { text: "Pets", originalText: "Pet", cx: X_POS_COL2, cy: 20 + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT + V_SPACE_GROUP },
-    { text: "Sister", originalText: "Sibling", cx: X_POS_COL3, cy: 100 },
-    { text: "Uncles", originalText: "Uncle", cx: X_POS_COL3, cy: 100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP },
+    { text: "Partner", originalText: "Partner (Emily Grenecer)", cx: COL1_X, cy: Y_ROW1_LABEL_CY },
+    { text: "Parents", originalText: "Parent", cx: COL2_X, cy: Y_ROW1_LABEL_CY },
+    { text: "Sister", originalText: "Sibling", cx: COL3_X, cy: Y_ROW1_LABEL_CY },
+    { text: "Grandparents", originalText: "Grandparent", cx: COL1_X, cy: Y_ROW2_LABEL_CY },
+    { text: "Uncles", originalText: "Uncle", cx: COL3_X, cy: Y_ROW2_LABEL_CY },
+    { text: "Pets", originalText: "Pet", cx: COL2_X, cy: Y_ROW3_LABEL_CY },
   ];
+
+  const initialNodes: Node[] = [
+    // Sam (Central Node) - Row 2
+    { id: samContact.id, contact: samContact, x: COL2_X - CARD_WIDTH/2, y: Y_SAM_Y }, 
+
+    // Row 1 Cards
+    // Partner: Emily (Col 1)
+    { id: 'emily_g', contact: mockContacts.find(c=>c.id==='emily_g')!, x: COL1_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
+    // Parents: John & Sara (Col 2) - John left, Sara right
+    { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: COL2_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
+    { id: 'sara_h', contact: mockContacts.find(c=>c.id==='sara_h')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
+    // Sister: Greta (Col 3)
+    { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
+    
+    // Row 2 Cards (aligned with Sam, but in outer columns)
+    // Grandparents: Anne & Jim (Col 1) - Anne left, Jim right
+    { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+    { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: COL1_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+    // Uncles: Philip & Ty (pair), Ryan (single below) (Col 3)
+    // Philip left, Ty right
+    { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: COL3_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+    { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: COL3_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+    { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD }, // Ryan below the pair
+
+    // Row 3 Cards
+    // Pets: Alpine & Shula (Col 2) - Alpine left, Shula right
+    { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH/2 - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y },
+    { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y },
+
+  ].filter(node => node.contact) as Node[]; 
 
 
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
@@ -220,6 +248,7 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
         </marker>
       </defs>
 
+      {/* Lines from Sam to Group Labels */}
       {samNodeDetails && groupLabels.map(label => (
         <line
           key={`line-sam-to-group-${label.text.replace(/\s+/g, '-')}`}
@@ -233,10 +262,14 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
         />
       ))}
 
+      {/* Lines from Group Labels to Nodes */}
       {nodes.map(node => {
         if (node.id === samContact.id || !samNodeDetails) return null; 
+        // Find the relationship type for this node from Sam's perspective
         const samRelationship = samContact.relationships?.find(rel => rel.relatedContactId === node.id);
         const groupLabelText = samRelationship?.customLabel || samRelationship?.type;
+        
+        // Find the parent group label for this node
         const parentGroupLabel = groupLabels.find(gl => 
           (groupLabelText && gl.originalText && groupLabelText.includes(gl.originalText)) || 
           groupLabelText === gl.text || 
@@ -248,8 +281,8 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
             <line
               key={`line-group-${parentGroupLabel.text.replace(/\s+/g, '-')}-to-${node.id}`}
               x1={parentGroupLabel.cx}
-              y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} 
-              x2={node.x + CARD_WIDTH / 2}               
+              y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} // From bottom-center of label
+              x2={node.x + CARD_WIDTH / 2}               // To top-center of card
               y2={node.y}                                
               stroke="hsl(var(--border))"
               strokeWidth="2"
@@ -261,6 +294,7 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
       })}
 
 
+      {/* Group Labels */}
       {groupLabels.map(label => (
         <g key={label.text} transform={`translate(${label.cx - LABEL_WIDTH/2}, ${label.cy - LABEL_HEIGHT/2})`}>
             <rect 
@@ -273,7 +307,7 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
             />
             <text 
                 x={LABEL_WIDTH/2} 
-                y={LABEL_HEIGHT/2 + 5} 
+                y={LABEL_HEIGHT/2 + 5} // Adjusted for better vertical centering
                 fontFamily="sans-serif" 
                 fontSize="13px" 
                 fill="hsl(var(--accent-foreground))" 
@@ -285,6 +319,7 @@ const RelationshipMapPlaceholder = ({ viewBox }: { viewBox: string }) => {
         </g>
       ))}
 
+      {/* Nodes (Contact Cards) */}
       {nodes.map(node => (
         <TooltipProvider key={node.id}>
           <Tooltip>
@@ -322,15 +357,16 @@ export default function RelationshipMapPage() {
   const ZOOM_FACTOR = 1.2;
 
   const initialViewBoxDimensions = useMemo(() => {
-    const X_POS_COL1 = 150;
-    const X_POS_COL2 = X_POS_COL1 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP;
-    const X_POS_COL3 = X_POS_COL2 + CARD_WIDTH + H_SPACE_CARD_GROUP + LABEL_WIDTH + H_SPACE_CARD_GROUP;
-
-    const width = Math.max(1000, X_POS_COL3 + CARD_WIDTH / 2 + 50);
-    const height = Math.max(1250,
-      (100 + LABEL_HEIGHT + V_SPACE_LABEL_CARD + CARD_HEIGHT + V_SPACE_GROUP + LABEL_HEIGHT + V_SPACE_LABEL_CARD) + 3 * (CARD_HEIGHT + V_SPACE_CARD) + 50
+    const maxX = Math.max(
+      COL1_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
+      COL2_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
+      COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2
     );
-    return { width, height };
+    const maxY = Y_ROW3_CARD_Y + CARD_HEIGHT; // Based on Pets or Ryan being lowest
+    
+    const width = maxX + SVG_PADDING_HORIZONTAL;
+    const height = maxY + SVG_PADDING_VERTICAL;
+    return { width: Math.max(1100, width), height: Math.max(1000, height) }; // Keep a minimum size
   }, []);
 
   const currentViewBoxString = useMemo(() => {
@@ -443,4 +479,3 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
-
