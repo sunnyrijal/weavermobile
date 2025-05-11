@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -53,15 +54,26 @@ const Y_ROW1_CARD_Y = Y_OFFSET_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
 const Y_SAM_Y = Y_ROW1_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS; 
 
-const Y_ROW2_LABEL_Y_TOP = Y_SAM_Y; // Grandparents and Uncles labels align with Sam's card top for this layout
+const Y_ROW2_LABEL_Y_TOP = Y_SAM_Y; 
 const Y_ROW2_LABEL_CY = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT / 2;
 const Y_ROW2_CARD_Y = Y_ROW2_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
 
-const Y_ROW3_LABEL_Y_TOP = Math.max(Y_SAM_Y + CARD_HEIGHT, Y_ROW2_CARD_Y + CARD_HEIGHT) + V_SPACE_BETWEEN_ROWS; // Pets label below the max height of row 2
+const Y_ROW3_LABEL_Y_TOP = Math.max(Y_SAM_Y + CARD_HEIGHT, Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD) + V_SPACE_BETWEEN_ROWS; 
 const Y_ROW3_LABEL_CY = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT / 2;
 const Y_ROW3_CARD_Y_VAL = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
+
+const getPetTypeFromTags = (tags?: string[]): string => {
+  if (!tags || tags.length === 0) return "Pet";
+  const commonPetTypes = ["Dog", "Cat", "Bird", "Fish", "Rabbit", "Hamster", "Guinea Pig"];
+  for (const tag of tags) {
+    if (commonPetTypes.includes(tag)) {
+      return tag;
+    }
+  }
+  return "Pet"; 
+};
 
 const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: Contact; onButtonClick: (contactId: string) => void; }) => {
   const getInitials = (name: string) => {
@@ -94,6 +106,8 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
     }
   }
 
+  const badgeText = contact.category === 'Pet' ? getPetTypeFromTags(contact.tags) : contact.category;
+
   return (
     <div className="bg-card text-card-foreground rounded-lg shadow-xl p-3 flex flex-col items-center justify-between border border-border" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
       <Avatar className="w-16 h-16 mb-2 border-2 border-muted">
@@ -101,13 +115,13 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
         <AvatarFallback className="bg-muted text-xl">{getInitials(contact.name)}</AvatarFallback>
       </Avatar>
       <p className="font-semibold text-sm text-center truncate w-full">{contact.name}</p>
-      {contact.category && (
+      {badgeText && (
         <Badge 
             variant={getCategoryBadgeVariant(contact.category)} 
             style={getCategoryBadgeStyle(contact.category)}
             className="mt-1 text-xs"
         >
-            {contact.category}
+            {badgeText}
         </Badge>
       )}
       <p className="text-xs text-muted-foreground mt-1 text-center truncate w-full">
@@ -141,7 +155,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
   if (!samContact) return <p>Central contact (Sam Hendrickson) not found.</p>;
   
   const groupLabels: GroupLabel[] = [
-    { text: "Partner", originalText: "Partner (Emily Grenecer)", cx: COL1_X, cy: Y_ROW1_LABEL_CY },
+    { text: "Partner", originalText: "Partner", cx: COL1_X, cy: Y_ROW1_LABEL_CY },
     { text: "Parents", originalText: "Parent", cx: COL2_X, cy: Y_ROW1_LABEL_CY },
     { text: "Sister", originalText: "Sibling", cx: COL3_X, cy: Y_ROW1_LABEL_CY },
     { text: "Grandparents", originalText: "Grandparent", cx: COL1_X, cy: Y_ROW2_LABEL_CY },
@@ -192,7 +206,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
   }, [nodes]);
   
   const handleBackgroundMouseDown = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-    if (e.target === svgRef.current) { // Ensure click is on SVG background
+    if (e.target === svgRef.current) { 
       e.preventDefault();
       setIsPanning(true);
       setPanStartCoords({ clientX: e.clientX, clientY: e.clientY });
@@ -227,7 +241,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
           );
       }
     }
-  }, [isPanning, panStartCoords, viewBoxOriginAtPanStart, scale, onViewBoxOriginChange, draggingNode, offset, nodes, setNodes]);
+  }, [isPanning, panStartCoords, viewBoxOriginAtPanStart, scale, onViewBoxOriginChange, draggingNode, offset]);
 
 
   const handleMouseUp = useCallback(() => {
@@ -292,7 +306,6 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         const samRelationship = samContact.relationships?.find(rel => rel.relatedContactId === node.id);
         let groupLabelText = samRelationship?.customLabel || samRelationship?.type;
 
-        // Special handling for pets as they are directly categorized
         if (node.contact.category === "Pet" && !groupLabelText) {
             groupLabelText = "Pet";
         }
@@ -367,7 +380,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
             <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg rounded-md p-2">
               <p className="font-semibold text-sm">{node.contact.name}</p>
               {node.contact.occupation && <p className="text-xs">Occupation: {node.contact.occupation}</p>}
-              {node.contact.category && <p className="text-xs">Category: {node.contact.category}</p>}
+              {node.contact.category && <p className="text-xs">Category: {node.contact.category === 'Pet' ? getPetTypeFromTags(node.contact.tags) : node.contact.category}</p>}
               {node.contact.locationDetails && <p className="text-xs">Location: {node.contact.locationDetails}</p>}
             </TooltipContent>
           </Tooltip>
@@ -388,17 +401,16 @@ export default function RelationshipMapPage() {
       COL1_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
       COL2_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
       COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2,
-      COL3_X - CARD_WIDTH/2 + CARD_WIDTH // for Ryan Hendrickson (single card in col3 potentially wider than pair)
+      COL3_X - CARD_WIDTH/2 + CARD_WIDTH 
     );
-    // Max Y considers Ryan below Philip/Ty pair, and Pets row
     const maxY = Math.max(
-        Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT, // Ryan's bottom
-        Y_ROW3_CARD_Y_VAL + CARD_HEIGHT // Pets' bottom
+        Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT, 
+        Y_ROW3_CARD_Y_VAL + CARD_HEIGHT 
     ); 
     
-    const width = maxX + SVG_PADDING_HORIZONTAL * 2; // padding on both sides
-    const height = maxY + SVG_PADDING_VERTICAL * 2; // padding on top and bottom
-    return { width: Math.max(1200, width), height: Math.max(1100, height) }; // Increased defaults
+    const width = maxX + SVG_PADDING_HORIZONTAL * 2; 
+    const height = maxY + SVG_PADDING_VERTICAL * 2; 
+    return { width: Math.max(1200, width), height: Math.max(1100, height) }; 
   }, []);
 
   const currentViewBoxString = useMemo(() => {
