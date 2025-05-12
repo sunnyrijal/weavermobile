@@ -32,10 +32,11 @@ export interface Contact {
   name: string;
   photoURL?: string; // URL to image in Firebase Storage
   birthday?: string; // YYYY-MM-DD
-  locationDetails?: string; // e.g., "Ohio → Univ. of Cincinnati, Mechanical Engineer"
+  hometown?: string; // e.g., "Kritipur, Nepal"
+  currentLocation?: string; // e.g., "Cincinnati, Ohio"
   occupation?: string;
   company?: string;
-  college?: string; // Added college field
+  college?: string; 
   socialProfiles?: {
     linkedin?: string;
     instagram?: string;

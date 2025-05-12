@@ -14,10 +14,11 @@ const placeholderContactFormSchema = z.object({
   phone: z.string().optional(),
   occupation: z.string().optional(),
   company: z.string().optional(),
-  college: z.string().optional(), // Added college field
+  college: z.string().optional(), 
   category: z.string().optional(),
   ownerRelationshipLabel: z.string().optional(), // User's specific relationship (e.g., "My Host Mom")
-  locationDetails: z.string().optional(),
+  hometown: z.string().optional(),
+  currentLocation: z.string().optional(),
   birthday: z.date().optional().nullable(),
   photoURL: z.string().optional(),
   photoFile: z.instanceof(File).optional().nullable(), // Added for file uploads

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { ContactForm, contactFormSchema } from "@/components/contacts/ContactForm";
@@ -75,6 +74,8 @@ export default function NewContactPage() {
       ownerId: currentUser.uid,
       createdAt: new Date(),
       updatedAt: new Date(),
+      hometown: values.hometown || undefined,
+      currentLocation: values.currentLocation || undefined,
       birthday: values.birthday ? formatDateForStorage(values.birthday) : undefined,
       college: values.college || undefined,
       ownerRelationshipLabel: values.ownerRelationshipLabel || undefined,
@@ -141,7 +142,8 @@ export default function NewContactPage() {
             if (parsedInfo.company) newDefaults.company = parsedInfo.company;
             if (parsedInfo.college) newDefaults.college = parsedInfo.college;
             if (parsedInfo.category) newDefaults.category = parsedInfo.category as ContactFormValues['category'];
-            if (parsedInfo.locationDetails) newDefaults.locationDetails = parsedInfo.locationDetails;
+            if (parsedInfo.hometown) newDefaults.hometown = parsedInfo.hometown;
+            if (parsedInfo.currentLocation) newDefaults.currentLocation = parsedInfo.currentLocation;
             // AI for ownerRelationshipLabel not yet implemented in parseContactInfoFlow
             // if (parsedInfo.ownerRelationship) newDefaults.ownerRelationshipLabel = parsedInfo.ownerRelationship;
             if (parsedInfo.birthday) {

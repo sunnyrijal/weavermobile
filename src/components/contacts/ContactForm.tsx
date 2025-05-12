@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ContactFormValues } from "@/lib/types/forms";
@@ -25,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, University, Users, UploadCloud } from "lucide-react"; 
+import { CalendarIcon, University, Users, UploadCloud, MapPin, Home } from "lucide-react"; 
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format as formatDateFn } from "date-fns";
@@ -41,7 +40,8 @@ export const contactFormSchema = z.object({
   college: z.string().optional(), 
   category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", "Pet", ""]).optional(),
   ownerRelationshipLabel: z.string().optional().describe("Your specific relationship to this contact, e.g., Host Mom, Mentor, Childhood Friend."),
-  locationDetails: z.string().optional(),
+  hometown: z.string().optional(),
+  currentLocation: z.string().optional(),
   birthday: z.date().optional().nullable(),
   photoURL: z.string().url({ message: "Invalid URL for photo." }).optional().or(z.literal('')),
   photoFile: z.instanceof(File).optional().nullable().refine(
@@ -74,7 +74,8 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         college: '', 
         category: '',
         ownerRelationshipLabel: '',
-        locationDetails: '',
+        hometown: '',
+        currentLocation: '',
         birthday: null,
         photoURL: '',
         photoFile: null,
@@ -94,7 +95,8 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         college: defaultValues.college || '',
         category: defaultValues.category || '',
         ownerRelationshipLabel: defaultValues.ownerRelationshipLabel || '',
-        locationDetails: defaultValues.locationDetails || '',
+        hometown: defaultValues.hometown || '',
+        currentLocation: defaultValues.currentLocation || '',
         birthday: defaultValues.birthday instanceof Date ? defaultValues.birthday : null,
         photoURL: defaultValues.photoURL || '',
         photoFile: null, // File input should not be pre-filled with existing file objects for security/UX reasons
@@ -202,19 +204,40 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="locationDetails"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., San Francisco, CA" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="hometown"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <Home className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Hometown
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Kritipur, Nepal" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="currentLocation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Current Location
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., San Francisco, CA" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             <div className="grid md:grid-cols-2 gap-6">
                 <FormField

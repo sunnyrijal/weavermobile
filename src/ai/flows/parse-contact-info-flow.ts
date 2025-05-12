@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow to parse contact information from a voice transcript.
@@ -23,8 +22,9 @@ const ParseContactInfoOutputSchema = z.object({
   occupation: z.string().optional().describe("The contact's occupation."),
   company: z.string().optional().describe("The contact's company."),
   college: z.string().optional().describe("The contact's college or university."),
-  category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", ""]).optional().describe("The contact's category. Choose from the provided list if a suitable one is mentioned, otherwise leave blank or use 'Other'."),
-  locationDetails: z.string().optional().describe("Details about the contact's location (e.g., city, state)."),
+  category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", "Pet", ""]).optional().describe("The contact's category. Choose from the provided list if a suitable one is mentioned, otherwise leave blank or use 'Other'."),
+  hometown: z.string().optional().describe("The contact's city of origin or hometown (e.g., where they grew up)."),
+  currentLocation: z.string().optional().describe("The contact's current city and state, or general current location."),
   birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("The contact's birthday in YYYY-MM-DD format. If the year is not mentioned, try to infer a reasonable one or leave it out."),
   tags: z.array(z.string()).optional().describe("A list of relevant tags based on the transcript (e.g., interests, skills, affiliations)."),
 });
@@ -51,13 +51,14 @@ Parse the information according to the following schema:
 - occupation: The job title or profession.
 - company: The company or organization they work for.
 - college: The college or university they attended or are attending.
-- category: The relationship category. If mentioned, try to map it to one of: "Family", "Friend", "Colleague", "Professional", "Partner", "Other". If not clear, use "Other" or omit.
-- locationDetails: Any details about their location (city, state, country).
-- birthday: The birthday in YYYY-MM-DD format. If the year is unclear, you can try to infer a plausible one or omit the year if only month/day is mentioned, but try to adhere to YYYY-MM-DD. If only month and day are mentioned, you could for example use the current year or a common year like 1990, but state this assumption if made. For example, if "birthday is March 15th", output something like "1990-03-15".
+- category: The relationship category. If mentioned, try to map it to one of: "Family", "Friend", "Colleague", "Professional", "Partner", "Pet", "Other". If not clear, use "Other" or omit.
+- hometown: The city/place where the contact is originally from or grew up, if mentioned distinctly from current location.
+- currentLocation: The current city, state, or general location where the contact lives.
+- birthday: The birthday in YYYY-MM-DD format. If the year is not mentioned, try to infer a reasonable one or leave it out.
 - tags: A list of relevant keywords or tags that describe the contact based on the transcript (e.g., interests, skills, shared activities, projects, specific locations mentioned if not primary location).
 
-Example Transcript: "Add John Doe, he's a software engineer at Google, email john.doe@example.com, phone is 555-1234. He went to Stanford. We know him from the hiking group, birthday is April 10th 1985. He lives in San Francisco."
-Expected Output (example):
+Example Transcript 1: "Add John Doe, he's a software engineer at Google, email john.doe@example.com, phone is 555-1234. He went to Stanford. We know him from the hiking group, birthday is April 10th 1985. He's originally from Boston but now lives in San Francisco."
+Expected Output (example 1):
 {
   "name": "John Doe",
   "email": "john.doe@example.com",
@@ -65,11 +66,23 @@ Expected Output (example):
   "occupation": "software engineer",
   "company": "Google",
   "college": "Stanford",
-  "category": "Friend", // (inferred or could be 'Other' if not specified)
-  "locationDetails": "San Francisco",
+  "category": "Friend",
+  "hometown": "Boston",
+  "currentLocation": "San Francisco",
   "birthday": "1985-04-10",
   "tags": ["hiking group", "software engineer", "Stanford alumni"]
 }
+
+Example Transcript 2: "New contact: Jane Smith. She works at Microsoft. Lives in Seattle. Birthday is June 5th."
+Expected Output (example 2):
+{
+  "name": "Jane Smith",
+  "company": "Microsoft",
+  "currentLocation": "Seattle",
+  "birthday": "1990-06-05", // Assuming a default year if not specified
+  "tags": ["Microsoft"]
+}
+
 
 Provide the output as a JSON object matching the defined output schema.
 `,
@@ -89,5 +102,3 @@ const parseContactInfoFlow = ai.defineFlow(
     return output;
   }
 );
-
-    

@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,8 @@ const ContactCardItem = ({ contact }: { contact: Contact }) => (
     <CardContent className="p-4">
       <CardTitle className="text-lg mb-1">{contact.name}</CardTitle>
       <CardDescription className="text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
-      {contact.locationDetails && <p className="text-xs text-muted-foreground truncate">{contact.locationDetails}</p>}
+      {contact.currentLocation && <p className="text-xs text-muted-foreground truncate">{contact.currentLocation}</p>}
+      {!contact.currentLocation && contact.hometown && <p className="text-xs text-muted-foreground truncate">From: {contact.hometown}</p>}
     </CardContent>
     <CardFooter className="p-4 pt-0">
       <Button variant="outline" size="sm" asChild>
@@ -232,7 +232,8 @@ export default function DashboardPage() {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch = contact.name.toLowerCase().includes(searchTermLower) ||
                           (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTermLower)) ||
-                          (contact.locationDetails && contact.locationDetails.toLowerCase().includes(searchTermLower)) ||
+                          (contact.hometown && contact.hometown.toLowerCase().includes(searchTermLower)) ||
+                          (contact.currentLocation && contact.currentLocation.toLowerCase().includes(searchTermLower)) ||
                           (contact.occupation && contact.occupation.toLowerCase().includes(searchTermLower)) ||
                           (contact.company && contact.company.toLowerCase().includes(searchTermLower)) ||
                           (contact.college && contact.college.toLowerCase().includes(searchTermLower));

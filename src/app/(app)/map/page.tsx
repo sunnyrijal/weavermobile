@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Share2, ZoomIn, ZoomOut, Download, Users, Link as LinkIcon, UsersRound, UserSquare2, Group, Heart, Briefcase, PawPrint, Home, Brain, UserCog, ChevronsLeftRight } from "lucide-react"; 
+import { Share2, ZoomIn, ZoomOut, Download, Users, Link as LinkIcon, UsersRound, UserSquare2, Group, Heart, Briefcase, PawPrint, Home as HomeIcon, Brain, UserCog, ChevronsLeftRight } from "lucide-react"; 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -204,8 +204,8 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
             {badgeText}
         </Badge>
       )}
-      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate" title={contact.occupation || contact.college || contact.locationDetails || 'N/A'}>
-        {contact.occupation || contact.college || contact.locationDetails || 'N/A'}
+      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate" title={contact.occupation || contact.college || contact.currentLocation || 'N/A'}>
+        {contact.occupation || contact.college || contact.currentLocation || 'N/A'}
       </p>
       <Button 
         size="sm" 
@@ -599,10 +599,10 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
                 </foreignObject>
             </TooltipTrigger>
             <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg rounded-md p-2">
-              <p className="font-semibold text-sm">{node.contact.name.replace(/\s*\((Dog|Cat|Pet)\)\s*/i, '').trim()}</p>
+              <p className="font-semibold text-sm">{node.contact.name.replace(/\s*\((Dog|Cat|Pet)\s*\)/i, '').trim()}</p>
               {node.contact.occupation && <p className="text-xs">Occupation: {node.contact.occupation}</p>}
               <p className="text-xs">Role: {getBadgeText(node.contact, centralContact)}</p>
-              {node.contact.locationDetails && <p className="text-xs">Location: {node.contact.locationDetails}</p>}
+              {node.contact.currentLocation && <p className="text-xs">Location: {node.contact.currentLocation}</p>}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -787,4 +787,3 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
-

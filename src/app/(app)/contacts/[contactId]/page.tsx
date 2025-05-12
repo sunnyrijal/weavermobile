@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -19,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck } from "lucide-react"; 
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home } from "lucide-react"; 
 import React, { useState, useEffect } from 'react';
 import { isValid, parseISO } from "date-fns";
 import { format as formatDateFnInternal } from "date-fns";
@@ -223,10 +222,16 @@ export default function ContactDetailPage() {
                         <span>{contact.phone}</span>
                       </div>
                     )}
-                    {contact.locationDetails && (
+                    {contact.hometown && (
+                       <div className="flex items-center">
+                        <Home className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <span>From: {contact.hometown}</span>
+                      </div>
+                    )}
+                    {contact.currentLocation && (
                        <div className="flex items-center">
                         <MapPin className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>{contact.locationDetails}</span>
+                        <span>Lives in: {contact.currentLocation}</span>
                       </div>
                     )}
                      {contact.birthday && (
@@ -537,9 +542,3 @@ export default function ContactDetailPage() {
     </div>
   );
 }
-
-      
-
-    
-
-    
