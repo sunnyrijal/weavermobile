@@ -13,6 +13,16 @@ import { ArrowLeft, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Helper function to read file as Data URL
+const readFileAsDataURL = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function EditContactPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -57,18 +67,38 @@ export default function EditContactPage() {
       return;
     }
 
+    let photoUrlToStore = values.photoURL;
+    if (values.photoFile) {
+      try {
+        photoUrlToStore = await readFileAsDataURL(values.photoFile);
+      } catch (error) {
+        console.error("Error converting file to data URL:", error);
+        toast({
+          title: "Image Upload Error",
+          description: "Could not process the uploaded image. Please try again or use a URL.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const updatedContactData: Contact = {
       ...contact, // Spread existing contact data
       ...values,  // Spread form values
+      photoURL: photoUrlToStore, // Use processed photo URL
       updatedAt: new Date(),
       birthday: values.birthday ? format(values.birthday, "yyyy-MM-dd") : undefined,
       college: values.college || undefined, 
       ownerRelationshipLabel: values.ownerRelationshipLabel || undefined,
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
     };
+     // Remove photoFile from the data to be stored if it exists
+    delete (updatedContactData as any).photoFile;
+
 
     console.log("Updated Contact Data:", updatedContactData);
     // In a real app, you would update this in Firestore or your backend
@@ -124,6 +154,7 @@ export default function EditContactPage() {
     locationDetails: contact.locationDetails || '',
     birthday: contact.birthday ? new Date(contact.birthday + 'T00:00:00') : null, // Ensure correct date parsing for UTC
     photoURL: contact.photoURL || '',
+    // photoFile should not be pre-filled from existing data for edit
     tags: contact.tags ? contact.tags.join(', ') : '',
   };
 

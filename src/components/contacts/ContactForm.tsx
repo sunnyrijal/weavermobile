@@ -25,12 +25,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, University, Users } from "lucide-react"; 
+import { CalendarIcon, University, Users, UploadCloud } from "lucide-react"; 
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format as formatDateFn } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import React, { useEffect } from 'react'; // Added useEffect
+import React, { useEffect } from 'react'; 
 
 export const contactFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -44,6 +44,13 @@ export const contactFormSchema = z.object({
   locationDetails: z.string().optional(),
   birthday: z.date().optional().nullable(),
   photoURL: z.string().url({ message: "Invalid URL for photo." }).optional().or(z.literal('')),
+  photoFile: z.instanceof(File).optional().nullable().refine(
+    (file) => !file || file.size <= 2 * 1024 * 1024, // Max 2MB
+    `File size should be less than 2MB.`
+  ).refine(
+    (file) => !file || (file.type.startsWith("image/") && /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)),
+    `Invalid file type. Please upload an image (jpg, jpeg, png, gif, webp).`
+  ),
   tags: z.string().optional(), 
 });
 
@@ -70,6 +77,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         locationDetails: '',
         birthday: null,
         photoURL: '',
+        photoFile: null,
         tags: '',
         ...defaultValues, 
       },
@@ -77,20 +85,20 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
 
   useEffect(() => {
     if (defaultValues) {
-      const resetValues = {
-        name: '',
-        email: '',
-        phone: '',
-        occupation: '',
-        company: '',
-        college: '',
-        category: '',
-        ownerRelationshipLabel: '',
-        locationDetails: '',
-        birthday: null,
-        photoURL: '',
-        tags: '',
-        ...defaultValues,
+      const resetValues: ContactFormValues = {
+        name: defaultValues.name || '',
+        email: defaultValues.email || '',
+        phone: defaultValues.phone || '',
+        occupation: defaultValues.occupation || '',
+        company: defaultValues.company || '',
+        college: defaultValues.college || '',
+        category: defaultValues.category || '',
+        ownerRelationshipLabel: defaultValues.ownerRelationshipLabel || '',
+        locationDetails: defaultValues.locationDetails || '',
+        birthday: defaultValues.birthday instanceof Date ? defaultValues.birthday : null,
+        photoURL: defaultValues.photoURL || '',
+        photoFile: null, // File input should not be pre-filled with existing file objects for security/UX reasons
+        tags: defaultValues.tags || '',
       };
       form.reset(resetValues);
     }
@@ -315,6 +323,32 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="photoFile"
+              render={({ field: { onChange, value, ...rest } }) => ( // Destructure onChange to handle file input
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                      <UploadCloud className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Upload Photo
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                        type="file" 
+                        accept="image/jpeg, image/png, image/gif, image/webp"
+                        onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
+                        {...rest} 
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Or upload an image file (max 2MB: jpg, png, gif, webp). This will override the Photo URL if both are provided.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
 
             <FormField
               control={form.control}

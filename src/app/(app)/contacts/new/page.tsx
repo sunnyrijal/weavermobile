@@ -14,6 +14,17 @@ import { parseContactInfo } from "@/ai/flows/parse-contact-info-flow";
 import type { ParseContactInfoOutput } from "@/ai/flows/parse-contact-info-flow";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+// Helper function to read file as Data URL
+const readFileAsDataURL = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
+
 export default function NewContactPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -39,10 +50,27 @@ export default function NewContactPage() {
       return;
     }
 
+    let photoUrlToStore = values.photoURL;
+    if (values.photoFile) {
+      try {
+        photoUrlToStore = await readFileAsDataURL(values.photoFile);
+      } catch (error) {
+        console.error("Error converting file to data URL:", error);
+        toast({
+          title: "Image Upload Error",
+          description: "Could not process the uploaded image. Please try again or use a URL.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const newContactData = {
       ...values,
+      photoURL: photoUrlToStore, // Use processed photo URL
       id: Date.now().toString(), 
       ownerId: currentUser.uid,
       createdAt: new Date(),
@@ -55,6 +83,9 @@ export default function NewContactPage() {
       photosTogether: [],
       relationships: [],
     };
+    // Remove photoFile from the data to be stored if it exists
+    delete (newContactData as any).photoFile;
+
 
     mockContacts.push(newContactData);
 

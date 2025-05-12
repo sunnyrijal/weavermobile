@@ -1,3 +1,4 @@
+
 import type { z } from 'zod';
 // It's better to define the schema in ContactForm.tsx and import its inferred type here,
 // or define the schema here and import it into ContactForm.tsx.
@@ -19,6 +20,7 @@ const placeholderContactFormSchema = z.object({
   locationDetails: z.string().optional(),
   birthday: z.date().optional().nullable(),
   photoURL: z.string().optional(),
+  photoFile: z.instanceof(File).optional().nullable(), // Added for file uploads
   tags: z.string().optional(),
 });
 
