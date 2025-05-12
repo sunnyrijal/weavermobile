@@ -12,8 +12,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, parseISO, getYear, getMonth, getDate, setYear, isPast, addYears } from 'date-fns';
-import { answerContactQuestion } from '@/ai/flows/answer-contact-question';
-import type { AnswerContactQuestionInput, AnswerContactQuestionOutput } from '@/ai/flows/answer-contact-question';
+import { answerContactQuestion } from '@/ai/flows/answer-contact-question-flow';
+import type { AnswerContactQuestionInput, AnswerContactQuestionOutput } from '@/ai/flows/answer-contact-question-flow';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -257,9 +257,13 @@ export default function DashboardPage() {
       const result: AnswerContactQuestionOutput = await answerContactQuestion({ question });
       toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
       setAiQuestionText(''); // Clear input after successful submission
-    } catch (aiError) {
+    } catch (aiError: any) {
       console.error("AI answering error:", aiError);
-      toast({ title: "AI Error", description: "Could not get an answer.", variant: "destructive" });
+      let description = "Could not get an answer from the AI.";
+      if (aiError.message) {
+        description = aiError.message;
+      }
+      toast({ title: "AI Error", description, variant: "destructive" });
     } finally {
       setIsLoadingAiAnswer(false);
     }
@@ -302,7 +306,8 @@ export default function DashboardPage() {
 
       recognition.onresult = async (event) => {
         const transcript = event.results[0][0].transcript;
-        toast({ title: "Question received", description: "Getting an answer from AI..." });
+        setAiQuestionText(transcript); // Set the text in the input field
+        toast({ title: "Question received", description: `Asking: "${transcript}"...` });
         await processAiQuestion(transcript);
       };
 
@@ -315,7 +320,7 @@ export default function DashboardPage() {
             errorMessage = "Microphone access denied. Enable it in browser settings.";
             setMicrophonePermissionError(errorMessage);
         }
-        else if (event.error === 'network') errorMessage = "Network error for speech recognition. Check internet.";
+        else if (event.error === 'network') errorMessage = "Network error for speech recognition. Check internet connection.";
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
         setIsLoadingAiAnswer(false); // Also reset loading state on error
       };
@@ -586,6 +591,8 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
 
 
 
