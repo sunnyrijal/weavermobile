@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -390,7 +391,7 @@ export default function ContactDetailPage() {
                     {contact.college && (
                       <div className="flex items-center">
                         <University className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Studied at {contact.college}</span>
+                        <span>{contact.college}</span>
                       </div>
                     )}
                     {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
@@ -722,5 +723,6 @@ export default function ContactDetailPage() {
     </div>
   );
 }
+
 
 
