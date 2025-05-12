@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck } from "lucide-react"; 
 import React, { useState, useEffect } from 'react';
-import { format as formatDateFn, parseISO } from "date-fns"; // For date formatting
+import { format as formatDateFn, parseISO, isValid } from "date-fns"; // For date formatting
 import { cn } from "@/lib/utils";
 
 
@@ -37,40 +37,40 @@ const getInitials = (name: string) => {
 const formatDate = (dateString?: string | Date): string => {
   if (!dateString) return 'N/A';
   
-  // Ensure dateString is treated as UTC if it's YYYY-MM-DD
-  const date = typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString) 
-             ? parseISO(dateString + 'T00:00:00.000Z') 
-             : new Date(dateString);
+  let date: Date;
+  if (typeof dateString === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      // For "YYYY-MM-DD" strings, parse as UTC
+      const [year, month, day] = dateString.split('-').map(Number);
+      date = new Date(Date.UTC(year, month - 1, day));
+    } else {
+      // For other strings (like ISO with time), parse directly
+      date = parseISO(dateString);
+    }
+  } else {
+    // If it's already a Date object
+    date = dateString;
+  }
 
-  if (isNaN(date.getTime())) {
+  if (!isValid(date)) {
     return 'N/A'; // Invalid date
   }
-  return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      timeZone: 'UTC' // Explicitly use UTC
-  });
+
+  return formatDateFn(date, 'PPP', { timeZone: 'UTC' });
 };
 
 const formatDateTime = (dateTimeString?: string | Date): string => {
     if (!dateTimeString) return 'N/A';
-    const date = dateTimeString instanceof Date ? dateTimeString : new Date(dateTimeString);
-    if (isNaN(date.getTime())) {
+    const date = dateTimeString instanceof Date ? dateTimeString : parseISO(dateTimeString);
+    if (!isValid(date)) {
         return 'N/A'; // Invalid date
     }
-    return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'UTC' 
-    });
+    return formatDateFn(date, 'PPpp', { timeZone: 'UTC' });
 };
 
 
 const formatDateForStorage = (date: Date): string => {
+    // Format to YYYY-MM-DD for storage, ensuring UTC consistency
     const year = date.getUTCFullYear();
     const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
     const day = date.getUTCDate().toString().padStart(2, '0');
@@ -97,23 +97,12 @@ export default function ContactDetailPage() {
   });
   const [isSavingEvent, setIsSavingEvent] = useState(false);
 
-  const [birthdayDisplay, setBirthdayDisplay] = useState<string | null>(null);
-  const [createdAtDisplay, setCreatedAtDisplay] = useState<string | null>(null);
-  const [updatedAtDisplay, setUpdatedAtDisplay] = useState<string | null>(null);
-
 
   useEffect(() => {
     const foundContact = mockContacts.find((c) => c.id === contactId);
     setContact(foundContact);
     if (foundContact) {
       setNotesInput(foundContact.notes || "");
-      setBirthdayDisplay(formatDate(foundContact.birthday));
-      setCreatedAtDisplay(formatDateTime(foundContact.createdAt));
-      setUpdatedAtDisplay(formatDateTime(foundContact.updatedAt));
-    } else {
-      setBirthdayDisplay('N/A');
-      setCreatedAtDisplay('N/A');
-      setUpdatedAtDisplay('N/A');
     }
   }, [contactId]);
 
@@ -126,7 +115,6 @@ export default function ContactDetailPage() {
     const newUpdatedAt = new Date();
     const updatedContactData = { ...contact, notes: notesInput, updatedAt: newUpdatedAt };
     setContact(updatedContactData);
-    setUpdatedAtDisplay(formatDateTime(newUpdatedAt)); 
     
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
@@ -156,7 +144,6 @@ export default function ContactDetailPage() {
     const updatedNotableEvents = [...(contact.notableEvents || []), newEvent];
     
     setContact(prev => prev ? ({ ...prev, notableEvents: updatedNotableEvents, updatedAt: newUpdatedAt }) : null);
-    setUpdatedAtDisplay(formatDateTime(newUpdatedAt));
     
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
@@ -277,7 +264,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born {birthdayDisplay}</span>
+                        <span>Born {formatDate(contact.birthday)}</span>
                       </div>
                     )}
                   </CardContent>
@@ -321,29 +308,36 @@ export default function ContactDetailPage() {
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-3">
                   {contact.category && (
                     <div className="flex items-center gap-2">
-                      <strong className="text-sm">Primary Category:</strong>
+                      <span className="text-sm font-medium">Primary Category:</span>
                       <Badge variant="secondary">{contact.category}</Badge>
                     </div>
                   )}
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-sm font-medium self-center">General Tags:</span>
+                    {contact.tags && contact.tags.length > 0 ? contact.tags.map((tag) => (
+                      <Badge key={tag} variant="outline">{tag}</Badge>
+                    )) : (
+                        <span className="text-sm text-muted-foreground">No general tags.</span>
+                    )}
+                  </div>
+
                   {contact.ownerRelationshipLabel && (
-                     <div className="flex items-center gap-2">
-                      <strong className="text-sm">My Relationship:</strong>
-                      <Badge variant="outline" className="flex items-center w-fit">
-                        <UserCheck className="mr-1.5 h-3.5 w-3.5 text-accent" />
+                     <div className="flex items-center gap-2 pt-2">
+                      <span className="text-sm font-medium">My Relationship:</span>
+                      <Badge variant="outline" className="flex items-center w-fit bg-accent/20 border-accent text-accent-foreground">
+                        <UserCheck className="mr-1.5 h-3.5 w-3.5" />
                         {contact.ownerRelationshipLabel}
                       </Badge>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {contact.tags && contact.tags.length > 0 ? contact.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">{tag}</Badge>
-                    )) : (
-                        (!contact.category && !contact.ownerRelationshipLabel) && <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
-                    )}
-                  </div>
+
+                  {(!contact.category && (!contact.tags || contact.tags.length === 0) && !contact.ownerRelationshipLabel) && 
+                    <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
+                  }
                 </CardContent>
               </Card>
             </TabsContent>
@@ -564,11 +558,12 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-          <p>Contact created on: {createdAtDisplay}</p>
-          <p className="ml-auto">Last updated: {updatedAtDisplay}</p>
+          <p>Contact created on: {formatDateTime(contact.createdAt)}</p>
+          <p className="ml-auto">Last updated: {formatDateTime(contact.updatedAt)}</p>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
 
