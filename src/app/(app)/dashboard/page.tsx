@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2 } from "lucide-react";
+import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2, Send } from "lucide-react";
 import type { Contact, ContactViewMode } from '@/lib/types';
 import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
@@ -155,6 +155,7 @@ export default function DashboardPage() {
   const [isListeningToVoiceSearch, setIsListeningToVoiceSearch] = useState(false);
   const speechRecognitionSearchRef = useRef<SpeechRecognition | null>(null);
   
+  const [aiQuestionText, setAiQuestionText] = useState('');
   const [isListeningToQuestion, setIsListeningToQuestion] = useState(false);
   const [isLoadingAiAnswer, setIsLoadingAiAnswer] = useState(false);
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null);
@@ -246,6 +247,35 @@ export default function DashboardPage() {
     }
   };
   
+  const processAiQuestion = async (question: string) => {
+    if (!question.trim()) {
+      toast({ title: "Empty Question", description: "Please type or speak a question.", variant: "destructive" });
+      return;
+    }
+    setIsLoadingAiAnswer(true);
+    try {
+      const result: AnswerContactQuestionOutput = await answerContactQuestion({ question });
+      toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
+      setAiQuestionText(''); // Clear input after successful submission
+    } catch (aiError) {
+      console.error("AI answering error:", aiError);
+      toast({ title: "AI Error", description: "Could not get an answer.", variant: "destructive" });
+    } finally {
+      setIsLoadingAiAnswer(false);
+    }
+  };
+
+  const handleTextQuestionSubmit = async () => {
+    await processAiQuestion(aiQuestionText);
+  };
+  
+  const handleAiQuestionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleTextQuestionSubmit();
+    }
+  };
+
+
   const handleVoiceQuestionClick = async () => {
     if (typeof window === 'undefined') return;
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -273,16 +303,7 @@ export default function DashboardPage() {
       recognition.onresult = async (event) => {
         const transcript = event.results[0][0].transcript;
         toast({ title: "Question received", description: "Getting an answer from AI..." });
-        setIsLoadingAiAnswer(true);
-        try {
-          const result: AnswerContactQuestionOutput = await answerContactQuestion({ question: transcript });
-          toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
-        } catch (aiError) {
-          console.error("AI answering error:", aiError);
-          toast({ title: "AI Error", description: "Could not get an answer.", variant: "destructive" });
-        } finally {
-          setIsLoadingAiAnswer(false);
-        }
+        await processAiQuestion(transcript);
       };
 
       recognition.onerror = (event) => {
@@ -386,20 +407,41 @@ export default function DashboardPage() {
       <Card className="shadow-md">
         <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2"><Sparkles className="text-primary"/> Ask AI About Your Network</CardTitle>
-            <CardDescription>Use voice to ask questions like "When is Sam's birthday?" or "Who is Chandra's partner?".</CardDescription>
+            <CardDescription>Use voice or text to ask questions like "When is Sam's birthday?" or "Who is Chandra's partner?".</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={handleVoiceQuestionClick}
-            disabled={isListeningToQuestion || isLoadingAiAnswer}
-            className="w-full max-w-md text-base py-6"
-          >
-            {isListeningToQuestion ? <MicOff className="mr-2 h-5 w-5 text-destructive" /> : <Mic className="mr-2 h-5 w-5" />}
-            {isListeningToQuestion ? "Listening..." : isLoadingAiAnswer ? "Getting Answer..." : "Ask a Question"}
-            {isLoadingAiAnswer && <Loader2 className="ml-2 h-5 w-5 animate-spin" />}
-          </Button>
+          <div className="w-full max-w-md space-y-3">
+            <div className="flex gap-2">
+                <Input 
+                    type="text"
+                    placeholder="Type your question here..."
+                    value={aiQuestionText}
+                    onChange={(e) => setAiQuestionText(e.target.value)}
+                    onKeyDown={handleAiQuestionKeyDown}
+                    disabled={isLoadingAiAnswer || isListeningToQuestion}
+                    className="flex-grow"
+                />
+                <Button
+                    variant="default"
+                    size="icon"
+                    onClick={handleTextQuestionSubmit}
+                    disabled={isLoadingAiAnswer || isListeningToQuestion || !aiQuestionText.trim()}
+                    title="Ask AI"
+                >
+                    {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                </Button>
+            </div>
+            <Button
+                variant="outline"
+                onClick={handleVoiceQuestionClick}
+                disabled={isListeningToQuestion || isLoadingAiAnswer}
+                className="w-full text-base py-3"
+            >
+                {isListeningToQuestion ? <MicOff className="mr-2 h-5 w-5 text-destructive" /> : <Mic className="mr-2 h-5 w-5" />}
+                {isListeningToQuestion ? "Listening..." : isLoadingAiAnswer ? "Processing..." : "Or Ask by Voice"}
+                {isLoadingAiAnswer && isListeningToQuestion && <Loader2 className="ml-2 h-5 w-5 animate-spin" />}
+            </Button>
+          </div>
           {microphonePermissionError && (
             <Alert variant="destructive" className="w-full max-w-md">
               <MicOff className="h-4 w-4" />
@@ -544,5 +586,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
