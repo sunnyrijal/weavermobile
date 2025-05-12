@@ -163,7 +163,7 @@ export default function DashboardPage() {
 
 
   const [showAllContacts, setShowAllContacts] = useState(false);
-  const mainContactIds = ["1", "3", "4"]; // Chandra Oli, Abhas Oli, Sam Hendrickson
+  const mainContactIds = ["1", "3", "4", "ck_host", "lk_wife_ck"]; // Chandra Oli, Abhas Oli, Sam Hendrickson, Curt Kowaleski, Lori Kowaleski
   
   const upcomingEvents = useMemo(() => getUpcomingEvents(mockContacts), []);
 
@@ -591,3 +591,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

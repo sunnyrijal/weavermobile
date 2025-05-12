@@ -518,7 +518,7 @@ export const mockContacts: Contact[] = [
     ownerId: "user1",
     name: "Curt Kowaleski",
     photoURL: "https://picsum.photos/seed/curtkowaleski/200/200",
-    category: "Other", 
+    category: "Family", 
     ownerRelationshipLabel: "Host Father",
     tags: ["Host Family", "Wisconsin", "CFO"],
     hometown: "Wisconsin",
@@ -737,3 +737,4 @@ export const mockContacts: Contact[] = [
     notableEvents: [],
   },
 ];
+
