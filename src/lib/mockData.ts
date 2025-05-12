@@ -262,7 +262,8 @@ export const mockContacts: Contact[] = [
     name: "Sara Eidsvold Hendrikson",
     photoURL: "https://picsum.photos/seed/sarahendrickson/200/200",
     category: "Family", 
-    tags: ["Mother"], 
+    tags: ["Mother"],
+    currentLocation: "Duluth, Minnesota", 
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
@@ -282,7 +283,7 @@ export const mockContacts: Contact[] = [
     name: "John Hendrickson", 
     photoURL: "https://picsum.photos/seed/johnhendrickson/200/200",
     occupation: "DNR Engineer", 
-    currentLocation: "Duluth", 
+    currentLocation: "Duluth, Minnesota", 
     category: "Family", 
     tags: ["Father", "DNR"], 
     createdAt: new Date(), 
@@ -345,6 +346,7 @@ export const mockContacts: Contact[] = [
     occupation: "Owner", 
     company: "Wovenbyrd", 
     category: "Family", 
+    currentLocation: "Edina, MN", 
     tags: ["Uncle by marriage", "Business Owner"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
@@ -484,6 +486,7 @@ export const mockContacts: Contact[] = [
     photoURL: "https://picsum.photos/seed/apsarauprety/200/200",
     category: "Family",
     tags: ["Mother"],
+    currentLocation: "Nepal",
     relationships: [
         { relatedContactId: "3", type: "Child", customLabel:"Son" }, 
         { relatedContactId: "bno_dad_ao", type: "Partner", customLabel: "Husband" }
@@ -546,6 +549,7 @@ export const mockContacts: Contact[] = [
     photoURL: "https://picsum.photos/seed/lorikowaleski/200/200",
     category: "Family",
     ownerRelationshipLabel: "Host Mom",
+    currentLocation: "Le Suer, Minnesota",
     tags: ["Wife", "Host Family"],
     birthday: parseBirthday("60"), 
     relationships: [
@@ -737,4 +741,5 @@ export const mockContacts: Contact[] = [
     notableEvents: [],
   },
 ];
+
 
