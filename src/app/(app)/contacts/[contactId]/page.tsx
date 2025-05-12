@@ -21,8 +21,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck } from "lucide-react"; 
 import React, { useState, useEffect } from 'react';
-import { format as formatDateFnInternal, parseISO, isValid } from "date-fns"; // For date formatting
+import { isValid, parseISO } from "date-fns";
+import { format as formatDateFnInternal } from "date-fns";
 import { cn } from "@/lib/utils";
+import ClientSideFormattedDate from "@/components/shared/ClientSideFormattedDate";
 
 
 const getInitials = (name: string) => {
@@ -32,65 +34,6 @@ const getInitials = (name: string) => {
     return names[0][0].toUpperCase() + names[names.length - 1][0].toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
-};
-
-// Moved formatDate outside the component
-const formatDate = (dateString?: string | Date): string => {
-  const [clientDate, setClientDate] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!dateString) {
-      setClientDate('N/A');
-      return;
-    }
-    
-    let date: Date;
-    if (typeof dateString === 'string') {
-      // Try to parse YYYY-MM-DD directly to avoid timezone issues with parseISO for date-only strings
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        const [year, month, day] = dateString.split('-').map(Number);
-        // Construct date as UTC to ensure it represents the intended calendar day
-        date = new Date(Date.UTC(year, month - 1, day));
-      } else {
-        date = parseISO(dateString); // For full ISO strings
-      }
-    } else {
-      date = dateString;
-    }
-
-    if (!isValid(date)) {
-      setClientDate('N/A');
-      return;
-    }
-    // Format on client to use client's locale for date part
-    // If date was UTC, formatting with 'PPP' will use client's timezone for display.
-    // If it was from parseISO (which includes timezone or assumes local if not present), 'PPP' respects that.
-    setClientDate(formatDateFnInternal(date, 'PPP'));
-  }, [dateString]);
-  
-  return clientDate || 'Loading...';
-};
-
-
-// Moved useFormatDateTime outside the component
-const useFormatDateTime = (dateTimeString?: string | Date): string => {
-    const [clientDateTime, setClientDateTime] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (!dateTimeString) {
-            setClientDateTime('N/A');
-            return;
-        }
-        const date = dateTimeString instanceof Date ? dateTimeString : parseISO(dateTimeString);
-        if (!isValid(date)) {
-            setClientDateTime('N/A');
-            return;
-        }
-        // Format on client to use client's locale for time part
-        setClientDateTime(formatDateFnInternal(date, 'PPpp'));
-    }, [dateTimeString]);
-    
-    return clientDateTime || 'Loading...'; // Show loading until client-side format is ready
 };
 
 
@@ -182,7 +125,6 @@ export default function ContactDetailPage() {
     setEventFormValues({ title: '', date: null, description: '' }); // Reset form
   };
 
-  const formattedBirthday = formatDate(contact?.birthday);
 
   if (contact === undefined) {
     return (
@@ -210,9 +152,6 @@ export default function ContactDetailPage() {
     const relatedContact = mockContacts.find(c => c.id === relatedContactId);
     return relatedContact ? relatedContact.name : "Unknown Contact";
   };
-
-  const displayCreatedAt = useFormatDateTime(contact.createdAt);
-  const displayUpdatedAt = useFormatDateTime(contact.updatedAt);
   
 
   return (
@@ -293,7 +232,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born {formattedBirthday}</span>
+                        <span>Born <ClientSideFormattedDate date={contact.birthday} /></span>
                       </div>
                     )}
                   </CardContent>
@@ -338,18 +277,20 @@ export default function ContactDetailPage() {
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {contact.category && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Primary Category:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Primary Category:</span>
+                    {contact.category ? (
                       <Badge variant="secondary">{contact.category}</Badge>
-                    </div>
-                  )}
+                    ) : (
+                      <span className="text-sm text-muted-foreground">N/A</span>
+                    )}
+                  </div>
                   
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 items-center">
                     <span className="text-sm font-medium self-center">General Tags:</span>
                     {contact.tags && contact.tags.length > 0 ? (
                       contact.tags.map((tag) => (
-                        <span key={tag}><Badge variant="outline">{tag}</Badge></span>
+                        <Badge key={tag} variant="outline">{tag}</Badge>
                       ))
                     ) : (
                         <span className="text-sm text-muted-foreground">No general tags.</span>
@@ -364,12 +305,10 @@ export default function ContactDetailPage() {
                    {contact.ownerRelationshipLabel && (
                      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-border">
                       <span className="text-sm font-medium">My Relationship:</span>
-                       <span className="flex items-center w-fit">
-                        <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
+                       <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
                             <UserCheck className="mr-1.5 h-3.5 w-3.5" />
                             {contact.ownerRelationshipLabel}
                         </Badge>
-                       </span>
                     </div>
                   )}
                 </CardContent>
@@ -500,7 +439,7 @@ export default function ContactDetailPage() {
                           <CardHeader className="pb-2">
                             <CardTitle className="text-md flex items-center justify-between">
                               {event.title}
-                              <span className="text-xs font-normal text-muted-foreground">{formatDate(event.date)}</span>
+                              <span className="text-xs font-normal text-muted-foreground"><ClientSideFormattedDate date={event.date} /></span>
                             </CardTitle>
                           </CardHeader>
                           {event.description && (
@@ -558,7 +497,7 @@ export default function ContactDetailPage() {
                                 selected={eventFormValues.date}
                                 onSelect={(date) => setEventFormValues(prev => ({ ...prev, date: date || null }))}
                                 initialFocus
-                                disabled={(date) => date > new Date() && date < new Date("1900-01-01")} 
+                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")} 
                               />
                             </PopoverContent>
                           </Popover>
@@ -591,8 +530,8 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-            <p>Contact created on: {displayCreatedAt}</p>
-            <p className="ml-auto">Last updated: {displayUpdatedAt}</p>
+            <p>Contact created on: <ClientSideFormattedDate date={contact.createdAt} format="PPpp" /></p>
+            <p className="ml-auto">Last updated: <ClientSideFormattedDate date={contact.updatedAt} format="PPpp" /></p>
         </CardFooter>
       </Card>
     </div>
@@ -600,5 +539,7 @@ export default function ContactDetailPage() {
 }
 
       
+
+    
 
     
