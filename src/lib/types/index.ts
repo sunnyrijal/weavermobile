@@ -46,6 +46,7 @@ export interface Contact {
   phone?: string;
   email?: string;
   category?: string; // e.g., "Family", "Friend", "Colleague", "Professional", or custom
+  ownerRelationshipLabel?: string; // User's specific relationship to this contact, e.g., "Host Mom"
   importSource?: string; // e.g., "Manual", "LinkedIn", "Phone"
   tags: string[];
   notes?: string;

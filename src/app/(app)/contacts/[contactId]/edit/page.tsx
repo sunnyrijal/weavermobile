@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ContactForm, contactFormSchema } from "@/components/contacts/ContactForm";
@@ -64,7 +65,8 @@ export default function EditContactPage() {
       ...values,  // Spread form values
       updatedAt: new Date(),
       birthday: values.birthday ? format(values.birthday, "yyyy-MM-dd") : undefined,
-      college: values.college || undefined, // Add college
+      college: values.college || undefined, 
+      ownerRelationshipLabel: values.ownerRelationshipLabel || undefined,
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
     };
 
@@ -116,8 +118,9 @@ export default function EditContactPage() {
     phone: contact.phone || '',
     occupation: contact.occupation || '',
     company: contact.company || '',
-    college: contact.college || '', // Add college to default values
+    college: contact.college || '', 
     category: contact.category as ContactFormValues['category'] || '',
+    ownerRelationshipLabel: contact.ownerRelationshipLabel || '',
     locationDetails: contact.locationDetails || '',
     birthday: contact.birthday ? new Date(contact.birthday + 'T00:00:00') : null, // Ensure correct date parsing for UTC
     photoURL: contact.photoURL || '',

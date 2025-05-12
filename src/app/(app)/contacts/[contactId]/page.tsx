@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper } from "lucide-react"; 
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck } from "lucide-react"; 
 import React, { useState, useEffect } from 'react';
 import { format as formatDateFn, parseISO } from "date-fns"; // For date formatting
 import { cn } from "@/lib/utils";
@@ -36,34 +36,60 @@ const getInitials = (name: string) => {
 
 // Function to format date for display, ensuring client-side only execution
 const formatDateForDisplay = (dateString?: string | Date): string | null => {
-  if (!dateString) return 'N/A';
-  // Ensure dateString is treated as UTC if it's YYYY-MM-DD
-  const date = typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString) 
-             ? parseISO(dateString + 'T00:00:00.000Z') 
-             : new Date(dateString);
+  const [clientDate, setClientDate] = useState<string | null>(null);
 
-  if (isNaN(date.getTime())) return 'N/A'; // Invalid date
-  return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      timeZone: 'UTC' // Explicitly use UTC
-  });
-};
+  useEffect(() => {
+    if (!dateString) {
+      setClientDate('N/A');
+      return;
+    }
+    // Ensure dateString is treated as UTC if it's YYYY-MM-DD
+    const date = typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString) 
+               ? parseISO(dateString + 'T00:00:00.000Z') 
+               : new Date(dateString);
 
-const formatDateTimeForDisplay = (dateTimeString?: string | Date): string | null => {
-    if (!dateTimeString) return 'N/A';
-    const date = dateTimeString instanceof Date ? dateTimeString : new Date(dateTimeString);
-    if (isNaN(date.getTime())) return 'N/A'; // Invalid date
-    return date.toLocaleDateString('en-US', { 
+    if (isNaN(date.getTime())) {
+      setClientDate('N/A'); // Invalid date
+      return;
+    }
+    setClientDate(date.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'UTC' 
-    });
+        timeZone: 'UTC' // Explicitly use UTC
+    }));
+  }, [dateString]);
+  
+  return clientDate;
 };
+
+
+const formatDateTimeForDisplay = (dateTimeString?: string | Date): string | null => {
+    const [clientDateTime, setClientDateTime] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!dateTimeString) {
+            setClientDateTime('N/A');
+            return;
+        }
+        const date = dateTimeString instanceof Date ? dateTimeString : new Date(dateTimeString);
+        if (isNaN(date.getTime())) {
+            setClientDateTime('N/A'); // Invalid date
+            return;
+        }
+        setClientDateTime(date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'UTC' 
+        }));
+    }, [dateTimeString]);
+
+    return clientDateTime;
+};
+
 
 const formatDateForStorage = (date: Date): string => {
     const year = date.getUTCFullYear();
@@ -92,9 +118,9 @@ export default function ContactDetailPage() {
   });
   const [isSavingEvent, setIsSavingEvent] = useState(false);
 
-  const [formattedBirthday, setFormattedBirthday] = useState<string | null>(null);
-  const [formattedCreatedAt, setFormattedCreatedAt] = useState<string | null>(null);
-  const [formattedUpdatedAt, setFormattedUpdatedAt] = useState<string | null>(null);
+  const birthdayDisplay = formatDateForDisplay(contact?.birthday);
+  const createdAtDisplay = formatDateTimeForDisplay(contact?.createdAt);
+  const updatedAtDisplay = formatDateTimeForDisplay(contact?.updatedAt);
 
 
   useEffect(() => {
@@ -102,13 +128,6 @@ export default function ContactDetailPage() {
     setContact(foundContact);
     if (foundContact) {
       setNotesInput(foundContact.notes || "");
-      setFormattedBirthday(formatDateForDisplay(foundContact.birthday));
-      setFormattedCreatedAt(formatDateTimeForDisplay(foundContact.createdAt));
-      setFormattedUpdatedAt(formatDateTimeForDisplay(foundContact.updatedAt));
-    } else {
-      setFormattedBirthday(null);
-      setFormattedCreatedAt(null);
-      setFormattedUpdatedAt(null);
     }
   }, [contactId]);
 
@@ -121,8 +140,7 @@ export default function ContactDetailPage() {
     const newUpdatedAt = new Date();
     const updatedContactData = { ...contact, notes: notesInput, updatedAt: newUpdatedAt };
     setContact(updatedContactData);
-    setFormattedUpdatedAt(formatDateTimeForDisplay(newUpdatedAt)); 
-
+    
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
         mockContacts[contactIndex] = { ...mockContacts[contactIndex], notes: notesInput, updatedAt: newUpdatedAt };
@@ -151,8 +169,7 @@ export default function ContactDetailPage() {
     const updatedNotableEvents = [...(contact.notableEvents || []), newEvent];
     
     setContact(prev => prev ? ({ ...prev, notableEvents: updatedNotableEvents, updatedAt: newUpdatedAt }) : null);
-    setFormattedUpdatedAt(formatDateTimeForDisplay(newUpdatedAt));
-
+    
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
         mockContacts[contactIndex].notableEvents = updatedNotableEvents;
@@ -272,7 +289,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born {formattedBirthday}</span>
+                        <span>Born {birthdayDisplay}</span>
                       </div>
                     )}
                   </CardContent>
@@ -314,10 +331,21 @@ export default function ContactDetailPage() {
               
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Category</CardTitle>
+                  <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {contact.category && <span className="text-sm"><strong>Category:</strong> <Badge variant="secondary">{contact.category}</Badge></span>}
+                  {contact.category && (
+                    <p className="text-sm"><strong>Primary Category:</strong> <Badge variant="secondary">{contact.category}</Badge></p>
+                  )}
+                  {contact.ownerRelationshipLabel && (
+                    <p className="text-sm">
+                      <strong>My Relationship:</strong> 
+                      <Badge variant="outline" className="ml-2 flex items-center w-fit">
+                        <UserCheck className="mr-1.5 h-3.5 w-3.5 text-accent" />
+                        {contact.ownerRelationshipLabel}
+                      </Badge>
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-2 mt-2">
                     {contact.tags && contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
@@ -541,8 +569,8 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-          <p>Contact created on: {formattedCreatedAt}</p>
-          <p className="ml-auto">Last updated: {formattedUpdatedAt}</p>
+          <p>Contact created on: {createdAtDisplay}</p>
+          <p className="ml-auto">Last updated: {updatedAtDisplay}</p>
         </CardFooter>
       </Card>
     </div>

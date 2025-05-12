@@ -49,6 +49,7 @@ export default function NewContactPage() {
       updatedAt: new Date(),
       birthday: values.birthday ? formatDateForStorage(values.birthday) : undefined,
       college: values.college || undefined,
+      ownerRelationshipLabel: values.ownerRelationshipLabel || undefined,
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
       socialProfiles: {},
       photosTogether: [],
@@ -110,6 +111,8 @@ export default function NewContactPage() {
             if (parsedInfo.college) newDefaults.college = parsedInfo.college;
             if (parsedInfo.category) newDefaults.category = parsedInfo.category as ContactFormValues['category'];
             if (parsedInfo.locationDetails) newDefaults.locationDetails = parsedInfo.locationDetails;
+            // AI for ownerRelationshipLabel not yet implemented in parseContactInfoFlow
+            // if (parsedInfo.ownerRelationship) newDefaults.ownerRelationshipLabel = parsedInfo.ownerRelationship;
             if (parsedInfo.birthday) {
                 // Attempt to parse AI-returned birthday string. YYYY-MM-DD is expected.
                 const dateParts = parsedInfo.birthday.split('-');
@@ -232,5 +235,3 @@ const formatDateForStorage = (date: Date): string => {
     const day = date.getUTCDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
-
-    

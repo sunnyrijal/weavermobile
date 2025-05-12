@@ -155,11 +155,11 @@ export const mockContacts: Contact[] = [
     ownerId: "user1",
     name: "Sam Hendrickson",
     photoURL: "https://picsum.photos/seed/samhendrickson/200/200",
-    category: "Colleague", // Changed from Friend to reflect prompt's example map structure
+    category: "Colleague", 
     tags: ["Gustavus Adolphus", "Biology", "Research", "Duluth", "Idaho"],
     locationDetails: "Duluth, Minnesota → Idaho",
-    occupation: "Research Assistant", // Changed to Research Assistant
-    company: "Mayo Clinic", // Changed company
+    occupation: "Research Assistant", 
+    company: "Mayo Clinic", 
     college: "Gustavus Adolphus College",
     socialProfiles: {
       instagram: "https://instagram.com/sam.hendrickson_/",
@@ -176,7 +176,7 @@ export const mockContacts: Contact[] = [
         { relatedContactId: "john_h", type: "Parent", customLabel: "Father"},
         { relatedContactId: "greta_h", type: "Sibling", customLabel: "Sister"},
         { relatedContactId: "philip_e", type: "Uncle" },
-        { relatedContactId: "ty_b", type: "Uncle" },
+        { relatedContactId: "ty_b", type: "Uncle" }, // Uncle by Philip's partnership
         { relatedContactId: "ryan_h", type: "Uncle" },
         { relatedContactId: "jim_e", type: "Grandparent", customLabel: "Grandfather"},
         { relatedContactId: "anne_e", type: "Grandparent", customLabel: "Grandmother"},
@@ -195,6 +195,7 @@ export const mockContacts: Contact[] = [
     name: "Dr. Emily Carter",
     photoURL: "https://picsum.photos/seed/emilycarter/200/200",
     category: "Professional",
+    ownerRelationshipLabel: "Mentor",
     tags: ["Mentor", "Professor", "Physics"],
     locationDetails: "Stanford University",
     occupation: "Professor of Physics",
@@ -218,7 +219,7 @@ export const mockContacts: Contact[] = [
     occupation: "Peace Corps Volunteer", 
     locationDetails: "Portland, Maine", 
     category: "Partner", 
-    tags: ["Partner", "Peace Corps", "Girlfriend"], 
+    tags: ["Peace Corps"], 
     birthday: parseBirthday("24"),
     createdAt: new Date(), 
     updatedAt: new Date(), 
@@ -258,13 +259,16 @@ export const mockContacts: Contact[] = [
     name: "Sara Eidsvold Hendrikson",
     photoURL: "https://picsum.photos/seed/sarahendrickson/200/200",
     category: "Family", 
-    tags: ["Parent", "Mother"], 
+    tags: ["Mother"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
         { relatedContactId: "4", type: "Child", customLabel:"Son" },
         { relatedContactId: "john_h", type: "Partner", customLabel: "Husband"},
         { relatedContactId: "greta_h", type: "Child", customLabel: "Daughter"},
+        { relatedContactId: "anne_e", type: "Parent", customLabel: "Mother"},
+        { relatedContactId: "jim_e", type: "Parent", customLabel: "Father"},
+        { relatedContactId: "philip_e", type: "Sibling", customLabel: "Brother"},
     ], 
     photosTogether: [], 
     notableEvents: [] 
@@ -277,13 +281,14 @@ export const mockContacts: Contact[] = [
     occupation: "DNR Engineer", 
     locationDetails: "Duluth", 
     category: "Family", 
-    tags: ["Parent", "Father", "DNR"], 
+    tags: ["Father", "DNR"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
         { relatedContactId: "4", type: "Child", customLabel:"Son" },
         { relatedContactId: "sara_h", type: "Partner", customLabel: "Wife"},
         { relatedContactId: "greta_h", type: "Child", customLabel: "Daughter"},
+        { relatedContactId: "ryan_h", type: "Sibling", customLabel: "Brother"},
     ], 
     photosTogether: [], 
     notableEvents: [{id: 'jh_work_anniv', title: 'Work Anniversary (DNR)', date: '2003-08-15', description: 'Started working at DNR.'}] 
@@ -296,7 +301,7 @@ export const mockContacts: Contact[] = [
     occupation: "Student", 
     locationDetails: "College in NY", 
     category: "Family", 
-    tags: ["Sibling", "Sister", "Skiing"], 
+    tags: ["Sister", "Skiing"], 
     college: "College in NY", 
     birthday: parseBirthday("19"),
     createdAt: new Date(), 
@@ -322,8 +327,8 @@ export const mockContacts: Contact[] = [
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
-        { relatedContactId: "4", type: "Nephew" }, // Sam's Uncle
-        { relatedContactId: "sara_h", type: "Sibling", customLabel: "Brother" }, // Sara's brother
+        { relatedContactId: "4", type: "Nephew" }, 
+        { relatedContactId: "sara_h", type: "Sibling", customLabel: "Brother" }, 
         { relatedContactId: "ty_b", type: "Partner" } 
     ], 
     photosTogether: [], 
@@ -336,7 +341,7 @@ export const mockContacts: Contact[] = [
     photoURL: "https://picsum.photos/seed/tybaucum/200/200",
     occupation: "Owner", 
     company: "Wovenbyrd", 
-    category: "Family", // Considered family due to partnership with Philip
+    category: "Family", 
     tags: ["Uncle by marriage", "Business Owner"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
@@ -357,8 +362,8 @@ export const mockContacts: Contact[] = [
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
-        { relatedContactId: "4", type: "Nephew" }, // Sam's Uncle
-        { relatedContactId: "john_h", type: "Sibling", customLabel: "Brother" } // John's brother
+        { relatedContactId: "4", type: "Nephew" }, 
+        { relatedContactId: "john_h", type: "Sibling", customLabel: "Brother" } 
     ], 
     photosTogether: [], 
     notableEvents: [] 
@@ -369,13 +374,13 @@ export const mockContacts: Contact[] = [
     name: "Jim Eidsvold", 
     photoURL: "https://picsum.photos/seed/jimeidsvold/200/200",
     category: "Family", 
-    tags: ["Grandparent", "Grandfather"], 
+    tags: ["Grandfather"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
-        { relatedContactId: "4", type: "Grandchild" }, // Sam's Grandfather
-        { relatedContactId: "sara_h", type: "Child", customLabel: "Daughter"}, // Sara's Father
-        { relatedContactId: "philip_e", type: "Child", customLabel: "Son"}, // Philip's Father
+        { relatedContactId: "4", type: "Grandchild" }, 
+        { relatedContactId: "sara_h", type: "Child", customLabel: "Daughter"}, 
+        { relatedContactId: "philip_e", type: "Child", customLabel: "Son"}, 
         { relatedContactId: "anne_e", type: "Partner", customLabel: "Wife"},
     ], 
     photosTogether: [], 
@@ -387,13 +392,13 @@ export const mockContacts: Contact[] = [
     name: "Anne Eidsvold", 
     photoURL: "https://picsum.photos/seed/anneeidsvold/200/200",
     category: "Family", 
-    tags: ["Grandparent", "Grandmother"], 
+    tags: ["Grandmother"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
-        { relatedContactId: "4", type: "Grandchild" }, // Sam's Grandmother
-        { relatedContactId: "sara_h", type: "Child", customLabel: "Daughter"}, // Sara's Mother
-        { relatedContactId: "philip_e", type: "Child", customLabel: "Son"}, // Philip's Mother
+        { relatedContactId: "4", type: "Grandchild" }, 
+        { relatedContactId: "sara_h", type: "Child", customLabel: "Daughter"}, 
+        { relatedContactId: "philip_e", type: "Child", customLabel: "Son"}, 
         { relatedContactId: "jim_e", type: "Partner", customLabel: "Husband"},
     ], 
     photosTogether: [], 
@@ -407,7 +412,7 @@ export const mockContacts: Contact[] = [
     name: "Remanta Oli (Dad)",
     photoURL: "https://picsum.photos/seed/remantaolidad/200/200",
     category: "Family",
-    tags: ["Parent", "Father"],
+    tags: ["Father"],
     relationships: [
         { relatedContactId: "1", type: "Child", customLabel:"Son" }, 
         { relatedContactId: "ro_mom_co", type: "Partner", customLabel: "Wife"},
@@ -424,7 +429,7 @@ export const mockContacts: Contact[] = [
     name: "Remanta Oli (Mom)",
     photoURL: "https://picsum.photos/seed/remantaolimom/200/200",
     category: "Family",
-    tags: ["Parent", "Mother"],
+    tags: ["Mother"],
     relationships: [
         { relatedContactId: "1", type: "Child", customLabel:"Son" }, 
         { relatedContactId: "ro_dad_co", type: "Partner", customLabel: "Husband"},
@@ -443,7 +448,7 @@ export const mockContacts: Contact[] = [
     category: "Family",
     occupation: "Nursing",
     locationDetails: "Australia",
-    tags: ["Sibling", "Sister", "Nursing", "Australia"],
+    tags: ["Sister", "Nursing", "Australia"],
     relationships: [
         { relatedContactId: "1", type: "Sibling", customLabel:"Brother" },
         { relatedContactId: "ro_dad_co", type: "Parent", customLabel: "Father" },
@@ -475,7 +480,7 @@ export const mockContacts: Contact[] = [
     name: "Apsara Uprety",
     photoURL: "https://picsum.photos/seed/apsarauprety/200/200",
     category: "Family",
-    tags: ["Parent", "Mother"],
+    tags: ["Mother"],
     relationships: [
         { relatedContactId: "3", type: "Child", customLabel:"Son" }, 
         { relatedContactId: "bno_dad_ao", type: "Partner", customLabel: "Husband" }
@@ -493,7 +498,7 @@ export const mockContacts: Contact[] = [
     category: "Family",
     occupation: "Retired Forestry Minister",
     locationDetails: "Nepal",
-    tags: ["Parent", "Father", "Retired Forestry Minister", "Nepal"],
+    tags: ["Father", "Retired Forestry Minister", "Nepal"],
     relationships: [
         { relatedContactId: "3", type: "Child", customLabel:"Son" }, 
         { relatedContactId: "au_mom_ao", type: "Partner", customLabel: "Wife" }
@@ -511,6 +516,7 @@ export const mockContacts: Contact[] = [
     name: "Curt Kowaleski",
     photoURL: "https://picsum.photos/seed/curtkowaleski/200/200",
     category: "Other", 
+    ownerRelationshipLabel: "Host Father",
     tags: ["Host Family", "Wisconsin", "CFO"],
     locationDetails: "Wisconsin → Le Suer, Minnesota",
     occupation: "CFO",
@@ -535,6 +541,7 @@ export const mockContacts: Contact[] = [
     name: "Lori Kowaleski",
     photoURL: "https://picsum.photos/seed/lorikowaleski/200/200",
     category: "Family",
+    ownerRelationshipLabel: "Host Mom",
     tags: ["Wife", "Host Family"],
     birthday: parseBirthday("60"), 
     relationships: [
@@ -554,6 +561,7 @@ export const mockContacts: Contact[] = [
     name: "Zach Kowaleski",
     photoURL: "https://picsum.photos/seed/zachkowaleski/200/200",
     category: "Family",
+    ownerRelationshipLabel: "Host Brother",
     tags: ["Son"],
     relationships: [
         { relatedContactId: "ck_host", type: "Parent", customLabel: "Father" },
@@ -576,7 +584,7 @@ export const mockContacts: Contact[] = [
     tags: ["Girlfriend"],
     relationships: [
         { relatedContactId: "zk_son_ck", type: "Partner", customLabel: "Boyfriend" },
-        { relatedContactId: "rgk_zd_ck", type: "Parent", customLabel: "Mother" } // Assuming mother
+        { relatedContactId: "rgk_zd_ck", type: "Parent", customLabel: "Mother" } 
     ],
     createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
@@ -607,7 +615,7 @@ export const mockContacts: Contact[] = [
     name: "Bootsy",
     photoURL: "https://picsum.photos/seed/bootsy/200/200",
     category: "Pet",
-    tags: ["Pet", "Dog"], // Assuming Dog
+    tags: ["Pet", "Dog"], 
     relationships: [{ relatedContactId: "zk_son_ck", type: "Owner" }],
     createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
@@ -620,6 +628,7 @@ export const mockContacts: Contact[] = [
     name: "Allison Terrance",
     photoURL: "https://picsum.photos/seed/allisonterrance/200/200",
     category: "Family",
+    ownerRelationshipLabel: "Host Sister",
     tags: ["Daughter"],
     relationships: [
         { relatedContactId: "ck_host", type: "Parent", customLabel: "Father" },
@@ -712,6 +721,7 @@ export const mockContacts: Contact[] = [
     name: "Cassie Kowaleski",
     photoURL: "https://picsum.photos/seed/cassiekowaleski/200/200",
     category: "Family",
+    ownerRelationshipLabel: "Host Sister",
     tags: ["Daughter"],
     relationships: [
         { relatedContactId: "ck_host", type: "Parent", customLabel: "Father" },
@@ -723,4 +733,3 @@ export const mockContacts: Contact[] = [
     notableEvents: [],
   },
 ];
-

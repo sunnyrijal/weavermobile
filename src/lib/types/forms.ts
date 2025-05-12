@@ -15,6 +15,7 @@ const placeholderContactFormSchema = z.object({
   company: z.string().optional(),
   college: z.string().optional(), // Added college field
   category: z.string().optional(),
+  ownerRelationshipLabel: z.string().optional(), // User's specific relationship (e.g., "My Host Mom")
   locationDetails: z.string().optional(),
   birthday: z.date().optional().nullable(),
   photoURL: z.string().optional(),

@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, University } from "lucide-react"; 
+import { CalendarIcon, University, Users } from "lucide-react"; 
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format as formatDateFn } from "date-fns";
@@ -39,7 +39,8 @@ export const contactFormSchema = z.object({
   occupation: z.string().optional(),
   company: z.string().optional(),
   college: z.string().optional(), 
-  category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", ""]).optional(),
+  category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", "Pet", ""]).optional(),
+  ownerRelationshipLabel: z.string().optional().describe("Your specific relationship to this contact, e.g., Host Mom, Mentor, Childhood Friend."),
   locationDetails: z.string().optional(),
   birthday: z.date().optional().nullable(),
   photoURL: z.string().url({ message: "Invalid URL for photo." }).optional().or(z.literal('')),
@@ -57,8 +58,6 @@ interface ContactFormProps {
 export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoading = false }: ContactFormProps) {
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
-    // Default values are now primarily controlled by the parent component via the defaultValues prop.
-    // The form will re-initialize if its key changes or if defaultValues prop is updated and form.reset is called.
     defaultValues: {
         name: '',
         email: '',
@@ -67,19 +66,17 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         company: '',
         college: '', 
         category: '',
+        ownerRelationshipLabel: '',
         locationDetails: '',
         birthday: null,
         photoURL: '',
         tags: '',
-        ...defaultValues, // Spread defaultValues from props here
+        ...defaultValues, 
       },
   });
 
-  // Effect to update form values if defaultValues prop changes after initial mount.
-  // This is useful if defaultValues are loaded asynchronously or changed by AI.
   useEffect(() => {
     if (defaultValues) {
-      // Create a new object for reset to ensure all fields are considered
       const resetValues = {
         name: '',
         email: '',
@@ -88,6 +85,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         company: '',
         college: '',
         category: '',
+        ownerRelationshipLabel: '',
         locationDetails: '',
         birthday: null,
         photoURL: '',
@@ -100,7 +98,6 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
 
 
   return (
-    // The parent component (NewContactPage) will control the key to force re-mount if needed.
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
@@ -217,7 +214,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 name="category"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel>Primary Category</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                         <SelectTrigger>
@@ -230,9 +227,11 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                         <SelectItem value="Colleague">Colleague</SelectItem>
                         <SelectItem value="Professional">Professional</SelectItem>
                         <SelectItem value="Partner">Partner</SelectItem>
+                        <SelectItem value="Pet">Pet</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                     </Select>
+                    <FormDescription>The general category for this contact.</FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -254,7 +253,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                                 )}
                                 >
                                 {field.value ? (
-                                    formatDateFn(field.value, "PPP") // Use formatDateFn to avoid naming conflict
+                                    formatDateFn(field.value, "PPP") 
                                 ) : (
                                     <span>Pick a date</span>
                                 )}
@@ -279,6 +278,26 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                     )}
                 />
             </div>
+
+            <FormField
+              control={form.control}
+              name="ownerRelationshipLabel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                     <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                     Your Relationship with Them
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., My Host Mom, Childhood Friend, Mentor" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Describe your specific connection to this person (optional).
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
             <FormField
               control={form.control}
@@ -322,5 +341,3 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
     </Form>
   );
 }
-
-    
