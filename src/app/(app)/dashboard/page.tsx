@@ -12,8 +12,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, parseISO, getYear, getMonth, getDate, setYear, isPast, addYears } from 'date-fns';
-import { answerContactQuestion } from '@/ai/flows/answer-contact-question-flow';
-import type { AnswerContactQuestionInput, AnswerContactQuestionOutput } from '@/ai/flows/answer-contact-question-flow';
+import { answerContactQuestion } from '@/ai/flows/answer-contact-question';
+import type { AnswerContactQuestionInput, AnswerContactQuestionOutput } from '@/ai/flows/answer-contact-question';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -586,6 +586,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
