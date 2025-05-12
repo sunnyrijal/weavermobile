@@ -1,4 +1,3 @@
-
 "use client";
 
 import { ContactForm, contactFormSchema } from "@/components/contacts/ContactForm";
@@ -104,7 +103,7 @@ export default function NewContactPage() {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
-      toast({ title: "Voice Input Not Supported", description: "Your browser doesn't support voice recognition.", variant: "destructive" });
+      toast({ title: "Voice Input Not Supported", description: "Your browser doesn't support voice recognition. Please check your browser settings or use a different browser.", variant: "destructive" });
       return;
     }
 
@@ -179,18 +178,26 @@ export default function NewContactPage() {
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        let errorMessage = "Speech recognition error.";
+        console.error("Speech recognition error:", event.error, event.message);
+        let errorMessage = `Speech recognition error: ${event.error}.`;
+        if (event.message) errorMessage += ` Details: ${event.message}`;
+
         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
         else if (event.error === 'not-allowed') {
-          errorMessage = "Microphone access denied. Please enable it in your browser settings.";
+          errorMessage = "Microphone access denied. Please enable microphone permissions in your browser settings.";
           setMicrophonePermissionError(errorMessage);
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection and try again.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
         }
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
+        setIsListening(false);
+        setIsParsing(false); // Reset parsing state on error
+        if (speechRecognitionRef.current) {
+            try { speechRecognitionRef.current.stop(); } catch(e) {/* Already stopped */}
+            speechRecognitionRef.current = null;
+        }
       };
 
       recognition.onstart = () => {
@@ -200,6 +207,7 @@ export default function NewContactPage() {
 
       recognition.onend = () => {
         setIsListening(false);
+        // isParsing is handled by onresult or onerror
         if (speechRecognitionRef.current) {
            try { speechRecognitionRef.current.stop(); } catch(e) {/* already stopped */}
         }

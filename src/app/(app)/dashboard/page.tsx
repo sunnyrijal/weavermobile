@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
@@ -187,7 +186,7 @@ export default function DashboardPage() {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
-      toast({ title: "Voice Search Not Supported", description: "Your browser doesn't support voice recognition.", variant: "destructive" });
+      toast({ title: "Voice Search Not Supported", description: "Your browser doesn't support voice recognition. Please check browser settings.", variant: "destructive" });
       return;
     }
 
@@ -213,16 +212,25 @@ export default function DashboardPage() {
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech recognition error (search)", event.error);
-        let errorMessage = "Speech recognition error.";
+        console.error("Speech recognition error (search):", event.error, event.message);
+        let errorMessage = `Speech recognition error: ${event.error}.`;
+        if (event.message) errorMessage += ` Details: ${event.message}`;
+
         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
         else if (event.error === 'not-allowed') {
-            errorMessage = "Microphone access denied. Enable it in browser settings.";
+            errorMessage = "Microphone access denied. Please enable microphone permissions in your browser settings.";
             setMicrophonePermissionError(errorMessage);
         }
-        else if (event.error === 'network') errorMessage = "Network error for speech recognition. Check internet.";
+        else if (event.error === 'network') {
+            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
+        }
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
+        setIsListeningToVoiceSearch(false);
+        if (speechRecognitionSearchRef.current) {
+            try { speechRecognitionSearchRef.current.stop(); } catch(e) {/* Already stopped */}
+            speechRecognitionSearchRef.current = null;
+        }
       };
 
       recognition.onstart = () => setIsListeningToVoiceSearch(true);
@@ -285,7 +293,7 @@ export default function DashboardPage() {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
-      toast({ title: "Voice Input Not Supported", description: "Your browser doesn't support voice recognition.", variant: "destructive" });
+      toast({ title: "Voice Input Not Supported", description: "Your browser doesn't support voice recognition. Please check browser settings.", variant: "destructive" });
       return;
     }
 
@@ -312,17 +320,26 @@ export default function DashboardPage() {
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech recognition error (question)", event.error);
-        let errorMessage = "Speech recognition error.";
-         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
+        console.error("Speech recognition error (question):", event.error, event.message);
+        let errorMessage = `Speech recognition error: ${event.error}.`;
+        if (event.message) errorMessage += ` Details: ${event.message}`;
+        
+        if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
         else if (event.error === 'not-allowed') {
-            errorMessage = "Microphone access denied. Enable it in browser settings.";
+            errorMessage = "Microphone access denied. Please enable microphone permissions in your browser settings.";
             setMicrophonePermissionError(errorMessage);
         }
-        else if (event.error === 'network') errorMessage = "Network error for speech recognition. Check internet connection.";
+        else if (event.error === 'network') {
+            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
+        }
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
-        setIsLoadingAiAnswer(false); // Also reset loading state on error
+        setIsListeningToQuestion(false);
+        setIsLoadingAiAnswer(false); 
+        if (speechRecognitionQuestionRef.current) {
+            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {/* Already stopped */}
+            speechRecognitionQuestionRef.current = null;
+        }
       };
 
       recognition.onstart = () => setIsListeningToQuestion(true);
@@ -382,7 +399,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4">
                     <div className="text-center md:text-left">
-                        <UsersRound className="h-6 w-6 text-primary mx-auto md:mx-0 mb-1"/>
+                        <UsersRound className="h-6 w-6 text-primary mx-auto md:mx:0 mb-1"/>
                         <p className="text-xs text-muted-foreground">Total Contacts</p>
                         <p className="text-2xl font-bold">{mockContacts.length}</p>
                     </div>

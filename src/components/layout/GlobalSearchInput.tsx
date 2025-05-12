@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -45,7 +44,7 @@ export function GlobalSearchInput() {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
-      toast({ title: "Voice Search Not Supported", description: "Your browser doesn't support voice recognition.", variant: "destructive" });
+      toast({ title: "Voice Search Not Supported", description: "Your browser doesn't support voice recognition. Please check browser settings.", variant: "destructive" });
       return;
     }
 
@@ -72,13 +71,24 @@ export function GlobalSearchInput() {
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        let errorMessage = "Speech recognition error.";
+        console.error("Speech recognition error (global search):", event.error, event.message);
+        let errorMessage = `Speech recognition error: ${event.error}.`;
+        if (event.message) errorMessage += ` Details: ${event.message}`;
+
         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
-        else if (event.error === 'not-allowed') errorMessage = "Microphone access denied. Enable it in browser settings.";
-        else if (event.error === 'network') errorMessage = "Network error during speech recognition. Please check your internet connection.";
+        else if (event.error === 'not-allowed') {
+            errorMessage = "Microphone access denied. Please enable microphone permissions in your browser settings.";
+        }
+        else if (event.error === 'network') {
+            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
+        }
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
+        setIsListeningToVoice(false);
+        if (speechRecognitionRef.current) {
+           try { speechRecognitionRef.current.stop(); } catch(e) {/* Already stopped */}
+           speechRecognitionRef.current = null;
+        }
       };
       
       recognition.onstart = () => {
@@ -126,3 +136,4 @@ export function GlobalSearchInput() {
     </div>
   );
 }
+
