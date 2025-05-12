@@ -34,60 +34,39 @@ const getInitials = (name: string) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-// Function to format date for display, ensuring client-side only execution
-const formatDateForDisplay = (dateString?: string | Date): string | null => {
-  const [clientDate, setClientDate] = useState<string | null>(null);
+const formatDate = (dateString?: string | Date): string => {
+  if (!dateString) return 'N/A';
+  
+  // Ensure dateString is treated as UTC if it's YYYY-MM-DD
+  const date = typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString) 
+             ? parseISO(dateString + 'T00:00:00.000Z') 
+             : new Date(dateString);
 
-  useEffect(() => {
-    if (!dateString) {
-      setClientDate('N/A');
-      return;
-    }
-    // Ensure dateString is treated as UTC if it's YYYY-MM-DD
-    const date = typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString) 
-               ? parseISO(dateString + 'T00:00:00.000Z') 
-               : new Date(dateString);
+  if (isNaN(date.getTime())) {
+    return 'N/A'; // Invalid date
+  }
+  return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'UTC' // Explicitly use UTC
+  });
+};
 
+const formatDateTime = (dateTimeString?: string | Date): string => {
+    if (!dateTimeString) return 'N/A';
+    const date = dateTimeString instanceof Date ? dateTimeString : new Date(dateTimeString);
     if (isNaN(date.getTime())) {
-      setClientDate('N/A'); // Invalid date
-      return;
+        return 'N/A'; // Invalid date
     }
-    setClientDate(date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric',
-        timeZone: 'UTC' // Explicitly use UTC
-    }));
-  }, [dateString]);
-  
-  return clientDate;
-};
-
-
-const formatDateTimeForDisplay = (dateTimeString?: string | Date): string | null => {
-    const [clientDateTime, setClientDateTime] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (!dateTimeString) {
-            setClientDateTime('N/A');
-            return;
-        }
-        const date = dateTimeString instanceof Date ? dateTimeString : new Date(dateTimeString);
-        if (isNaN(date.getTime())) {
-            setClientDateTime('N/A'); // Invalid date
-            return;
-        }
-        setClientDateTime(date.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'UTC' 
-        }));
-    }, [dateTimeString]);
-
-    return clientDateTime;
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC' 
+    });
 };
 
 
@@ -118,9 +97,9 @@ export default function ContactDetailPage() {
   });
   const [isSavingEvent, setIsSavingEvent] = useState(false);
 
-  const birthdayDisplay = formatDateForDisplay(contact?.birthday);
-  const createdAtDisplay = formatDateTimeForDisplay(contact?.createdAt);
-  const updatedAtDisplay = formatDateTimeForDisplay(contact?.updatedAt);
+  const [birthdayDisplay, setBirthdayDisplay] = useState<string | null>(null);
+  const [createdAtDisplay, setCreatedAtDisplay] = useState<string | null>(null);
+  const [updatedAtDisplay, setUpdatedAtDisplay] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -128,6 +107,13 @@ export default function ContactDetailPage() {
     setContact(foundContact);
     if (foundContact) {
       setNotesInput(foundContact.notes || "");
+      setBirthdayDisplay(formatDate(foundContact.birthday));
+      setCreatedAtDisplay(formatDateTime(foundContact.createdAt));
+      setUpdatedAtDisplay(formatDateTime(foundContact.updatedAt));
+    } else {
+      setBirthdayDisplay('N/A');
+      setCreatedAtDisplay('N/A');
+      setUpdatedAtDisplay('N/A');
     }
   }, [contactId]);
 
@@ -140,6 +126,7 @@ export default function ContactDetailPage() {
     const newUpdatedAt = new Date();
     const updatedContactData = { ...contact, notes: notesInput, updatedAt: newUpdatedAt };
     setContact(updatedContactData);
+    setUpdatedAtDisplay(formatDateTime(newUpdatedAt)); 
     
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
@@ -169,6 +156,7 @@ export default function ContactDetailPage() {
     const updatedNotableEvents = [...(contact.notableEvents || []), newEvent];
     
     setContact(prev => prev ? ({ ...prev, notableEvents: updatedNotableEvents, updatedAt: newUpdatedAt }) : null);
+    setUpdatedAtDisplay(formatDateTime(newUpdatedAt));
     
     const contactIndex = mockContacts.findIndex(c => c.id === contactId);
     if (contactIndex !== -1) {
@@ -335,21 +323,26 @@ export default function ContactDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {contact.category && (
-                    <p className="text-sm"><strong>Primary Category:</strong> <Badge variant="secondary">{contact.category}</Badge></p>
+                    <div className="flex items-center gap-2">
+                      <strong className="text-sm">Primary Category:</strong>
+                      <Badge variant="secondary">{contact.category}</Badge>
+                    </div>
                   )}
                   {contact.ownerRelationshipLabel && (
-                    <p className="text-sm">
-                      <strong>My Relationship:</strong> 
-                      <Badge variant="outline" className="ml-2 flex items-center w-fit">
+                     <div className="flex items-center gap-2">
+                      <strong className="text-sm">My Relationship:</strong>
+                      <Badge variant="outline" className="flex items-center w-fit">
                         <UserCheck className="mr-1.5 h-3.5 w-3.5 text-accent" />
                         {contact.ownerRelationshipLabel}
                       </Badge>
-                    </p>
+                    </div>
                   )}
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {contact.tags && contact.tags.map((tag) => (
+                    {contact.tags && contact.tags.length > 0 ? contact.tags.map((tag) => (
                       <Badge key={tag} variant="outline">{tag}</Badge>
-                    ))}
+                    )) : (
+                        (!contact.category && !contact.ownerRelationshipLabel) && <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -479,7 +472,7 @@ export default function ContactDetailPage() {
                           <CardHeader className="pb-2">
                             <CardTitle className="text-md flex items-center justify-between">
                               {event.title}
-                              <span className="text-xs font-normal text-muted-foreground">{formatDateForDisplay(event.date)}</span>
+                              <span className="text-xs font-normal text-muted-foreground">{formatDate(event.date)}</span>
                             </CardTitle>
                           </CardHeader>
                           {event.description && (
@@ -537,6 +530,8 @@ export default function ContactDetailPage() {
                                 selected={eventFormValues.date}
                                 onSelect={(date) => setEventFormValues(prev => ({ ...prev, date: date || null }))}
                                 initialFocus
+                                // Allow past dates for notable events
+                                disabled={(date) => date > new Date() && date < new Date("1900-01-01")} 
                               />
                             </PopoverContent>
                           </Popover>
@@ -576,3 +571,4 @@ export default function ContactDetailPage() {
     </div>
   );
 }
+
