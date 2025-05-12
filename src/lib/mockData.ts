@@ -18,28 +18,28 @@ const parseBirthday = (birthdayStr?: string, currentYear: number = 2024): string
   }
 
   // Try "(Age)" e.g. "(60)" or "Age 60"
-  match = birthdayStr.match(/\(?(\d+)\)?/);
-   if (birthdayStr.startsWith('(') && birthdayStr.endsWith(')')) {
-    match = birthdayStr.match(/\((\d+)\)/);
-   } else {
-     match = birthdayStr.match(/(\d+)/);
+  // Adjusted to be less greedy and prioritize full date formats if they exist
+   if (/^\(\d+\)$/.test(birthdayStr) || /^\d+$/.test(birthdayStr.replace("Age", "").trim())) {
+     match = birthdayStr.match(/\(?(\d+)\)?/);
    }
 
-  if (match) {
+
+  if (match && match[1] && !birthdayStr.includes(',')) { // ensure it's likely an age and not part of a date
     const ageStr = match[1];
     year = currentYear - parseInt(ageStr);
     // Default to Jan 1 if only age is given
     return `${year}-01-01`;
   }
   
-  // Try "Month Day, Year" e.g. "Oct 19, 22" (assuming 2022)
-  match = birthdayStr.match(/(\w+)\s+(\d+),\s+(\d+)/);
+  // Try "Month Day, Year" e.g. "Oct 19, 22" (assuming 2022) or "Jan 17, 1964"
+  match = birthdayStr.match(/(\w+)\s+(\d+),\s*(\d+)/);
   if (match) {
     const [, monthName, dayStr, yearStr] = match;
     month = new Date(Date.parse(monthName + " 1, 2000")).getMonth() + 1;
     day = parseInt(dayStr);
     year = parseInt(yearStr);
-    if (year < 100) year += 2000; // Handle YY format
+    if (year < 100 && year > 0) year += 2000; // Handle YY format (e.g. 22 -> 2022)
+    else if (year < 100 && year === 0) year = 2000; // Handle 00 -> 2000
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
@@ -55,7 +55,7 @@ const parseBirthday = (birthdayStr?: string, currentYear: number = 2024): string
 
 
 export const mockContacts: Contact[] = [
-  // Chandra Oli (Updated)
+  // Chandra Oli
   {
     id: "1",
     ownerId: "user1",
@@ -65,7 +65,7 @@ export const mockContacts: Contact[] = [
     tags: ["BNKS", "Univ. of Cincinnati", "Mechanical Engineer", "Kritipur", "Nepal"],
     locationDetails: "Kritipur, Nepal → Cincinnati, Ohio",
     occupation: "Mechanical Engineer",
-    company: "Tech Innovations Inc.", // Assuming, not in new data
+    company: "Tech Innovations Inc.",
     college: "University of Cincinnati",
     socialProfiles: {
       linkedin: "https://linkedin.com/in/chandraoli1074/",
@@ -73,7 +73,7 @@ export const mockContacts: Contact[] = [
     },
     phone: "513 372 0338",
     email: "chandra.oli@example.com",
-    birthday: parseBirthday("May 9 (23)"), // Approx 2001-05-09
+    birthday: parseBirthday("May 9 (23)"), 
     notes: "Met at BNKS.",
     relationships: [
       { relatedContactId: "2", type: "Partner", customLabel: "Girlfriend" },
@@ -91,23 +91,23 @@ export const mockContacts: Contact[] = [
     createdAt: new Date("2022-01-10T10:00:00Z"),
     updatedAt: new Date(),
   },
-  // Ritisha KC (Updated for Chandra's relationship)
+  // Ritisha (Chandra's Girlfriend)
   {
     id: "2",
     ownerId: "user1",
-    name: "Ritisha", // Name changed from "Ritisha KC"
+    name: "Ritisha",
     photoURL: "https://picsum.photos/seed/ritisha/200/200",
     category: "Partner",
     tags: ["Nursing Student", "Cincinnati", "Healthcare"],
     locationDetails: "Cincinnati, OH",
     occupation: "Nursing Student",
-    company: "University Hospital", // Assumed
-    college: "University of Cincinnati", // Assumed from context
+    company: "University Hospital", 
+    college: "University of Cincinnati", 
     socialProfiles: {
-      instagram: "instagram.com/ritishakc", // Kept if applicable
+      instagram: "instagram.com/ritishakc", 
     },
     email: "ritisha@example.com",
-    birthday: parseBirthday("Oct 19 (22)"), // Approx 2002-10-19
+    birthday: parseBirthday("Oct 19 (22)"),
     notes: "Chandra's girlfriend. Supportive partner. Loves to travel and try new foods.",
     relationships: [{ relatedContactId: "1", type: "Partner", customLabel: "Boyfriend" }],
     photosTogether: ["https://picsum.photos/seed/ritisha_trip/300/200"],
@@ -117,7 +117,7 @@ export const mockContacts: Contact[] = [
     createdAt: new Date("2021-06-15T10:00:00Z"),
     updatedAt: new Date(),
   },
-  // Abhas Oli (Updated)
+  // Abhas Oli
   {
     id: "3",
     ownerId: "user1",
@@ -135,7 +135,7 @@ export const mockContacts: Contact[] = [
     },
     phone: "608 207 5923",
     email: "abhas.oli@example.com",
-    birthday: parseBirthday("Nov 15 (23)"), // Approx 2001-11-15
+    birthday: parseBirthday("Nov 15 (23)"), 
     notes: "Met at BNKS. Younger brother's friend. Very bright and into competitive gaming.",
     relationships: [
         { relatedContactId: "k_g_ao", type: "Partner", customLabel: "Girlfriend" },
@@ -149,24 +149,24 @@ export const mockContacts: Contact[] = [
     createdAt: new Date("2023-03-20T10:00:00Z"),
     updatedAt: new Date(),
   },
-  // Sam Hendrickson (Updated)
+  // Sam Hendrickson
   {
     id: "4",
     ownerId: "user1",
     name: "Sam Hendrickson",
     photoURL: "https://picsum.photos/seed/samhendrickson/200/200",
-    category: "Friend",
+    category: "Colleague", // Changed from Friend to reflect prompt's example map structure
     tags: ["Gustavus Adolphus", "Biology", "Research", "Duluth", "Idaho"],
     locationDetails: "Duluth, Minnesota → Idaho",
-    occupation: "Biology Major Student", // Updated
-    company: "Gustavus Adolphus College", // Or Mayo if research is primary
+    occupation: "Research Assistant", // Changed to Research Assistant
+    company: "Mayo Clinic", // Changed company
     college: "Gustavus Adolphus College",
     socialProfiles: {
       instagram: "https://instagram.com/sam.hendrickson_/",
     },
     phone: "218 260 6265",
     email: "sam.hendrickson@example.com",
-    birthday: parseBirthday("Feb 24 (22)"), // Approx 2002-02-24
+    birthday: parseBirthday("Feb 24 (22)"), 
     notes: "Met at Gustavus Adolphus College. Passionate about genetics.",
     relationships: [
         { relatedContactId: "emily_g", type: "Partner", customLabel: "Girlfriend" },
@@ -188,7 +188,7 @@ export const mockContacts: Contact[] = [
     createdAt: new Date("2022-09-01T10:00:00Z"),
     updatedAt: new Date(),
   },
-  // Dr. Emily Carter (Existing, no changes from new data)
+  // Dr. Emily Carter
   {
     id: "5",
     ownerId: "user1",
@@ -209,7 +209,7 @@ export const mockContacts: Contact[] = [
     updatedAt: new Date("2024-02-15T12:45:00Z"),
   },
 
-  // Sam's Connections (Update/Verify existing ones)
+  // Sam's Connections
   { 
     id: "emily_g", 
     ownerId: "user1", 
@@ -218,8 +218,8 @@ export const mockContacts: Contact[] = [
     occupation: "Peace Corps Volunteer", 
     locationDetails: "Portland, Maine", 
     category: "Partner", 
-    tags: ["Partner", "Peace Corps"], 
-    birthday: parseBirthday("24"), // User specified "(24; Portland...)" -> age 24, default to 2000-07-25 for consistency or make new
+    tags: ["Partner", "Peace Corps", "Girlfriend"], 
+    birthday: parseBirthday("24"),
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [{ relatedContactId: "4", type: "Partner", customLabel: "Boyfriend" }], 
@@ -255,13 +255,17 @@ export const mockContacts: Contact[] = [
   { 
     id: "sara_h", 
     ownerId: "user1", 
-    name: "Sara Eidsvold Hendrikson", // Full name updated
+    name: "Sara Eidsvold Hendrikson",
     photoURL: "https://picsum.photos/seed/sarahendrickson/200/200",
     category: "Family", 
     tags: ["Parent", "Mother"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
-    relationships: [{ relatedContactId: "4", type: "Child", customLabel:"Son" }], 
+    relationships: [
+        { relatedContactId: "4", type: "Child", customLabel:"Son" },
+        { relatedContactId: "john_h", type: "Partner", customLabel: "Husband"},
+        { relatedContactId: "greta_h", type: "Child", customLabel: "Daughter"},
+    ], 
     photosTogether: [], 
     notableEvents: [] 
   },
@@ -276,7 +280,11 @@ export const mockContacts: Contact[] = [
     tags: ["Parent", "Father", "DNR"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
-    relationships: [{ relatedContactId: "4", type: "Child", customLabel:"Son" }], 
+    relationships: [
+        { relatedContactId: "4", type: "Child", customLabel:"Son" },
+        { relatedContactId: "sara_h", type: "Partner", customLabel: "Wife"},
+        { relatedContactId: "greta_h", type: "Child", customLabel: "Daughter"},
+    ], 
     photosTogether: [], 
     notableEvents: [{id: 'jh_work_anniv', title: 'Work Anniversary (DNR)', date: '2003-08-15', description: 'Started working at DNR.'}] 
   },
@@ -290,10 +298,14 @@ export const mockContacts: Contact[] = [
     category: "Family", 
     tags: ["Sibling", "Sister", "Skiing"], 
     college: "College in NY", 
-    birthday: parseBirthday("19"), // age 19 -> approx 2005-01-01
+    birthday: parseBirthday("19"),
     createdAt: new Date(), 
     updatedAt: new Date(), 
-    relationships: [{ relatedContactId: "4", type: "Sibling", customLabel: "Brother" }], 
+    relationships: [
+        { relatedContactId: "4", type: "Sibling", customLabel: "Brother" },
+        { relatedContactId: "sara_h", type: "Parent", customLabel: "Mother"},
+        { relatedContactId: "john_h", type: "Parent", customLabel: "Father"},
+    ], 
     photosTogether: [], 
     notableEvents: [] 
   },
@@ -310,8 +322,9 @@ export const mockContacts: Contact[] = [
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
-        { relatedContactId: "4", type: "Nephew" },
-        { relatedContactId: "ty_b", type: "Partner" } // Partner with Ty Baucum
+        { relatedContactId: "4", type: "Nephew" }, // Sam's Uncle
+        { relatedContactId: "sara_h", type: "Sibling", customLabel: "Brother" }, // Sara's brother
+        { relatedContactId: "ty_b", type: "Partner" } 
     ], 
     photosTogether: [], 
     notableEvents: [] 
@@ -323,13 +336,13 @@ export const mockContacts: Contact[] = [
     photoURL: "https://picsum.photos/seed/tybaucum/200/200",
     occupation: "Owner", 
     company: "Wovenbyrd", 
-    category: "Family", 
-    tags: ["Uncle", "Business Owner"], 
+    category: "Family", // Considered family due to partnership with Philip
+    tags: ["Uncle by marriage", "Business Owner"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
     relationships: [
-        { relatedContactId: "4", type: "Nephew" },
-        { relatedContactId: "philip_e", type: "Partner" } // Partner with Philip Eidsvold
+        { relatedContactId: "4", type: "Nephew by marriage" },
+        { relatedContactId: "philip_e", type: "Partner" }
     ], 
     photosTogether: [], 
     notableEvents: [] 
@@ -343,7 +356,10 @@ export const mockContacts: Contact[] = [
     tags: ["Uncle"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
-    relationships: [{ relatedContactId: "4", type: "Nephew" }], 
+    relationships: [
+        { relatedContactId: "4", type: "Nephew" }, // Sam's Uncle
+        { relatedContactId: "john_h", type: "Sibling", customLabel: "Brother" } // John's brother
+    ], 
     photosTogether: [], 
     notableEvents: [] 
   },
@@ -356,7 +372,12 @@ export const mockContacts: Contact[] = [
     tags: ["Grandparent", "Grandfather"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
-    relationships: [{ relatedContactId: "4", type: "Grandchild" }], 
+    relationships: [
+        { relatedContactId: "4", type: "Grandchild" }, // Sam's Grandfather
+        { relatedContactId: "sara_h", type: "Child", customLabel: "Daughter"}, // Sara's Father
+        { relatedContactId: "philip_e", type: "Child", customLabel: "Son"}, // Philip's Father
+        { relatedContactId: "anne_e", type: "Partner", customLabel: "Wife"},
+    ], 
     photosTogether: [], 
     notableEvents: [{ id: 'jim_anne_anniv', title: "Wedding Anniversary", date: '1965-06-12', description: "Jim and Anne's wedding day."}] 
   },
@@ -369,12 +390,17 @@ export const mockContacts: Contact[] = [
     tags: ["Grandparent", "Grandmother"], 
     createdAt: new Date(), 
     updatedAt: new Date(), 
-    relationships: [{ relatedContactId: "4", type: "Grandchild" }], 
+    relationships: [
+        { relatedContactId: "4", type: "Grandchild" }, // Sam's Grandmother
+        { relatedContactId: "sara_h", type: "Child", customLabel: "Daughter"}, // Sara's Mother
+        { relatedContactId: "philip_e", type: "Child", customLabel: "Son"}, // Philip's Mother
+        { relatedContactId: "jim_e", type: "Partner", customLabel: "Husband"},
+    ], 
     photosTogether: [], 
     notableEvents: [] 
   },
 
-  // Chandra's NEW Family
+  // Chandra's Family
   {
     id: "ro_dad_co",
     ownerId: "user1",
@@ -382,7 +408,11 @@ export const mockContacts: Contact[] = [
     photoURL: "https://picsum.photos/seed/remantaolidad/200/200",
     category: "Family",
     tags: ["Parent", "Father"],
-    relationships: [{ relatedContactId: "1", type: "Child", customLabel:"Son" }, {relatedContactId: "ro_mom_co", type: "Partner", customLabel: "Wife"}],
+    relationships: [
+        { relatedContactId: "1", type: "Child", customLabel:"Son" }, 
+        { relatedContactId: "ro_mom_co", type: "Partner", customLabel: "Wife"},
+        { relatedContactId: "do_sis_co", type: "Child", customLabel: "Daughter"},
+    ],
     createdAt: new Date(),
     updatedAt: new Date(),
     photosTogether: [],
@@ -395,7 +425,11 @@ export const mockContacts: Contact[] = [
     photoURL: "https://picsum.photos/seed/remantaolimom/200/200",
     category: "Family",
     tags: ["Parent", "Mother"],
-    relationships: [{ relatedContactId: "1", type: "Child", customLabel:"Son" }, {relatedContactId: "ro_dad_co", type: "Partner", customLabel: "Husband"}],
+    relationships: [
+        { relatedContactId: "1", type: "Child", customLabel:"Son" }, 
+        { relatedContactId: "ro_dad_co", type: "Partner", customLabel: "Husband"},
+        { relatedContactId: "do_sis_co", type: "Child", customLabel: "Daughter"},
+    ],
     createdAt: new Date(),
     updatedAt: new Date(),
     photosTogether: [],
@@ -410,16 +444,20 @@ export const mockContacts: Contact[] = [
     occupation: "Nursing",
     locationDetails: "Australia",
     tags: ["Sibling", "Sister", "Nursing", "Australia"],
-    relationships: [{ relatedContactId: "1", type: "Sibling", customLabel:"Brother" }],
+    relationships: [
+        { relatedContactId: "1", type: "Sibling", customLabel:"Brother" },
+        { relatedContactId: "ro_dad_co", type: "Parent", customLabel: "Father" },
+        { relatedContactId: "ro_mom_co", type: "Parent", customLabel: "Mother" },
+    ],
     createdAt: new Date(),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
 
-  // Abhas' NEW Family/Partner
+  // Abhas' Family/Partner
    {
-    id: "k_g_ao", // Krisha, Abhas' Girlfriend
+    id: "k_g_ao", 
     ownerId: "user1",
     name: "Krisha",
     photoURL: "https://picsum.photos/seed/krisha/200/200",
@@ -432,53 +470,15 @@ export const mockContacts: Contact[] = [
     notableEvents: [],
   },
   {
-    id: "au_mom_ao", // Apsara Uprety, Abhas' Mom
+    id: "au_mom_ao", 
     ownerId: "user1",
     name: "Apsara Uprety",
     photoURL: "https://picsum.photos/seed/apsarauprety/200/200",
     category: "Family",
     tags: ["Parent", "Mother"],
-    relationships: [{ relatedContactId: "3", type: "Child", customLabel:"Son" }, { relatedContactId: "bno_dad_ao", type: "Partner", customLabel: "Husband" }],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    photosTogether: [],
-    notableEvents: [],
-  },
-  {
-    id: "bno_dad_ao", // Bishwa Nath Oli, Abhas' Dad
-    ownerId: "user1",
-    name: "Bishwa Nath Oli",
-    photoURL: "https://picsum.photos/seed/bishwanatholi/200/200",
-    category: "Family",
-    occupation: "Retired Forestry Minister",
-    locationDetails: "Nepal",
-    tags: ["Parent", "Father", "Retired Forestry Minister", "Nepal"],
-    relationships: [{ relatedContactId: "3", type: "Child", customLabel:"Son" }, { relatedContactId: "au_mom_ao", type: "Partner", customLabel: "Wife" }],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    photosTogether: [],
-    notableEvents: [],
-  },
-  
-  // Curt Kowaleski (NEW) and his network
-  {
-    id: "ck_host",
-    ownerId: "user1",
-    name: "Curt Kowaleski",
-    photoURL: "https://picsum.photos/seed/curtkowaleski/200/200",
-    category: "Other", // Host Family
-    tags: ["Host Family", "Wisconsin", "CFO"],
-    locationDetails: "Wisconsin → Le Suer, Minnesota",
-    occupation: "CFO",
-    company: "GAC", // Gustavus Adolphus College?
-    phone: "920 412 8327",
-    birthday: parseBirthday("Jan 17 (60)"), // Approx 1964-01-17
-    notes: "Host family from Wisconsin.",
     relationships: [
-        { relatedContactId: "lk_wife_ck", type: "Partner", customLabel: "Wife" },
-        { relatedContactId: "zk_son_ck", type: "Child", customLabel: "Son" },
-        { relatedContactId: "at_d_ck", type: "Child", customLabel: "Daughter" },
-        { relatedContactId: "cak_d_ck", type: "Child", customLabel: "Daughter" },
+        { relatedContactId: "3", type: "Child", customLabel:"Son" }, 
+        { relatedContactId: "bno_dad_ao", type: "Partner", customLabel: "Husband" }
     ],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -486,21 +486,70 @@ export const mockContacts: Contact[] = [
     notableEvents: [],
   },
   {
-    id: "lk_wife_ck", // Lori Kowaleski
+    id: "bno_dad_ao", 
     ownerId: "user1",
-    name: "Lori Kowaleski",
-    photoURL: "https://picsum.photos/seed/lorikowaleski/200/200",
+    name: "Bishwa Nath Oli",
+    photoURL: "https://picsum.photos/seed/bishwanatholi/200/200",
     category: "Family",
-    tags: ["Spouse"],
-    birthday: parseBirthday("60"), // Approx 1964-01-01
-    relationships: [{ relatedContactId: "ck_host", type: "Partner", customLabel: "Husband" }],
+    occupation: "Retired Forestry Minister",
+    locationDetails: "Nepal",
+    tags: ["Parent", "Father", "Retired Forestry Minister", "Nepal"],
+    relationships: [
+        { relatedContactId: "3", type: "Child", customLabel:"Son" }, 
+        { relatedContactId: "au_mom_ao", type: "Partner", customLabel: "Wife" }
+    ],
     createdAt: new Date(),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
+  
+  // Curt Kowaleski's Network (Updated and Verified)
   {
-    id: "zk_son_ck", // Zach Kowaleski
+    id: "ck_host",
+    ownerId: "user1",
+    name: "Curt Kowaleski",
+    photoURL: "https://picsum.photos/seed/curtkowaleski/200/200",
+    category: "Other", 
+    tags: ["Host Family", "Wisconsin", "CFO"],
+    locationDetails: "Wisconsin → Le Suer, Minnesota",
+    occupation: "CFO",
+    company: "GAC",
+    phone: "920 412 8327",
+    birthday: parseBirthday("Jan 17 (60)"),
+    notes: "Host family from Wisconsin.",
+    relationships: [
+        { relatedContactId: "lk_wife_ck", type: "Partner", customLabel: "Wife" },
+        { relatedContactId: "zk_son_ck", type: "Child", customLabel: "Son" },
+        { relatedContactId: "at_d_ck", type: "Child", customLabel: "Daughter" },
+        { relatedContactId: "cak_d_ck", type: "Child", customLabel: "Daughter" },
+    ],
+    createdAt: new Date("2023-01-15T09:00:00Z"),
+    updatedAt: new Date(),
+    photosTogether: [],
+    notableEvents: [],
+  },
+  {
+    id: "lk_wife_ck", 
+    ownerId: "user1",
+    name: "Lori Kowaleski",
+    photoURL: "https://picsum.photos/seed/lorikowaleski/200/200",
+    category: "Family",
+    tags: ["Wife", "Host Family"],
+    birthday: parseBirthday("60"), 
+    relationships: [
+        { relatedContactId: "ck_host", type: "Partner", customLabel: "Husband" },
+        { relatedContactId: "zk_son_ck", type: "Child", customLabel: "Son" },
+        { relatedContactId: "at_d_ck", type: "Child", customLabel: "Daughter" },
+        { relatedContactId: "cak_d_ck", type: "Child", customLabel: "Daughter" },
+    ],
+    createdAt: new Date("2023-01-15T09:00:00Z"),
+    updatedAt: new Date(),
+    photosTogether: [],
+    notableEvents: [],
+  },
+  {
+    id: "zk_son_ck", 
     ownerId: "user1",
     name: "Zach Kowaleski",
     photoURL: "https://picsum.photos/seed/zachkowaleski/200/200",
@@ -513,55 +562,60 @@ export const mockContacts: Contact[] = [
         { relatedContactId: "rgk_zd_ck", type: "Child", customLabel: "Daughter" },
         { relatedContactId: "b_zpet_ck", type: "Pet" },
     ],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "r_zgf_ck", // Rachel (Zach's GF)
+    id: "r_zgf_ck", 
     ownerId: "user1",
     name: "Rachel",
     photoURL: "https://picsum.photos/seed/rachel/200/200",
     category: "Partner",
     tags: ["Girlfriend"],
-    relationships: [{ relatedContactId: "zk_son_ck", type: "Partner", customLabel: "Boyfriend" }],
-    createdAt: new Date(),
+    relationships: [
+        { relatedContactId: "zk_son_ck", type: "Partner", customLabel: "Boyfriend" },
+        { relatedContactId: "rgk_zd_ck", type: "Parent", customLabel: "Mother" } // Assuming mother
+    ],
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "rgk_zd_ck", // Robin Grace Kowaleski
+    id: "rgk_zd_ck", 
     ownerId: "user1",
     name: "Robin Grace Kowaleski",
     photoURL: "https://picsum.photos/seed/robingrace/200/200",
     category: "Family",
-    tags: ["Grandchild", "Daughter"],
+    tags: ["Daughter", "Grandchild"],
     relationships: [
         { relatedContactId: "zk_son_ck", type: "Parent", customLabel: "Father" },
-        { relatedContactId: "r_zgf_ck", type: "Parent", customLabel: "Mother" } // Assuming Rachel is mother
+        { relatedContactId: "r_zgf_ck", type: "Parent", customLabel: "Mother" },
+        { relatedContactId: "ck_host", type: "Grandparent", customLabel: "Grandfather"},
+        { relatedContactId: "lk_wife_ck", type: "Grandparent", customLabel: "Grandmother"},
     ],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "b_zpet_ck", // Bootsy (Zach's Pet)
+    id: "b_zpet_ck", 
     ownerId: "user1",
     name: "Bootsy",
     photoURL: "https://picsum.photos/seed/bootsy/200/200",
     category: "Pet",
-    tags: ["Pet"],
+    tags: ["Pet", "Dog"], // Assuming Dog
     relationships: [{ relatedContactId: "zk_son_ck", type: "Owner" }],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "at_d_ck", // Allison Terrance
+    id: "at_d_ck", 
     ownerId: "user1",
     name: "Allison Terrance",
     photoURL: "https://picsum.photos/seed/allisonterrance/200/200",
@@ -575,74 +629,85 @@ export const mockContacts: Contact[] = [
         { relatedContactId: "ct_as2_ck", type: "Child", customLabel: "Son" },
         { relatedContactId: "mxt_as3_ck", type: "Child", customLabel: "Son" },
     ],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "mt_ah_ck", // Matt Terrance
+    id: "mt_ah_ck", 
     ownerId: "user1",
     name: "Matt Terrance",
     photoURL: "https://picsum.photos/seed/mattterrance/200/200",
     category: "Family",
-    tags: ["Spouse"],
-    relationships: [{ relatedContactId: "at_d_ck", type: "Partner", customLabel: "Wife" }],
-    createdAt: new Date(),
+    tags: ["Husband"],
+    relationships: [
+        { relatedContactId: "at_d_ck", type: "Partner", customLabel: "Wife" },
+        { relatedContactId: "ht_as1_ck", type: "Parent", customLabel: "Father" },
+        { relatedContactId: "ct_as2_ck", type: "Parent", customLabel: "Father" },
+        { relatedContactId: "mxt_as3_ck", type: "Parent", customLabel: "Father" },
+    ],
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "ht_as1_ck", // Harrison Terrance
+    id: "ht_as1_ck", 
     ownerId: "user1",
     name: "Harrison Terrance",
     photoURL: "https://picsum.photos/seed/harrisonterrance/200/200",
     category: "Family",
-    tags: ["Grandchild", "Son"],
+    tags: ["Son", "Grandchild"],
     relationships: [
         { relatedContactId: "at_d_ck", type: "Parent", customLabel: "Mother" },
-        { relatedContactId: "mt_ah_ck", type: "Parent", customLabel: "Father" }
+        { relatedContactId: "mt_ah_ck", type: "Parent", customLabel: "Father" },
+        { relatedContactId: "ck_host", type: "Grandparent", customLabel: "Grandfather"},
+        { relatedContactId: "lk_wife_ck", type: "Grandparent", customLabel: "Grandmother"},
     ],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "ct_as2_ck", // Cooper Terrance
+    id: "ct_as2_ck", 
     ownerId: "user1",
     name: "Cooper Terrance",
     photoURL: "https://picsum.photos/seed/cooperterrance/200/200",
     category: "Family",
-    tags: ["Grandchild", "Son"],
+    tags: ["Son", "Grandchild"],
     relationships: [
         { relatedContactId: "at_d_ck", type: "Parent", customLabel: "Mother" },
-        { relatedContactId: "mt_ah_ck", type: "Parent", customLabel: "Father" }
+        { relatedContactId: "mt_ah_ck", type: "Parent", customLabel: "Father" },
+        { relatedContactId: "ck_host", type: "Grandparent", customLabel: "Grandfather"},
+        { relatedContactId: "lk_wife_ck", type: "Grandparent", customLabel: "Grandmother"},
     ],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "mxt_as3_ck", // Max Terrance
+    id: "mxt_as3_ck", 
     ownerId: "user1",
     name: "Max Terrance",
     photoURL: "https://picsum.photos/seed/maxterrance/200/200",
     category: "Family",
-    tags: ["Grandchild", "Son"],
+    tags: ["Son", "Grandchild"],
     relationships: [
         { relatedContactId: "at_d_ck", type: "Parent", customLabel: "Mother" },
-        { relatedContactId: "mt_ah_ck", type: "Parent", customLabel: "Father" }
+        { relatedContactId: "mt_ah_ck", type: "Parent", customLabel: "Father" },
+        { relatedContactId: "ck_host", type: "Grandparent", customLabel: "Grandfather"},
+        { relatedContactId: "lk_wife_ck", type: "Grandparent", customLabel: "Grandmother"},
     ],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
   {
-    id: "cak_d_ck", // Cassie Kowaleski
+    id: "cak_d_ck", 
     ownerId: "user1",
     name: "Cassie Kowaleski",
     photoURL: "https://picsum.photos/seed/cassiekowaleski/200/200",
@@ -652,9 +717,10 @@ export const mockContacts: Contact[] = [
         { relatedContactId: "ck_host", type: "Parent", customLabel: "Father" },
         { relatedContactId: "lk_wife_ck", type: "Parent", customLabel: "Mother" },
     ],
-    createdAt: new Date(),
+    createdAt: new Date("2023-01-15T09:00:00Z"),
     updatedAt: new Date(),
     photosTogether: [],
     notableEvents: [],
   },
 ];
+
