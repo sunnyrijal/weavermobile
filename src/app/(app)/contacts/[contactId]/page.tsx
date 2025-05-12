@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck } from "lucide-react"; 
 import React, { useState, useEffect } from 'react';
-import { format as formatDateFn, parseISO, isValid } from "date-fns"; // For date formatting
+import { format as formatDateFnInternal, parseISO, isValid } from "date-fns"; // For date formatting
 import { cn } from "@/lib/utils";
 
 
@@ -34,6 +34,7 @@ const getInitials = (name: string) => {
   return name.substring(0, 2).toUpperCase();
 };
 
+// Moved formatDate outside the component
 const formatDate = (dateString?: string | Date): string => {
   const [clientDate, setClientDate] = useState<string | null>(null);
 
@@ -45,11 +46,13 @@ const formatDate = (dateString?: string | Date): string => {
     
     let date: Date;
     if (typeof dateString === 'string') {
+      // Try to parse YYYY-MM-DD directly to avoid timezone issues with parseISO for date-only strings
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
         const [year, month, day] = dateString.split('-').map(Number);
+        // Construct date as UTC to ensure it represents the intended calendar day
         date = new Date(Date.UTC(year, month - 1, day));
       } else {
-        date = parseISO(dateString);
+        date = parseISO(dateString); // For full ISO strings
       }
     } else {
       date = dateString;
@@ -59,15 +62,17 @@ const formatDate = (dateString?: string | Date): string => {
       setClientDate('N/A');
       return;
     }
-    // Format on client to use client's locale for date part, assuming UTC date input
-    setClientDate(formatDateFn(date, 'PPP', { timeZone: 'UTC' }));
+    // Format on client to use client's locale for date part
+    // If date was UTC, formatting with 'PPP' will use client's timezone for display.
+    // If it was from parseISO (which includes timezone or assumes local if not present), 'PPP' respects that.
+    setClientDate(formatDateFnInternal(date, 'PPP'));
   }, [dateString]);
   
   return clientDate || 'Loading...';
 };
 
 
-// Custom Hook for formatting date and time
+// Moved useFormatDateTime outside the component
 const useFormatDateTime = (dateTimeString?: string | Date): string => {
     const [clientDateTime, setClientDateTime] = useState<string | null>(null);
 
@@ -82,7 +87,7 @@ const useFormatDateTime = (dateTimeString?: string | Date): string => {
             return;
         }
         // Format on client to use client's locale for time part
-        setClientDateTime(formatDateFn(date, 'PPpp'));
+        setClientDateTime(formatDateFnInternal(date, 'PPpp'));
     }, [dateTimeString]);
     
     return clientDateTime || 'Loading...'; // Show loading until client-side format is ready
@@ -333,7 +338,7 @@ export default function ContactDetailPage() {
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                   {contact.category && (
+                  {contact.category && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">Primary Category:</span>
                       <Badge variant="secondary">{contact.category}</Badge>
@@ -344,7 +349,7 @@ export default function ContactDetailPage() {
                     <span className="text-sm font-medium self-center">General Tags:</span>
                     {contact.tags && contact.tags.length > 0 ? (
                       contact.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">{tag}</Badge>
+                        <span key={tag}><Badge variant="outline">{tag}</Badge></span>
                       ))
                     ) : (
                         <span className="text-sm text-muted-foreground">No general tags.</span>
@@ -359,10 +364,12 @@ export default function ContactDetailPage() {
                    {contact.ownerRelationshipLabel && (
                      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-border">
                       <span className="text-sm font-medium">My Relationship:</span>
-                      <Badge variant="outline" className="flex items-center w-fit bg-accent/20 border-accent text-accent-foreground">
-                        <UserCheck className="mr-1.5 h-3.5 w-3.5" />
-                        {contact.ownerRelationshipLabel}
-                      </Badge>
+                       <span className="flex items-center w-fit">
+                        <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
+                            <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+                            {contact.ownerRelationshipLabel}
+                        </Badge>
+                       </span>
                     </div>
                   )}
                 </CardContent>
@@ -542,7 +549,7 @@ export default function ContactDetailPage() {
                                 )}
                               >
                                 <CalendarDays className="mr-2 h-4 w-4" />
-                                {eventFormValues.date ? formatDateFn(eventFormValues.date, "PPP") : <span>Pick a date</span>}
+                                {eventFormValues.date ? formatDateFnInternal(eventFormValues.date, "PPP") : <span>Pick a date</span>}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
@@ -551,7 +558,6 @@ export default function ContactDetailPage() {
                                 selected={eventFormValues.date}
                                 onSelect={(date) => setEventFormValues(prev => ({ ...prev, date: date || null }))}
                                 initialFocus
-                                // Allow past dates for notable events
                                 disabled={(date) => date > new Date() && date < new Date("1900-01-01")} 
                               />
                             </PopoverContent>
@@ -594,3 +600,5 @@ export default function ContactDetailPage() {
 }
 
       
+
+    
