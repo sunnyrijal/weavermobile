@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Mic, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Added Alert imports
+
 
 export function GlobalSearchInput() {
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
@@ -13,6 +15,7 @@ export function GlobalSearchInput() {
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const router = useRouter();
   const { toast } = useToast();
+  const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null); // Added state for mic error
 
   useEffect(() => {
     return () => {
@@ -52,9 +55,11 @@ export function GlobalSearchInput() {
       speechRecognitionRef.current.stop();
       return;
     }
+    setMicrophonePermissionError(null); // Reset permission error state
 
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
+      stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately
 
       const recognition = new SpeechRecognitionAPI();
       recognition.continuous = false;
@@ -79,9 +84,10 @@ export function GlobalSearchInput() {
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
         else if (event.error === 'not-allowed') {
             errorMessage = "Microphone access denied. Please enable microphone permissions in your browser settings.";
+            setMicrophonePermissionError(errorMessage); // Set permission error
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection. This could be a temporary issue with your network or the speech recognition service.";
         }
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
         setIsListeningToVoice(false);
@@ -106,9 +112,14 @@ export function GlobalSearchInput() {
       
       recognition.start();
 
-    } catch (err) {
+    } catch (err: any) { // Catch microphone permission errors specifically
       console.error("Error accessing microphone", err);
-      toast({ title: "Microphone Access Error", description: "Could not access microphone. Please ensure permission is granted.", variant: "destructive" });
+      let description = "Could not access microphone. Please ensure permission is granted.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        description = "Microphone access denied. Please enable it in your browser settings.";
+        setMicrophonePermissionError(description); // Set permission error
+      }
+      toast({ title: "Microphone Access Error", description, variant: "destructive" });
       setIsListeningToVoice(false);
     }
   };
@@ -133,7 +144,15 @@ export function GlobalSearchInput() {
       >
         {isListeningToVoice ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4 text-muted-foreground" />}
       </Button>
+      {microphonePermissionError && ( // Display alert if microphone permission error
+          <Alert variant="destructive" className="mt-2">
+            <MicOff className="h-4 w-4" />
+            <AlertTitle>Microphone Access Denied</AlertTitle>
+            <AlertDescription>
+              {microphonePermissionError}
+            </AlertDescription>
+          </Alert>
+        )}
     </div>
   );
 }
-

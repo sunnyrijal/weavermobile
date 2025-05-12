@@ -189,7 +189,7 @@ export default function NewContactPage() {
           setMicrophonePermissionError(errorMessage);
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection. This could be a temporary issue with your network or the speech recognition service.";
         }
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
         setIsListening(false);
@@ -277,4 +277,3 @@ const formatDateForStorage = (date: Date): string => {
     const day = date.getUTCDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
-

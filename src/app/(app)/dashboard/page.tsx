@@ -197,7 +197,8 @@ export default function DashboardPage() {
     setMicrophonePermissionError(null);
 
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true }); 
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
+      stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately after permission is granted
 
       const recognition = new SpeechRecognitionAPI();
       recognition.continuous = false;
@@ -304,7 +305,8 @@ export default function DashboardPage() {
     setMicrophonePermissionError(null);
 
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately after permission is granted
 
       const recognition = new SpeechRecognitionAPI();
       recognition.continuous = false;
@@ -331,7 +333,7 @@ export default function DashboardPage() {
             setMicrophonePermissionError(errorMessage);
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection. This could be a temporary issue with your network or the speech recognition service.";
         }
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
         setIsListeningToQuestion(false);
@@ -608,4 +610,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
