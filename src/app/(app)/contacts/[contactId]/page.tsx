@@ -271,9 +271,9 @@ export default function ContactDetailPage() {
           <div className="absolute bottom-0 left-0 p-6 flex items-end space-x-4">
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
               <DialogTrigger asChild onClick={() => setIsPhotoDialogOpen(true)}>
-                <Avatar className="w-32 h-32 border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
+                <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
                   <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" className="object-cover"/>
-                  <AvatarFallback className="text-4xl">{getInitials(contact.name)}</AvatarFallback>
+                  <AvatarFallback className="text-3xl sm:text-4xl">{getInitials(contact.name)}</AvatarFallback>
                 </Avatar>
               </DialogTrigger>
               <DialogContent className="max-w-md p-0">
@@ -312,7 +312,7 @@ export default function ContactDetailPage() {
               </DialogContent>
             </Dialog>
             <div>
-              <CardTitle className="text-3xl font-bold text-card-foreground drop-shadow-sm">{contact.name}</CardTitle>
+              <CardTitle className="text-2xl sm:text-3xl font-bold text-card-foreground drop-shadow-sm">{contact.name}</CardTitle>
               {contact.occupation && (
                 <CardDescription className="text-lg text-muted-foreground drop-shadow-sm">
                   {contact.occupation} {contact.company && `at ${contact.company}`}
@@ -322,7 +322,7 @@ export default function ContactDetailPage() {
           </div>
         </div>
         
-        <CardContent className="pt-20">
+        <CardContent className="pt-16 sm:pt-20">
           <Tabs defaultValue="overview">
             <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -723,3 +723,4 @@ export default function ContactDetailPage() {
     </div>
   );
 }
+

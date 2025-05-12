@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
@@ -400,7 +401,7 @@ export default function DashboardPage() {
             { name: "Facebook", icon: Facebook, color: "text-blue-700" },
             { name: "Twitter", icon: Twitter, color: "text-sky-500" },
           ].map(source => (
-            <Button key={source.name} variant="outline" className="flex flex-col h-28 items-center justify-center gap-2 hover:bg-accent/50" asChild>
+            <Button key={source.name} variant="outline" className="flex flex-col h-24 sm:h-28 items-center justify-center gap-2 hover:bg-accent/50" asChild>
               <Link href={`/import?source=${source.name.toLowerCase()}`}>
                 <source.icon className={`h-8 w-8 ${source.color}`} />
                 <span>{source.name}</span>
@@ -418,3 +419,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

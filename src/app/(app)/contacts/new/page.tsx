@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ContactForm, contactFormSchema } from "@/components/contacts/ContactForm";
@@ -231,11 +232,11 @@ export default function NewContactPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex justify-between items-center mb-4">
-            <Button variant="outline" onClick={() => router.back()}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+            <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button variant="outline" onClick={handleVoiceInput} disabled={isListening || isParsing} className="relative">
+            <Button variant="outline" onClick={handleVoiceInput} disabled={isListening || isParsing} className="relative w-full sm:w-auto">
                 {isListening ? <MicOff className="mr-2 h-4 w-4 text-destructive" /> : <Mic className="mr-2 h-4 w-4" />}
                 {isListening ? "Stop Listening" : "Voice Input"}
                 {isParsing && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />}
@@ -268,3 +269,4 @@ const formatDateForStorage = (date: Date): string => {
     const day = date.getUTCDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
+
