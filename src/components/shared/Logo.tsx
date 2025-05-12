@@ -10,9 +10,9 @@ interface LogoProps {
 
 export function Logo({ size = 'md', className, showText = true }: LogoProps) {
   const sizeClasses = {
-    sm: { icon: 'h-6 w-6', text: 'text-lg' },
-    md: { icon: 'h-8 w-8', text: 'text-2xl' },
-    lg: { icon: 'h-10 w-10', text: 'text-3xl' },
+    sm: { icon: 'h-7 w-7', text: 'text-lg' }, // Increased sm icon size
+    md: { icon: 'h-9 w-9', text: 'text-2xl' }, // Increased md icon size
+    lg: { icon: 'h-12 w-12', text: 'text-3xl' }, // Increased lg icon size
   };
 
   return (
@@ -22,3 +22,6 @@ export function Logo({ size = 'md', className, showText = true }: LogoProps) {
     </Link>
   );
 }
+
+
+    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -18,8 +19,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home } from "lucide-react"; 
-import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud } from "lucide-react"; 
+import React, { useState, useEffect, useRef } from 'react';
 import { isValid, parseISO } from "date-fns";
 import { format as formatDateFnInternal } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,16 @@ const formatDateForStorage = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
+// Helper function to read file as Data URL
+const readFileAsDataURL = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
 
 export default function ContactDetailPage() {
   const params = useParams();
@@ -63,6 +74,9 @@ export default function ContactDetailPage() {
     description: '',
   });
   const [isSavingEvent, setIsSavingEvent] = useState(false);
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   useEffect(() => {
@@ -124,6 +138,42 @@ export default function ContactDetailPage() {
     setEventFormValues({ title: '', date: null, description: '' }); // Reset form
   };
 
+  const handlePhotoUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!contact) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const photoDataUrl = await readFileAsDataURL(file);
+      const newUpdatedAt = new Date();
+      
+      // Update local state
+      setContact(prev => prev ? ({ ...prev, photoURL: photoDataUrl, updatedAt: newUpdatedAt }) : null);
+
+      // Update mockContacts array
+      const contactIndex = mockContacts.findIndex(c => c.id === contactId);
+      if (contactIndex !== -1) {
+        mockContacts[contactIndex].photoURL = photoDataUrl;
+        mockContacts[contactIndex].updatedAt = newUpdatedAt;
+      }
+      
+      toast({ title: "Profile Photo Updated", description: "The new photo has been uploaded." });
+      setIsPhotoDialogOpen(false); // Close dialog on success
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      toast({ title: "Upload Failed", description: "Could not upload the photo.", variant: "destructive" });
+    } finally {
+      setIsUploadingPhoto(false);
+      // Reset file input value to allow uploading the same file again if needed
+      if(fileInputRef.current) fileInputRef.current.value = ""; 
+    }
+  };
+
 
   if (contact === undefined) {
     return (
@@ -175,13 +225,51 @@ export default function ContactDetailPage() {
             style={{objectFit:"cover"}}
             data-ai-hint="landscape nature"
             className="opacity-50"
-            priority
+            priority={true} // Eager load cover photo
           />
           <div className="absolute bottom-0 left-0 p-6 flex items-end space-x-4">
-            <Avatar className="w-32 h-32 border-4 border-background shadow-lg">
-              <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" />
-              <AvatarFallback className="text-4xl">{getInitials(contact.name)}</AvatarFallback>
-            </Avatar>
+            <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
+              <DialogTrigger asChild onClick={() => setIsPhotoDialogOpen(true)}>
+                <Avatar className="w-32 h-32 border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
+                  <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" className="object-cover"/>
+                  <AvatarFallback className="text-4xl">{getInitials(contact.name)}</AvatarFallback>
+                </Avatar>
+              </DialogTrigger>
+              <DialogContent className="max-w-md p-0">
+                 <DialogHeader className="p-4 border-b">
+                    <DialogTitle>{contact.name}'s Profile Photo</DialogTitle>
+                  </DialogHeader>
+                {contact.photoURL ? (
+                  <div className="relative w-full aspect-square">
+                    <Image
+                      src={contact.photoURL}
+                      alt={`${contact.name}'s profile photo - enlarged`}
+                      fill
+                      style={{objectFit: "contain"}}
+                      data-ai-hint="person avatar large"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 bg-muted">
+                    <p className="text-muted-foreground">No profile photo available.</p>
+                  </div>
+                )}
+                 <DialogFooter className="p-4 border-t flex justify-between sm:justify-end">
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileChange} 
+                        style={{ display: 'none' }} 
+                        accept="image/*"
+                    />
+                    <Button variant="outline" onClick={() => setIsPhotoDialogOpen(false)} disabled={isUploadingPhoto}>Cancel</Button>
+                    <Button onClick={handlePhotoUploadClick} disabled={isUploadingPhoto}>
+                        {isUploadingPhoto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                        Upload New Photo
+                    </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <div>
               <CardTitle className="text-3xl font-bold text-card-foreground drop-shadow-sm">{contact.name}</CardTitle>
               {contact.occupation && (
@@ -281,7 +369,7 @@ export default function ContactDetailPage() {
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Primary Category:</span>
                     {contact.category ? (
@@ -306,9 +394,9 @@ export default function ContactDetailPage() {
                     !contact.ownerRelationshipLabel &&
                     <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
                   }
-
+                  <Separator className="my-3" />
                    {contact.ownerRelationshipLabel && (
-                     <div className="flex items-center gap-2 pt-3 mt-3 border-t border-border">
+                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">My Relationship:</span>
                        <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
                             <UserCheck className="mr-1.5 h-3.5 w-3.5" />
@@ -358,16 +446,34 @@ export default function ContactDetailPage() {
                         {contact.photosTogether && contact.photosTogether.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                 {contact.photosTogether.map((photoUrl, index) => (
-                                    <div key={index} className="aspect-square rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow">
-                                        <Image 
-                                            src={photoUrl} 
-                                            alt={`Photo with ${contact.name} ${index + 1}`} 
-                                            width={200} 
-                                            height={200} 
-                                            className="object-cover w-full h-full"
+                                  <Dialog key={index}>
+                                    <DialogTrigger asChild>
+                                      <div className="aspect-square rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer">
+                                          <Image 
+                                              src={photoUrl} 
+                                              alt={`Photo with ${contact.name} ${index + 1}`} 
+                                              width={200} 
+                                              height={200} 
+                                              className="object-cover w-full h-full"
+                                              data-ai-hint="people event"
+                                          />
+                                      </div>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-xl p-0">
+                                       <DialogHeader className="p-4 border-b">
+                                          <DialogTitle>Photo with {contact.name}</DialogTitle>
+                                        </DialogHeader>
+                                        <div className="relative w-full aspect-video">
+                                          <Image
+                                            src={photoUrl}
+                                            alt={`Photo with ${contact.name} ${index + 1} - enlarged`}
+                                            fill
+                                            style={{objectFit: "contain"}}
                                             data-ai-hint="people event"
-                                        />
-                                    </div>
+                                          />
+                                        </div>
+                                    </DialogContent>
+                                  </Dialog>
                                 ))}
                             </div>
                         ) : (
@@ -535,10 +641,13 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-            <p>Contact created on: <ClientSideFormattedDate date={contact.createdAt} format="PPpp" /></p>
-            <p className="ml-auto">Last updated: <ClientSideFormattedDate date={contact.updatedAt} format="PPpp" /></p>
+            <ClientSideFormattedDate date={contact.createdAt} format="PPpp" prefix="Contact created on: " />
+            <ClientSideFormattedDate date={contact.updatedAt} format="PPpp" prefix="Last updated: " className="ml-auto"/>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
+
+    

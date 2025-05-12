@@ -9,6 +9,8 @@ interface ClientSideFormattedDateProps {
   format?: string; // e.g., "PPP" for date, "PPpp" for date and time
   loadingText?: string;
   notAvailableText?: string;
+  prefix?: string;
+  className?: string;
 }
 
 const ClientSideFormattedDate: React.FC<ClientSideFormattedDateProps> = ({
@@ -16,6 +18,8 @@ const ClientSideFormattedDate: React.FC<ClientSideFormattedDateProps> = ({
   format = "PPP", // Default to date only format like "Jul 22, 2024"
   loadingText = "Loading...",
   notAvailableText = "N/A",
+  prefix = "",
+  className = "",
 }) => {
   const [formattedDate, setFormattedDate] = useState<string | null>(null);
 
@@ -53,10 +57,10 @@ const ClientSideFormattedDate: React.FC<ClientSideFormattedDateProps> = ({
   }, [dateProp, format, notAvailableText]);
 
   if (formattedDate === null) {
-    return <span>{loadingText}</span>;
+    return <span className={className}>{prefix}{loadingText}</span>;
   }
 
-  return <span>{formattedDate}</span>;
+  return <span className={className}>{prefix}{formattedDate}</span>;
 };
 
 export default ClientSideFormattedDate;
