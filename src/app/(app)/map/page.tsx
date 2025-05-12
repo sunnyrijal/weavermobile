@@ -25,7 +25,7 @@ interface GroupLabel {
   text: string;
   cx: number; // center x for the label
   cy: number; // center y for the label
-  originalText?: string; // To match relationship type/customLabel
+  originalText?: string; // To match relationship type/customLabel for line drawing
 }
 
 // Layout Constants
@@ -45,9 +45,6 @@ const COL3_X = 920;
 
 const H_SPACING_BETWEEN_PAIRED_CARDS = 30;
 
-const SVG_PADDING_HORIZONTAL = 50;
-const SVG_PADDING_VERTICAL = 50;
-
 // Calculate Y positions for rows (primarily for Sam's detailed layout)
 const Y_ROW1_LABEL_CY = Y_OFFSET_TOP + LABEL_HEIGHT / 2;
 const Y_ROW1_CARD_Y = Y_OFFSET_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
@@ -64,6 +61,9 @@ const Y_ROW3_LABEL_CY = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT / 2;
 const Y_ROW3_CARD_Y_VAL = Y_ROW3_LABEL_Y_TOP + LABEL_HEIGHT + V_SPACE_LABEL_CARD;
 
 
+const SVG_PADDING_HORIZONTAL = 50;
+const SVG_PADDING_VERTICAL = 50;
+
 const getPetTypeFromTags = (tags?: string[]): string => {
   if (!tags || tags.length === 0) return "Pet";
   const commonPetTypes = ["Dog", "Cat", "Bird", "Fish", "Rabbit", "Hamster", "Guinea Pig"];
@@ -76,6 +76,35 @@ const getPetTypeFromTags = (tags?: string[]): string => {
   return "Pet"; 
 };
 
+const getBadgeText = (contact: Contact): string => {
+  if (contact.category === 'Pet') {
+    return getPetTypeFromTags(contact.tags);
+  }
+
+  const familyRolePriority = [
+    "Mother", "Father", "Parent",
+    "Sister", "Brother", "Sibling",
+    "Daughter", "Son", "Child",
+    "Wife", "Husband", "Spouse", "Partner", "Girlfriend", "Boyfriend",
+    "Grandmother", "Grandfather", "Grandparent",
+    "Aunt", "Uncle",
+    "Niece", "Nephew",
+    "Cousin",
+  ];
+
+  if (contact.category === "Family" || contact.category === "Partner") {
+    if (contact.tags && contact.tags.length > 0) {
+      for (const role of familyRolePriority) {
+        if (contact.tags.some(tag => tag.toLowerCase() === role.toLowerCase())) {
+          return role;
+        }
+      }
+    }
+  }
+  return contact.category || "N/A";
+};
+
+
 const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: Contact; onButtonClick: (contactId: string) => void; }) => {
   const getInitials = (name: string) => {
     if (!name) return "NN";
@@ -86,31 +115,44 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
     return name.substring(0, 2).toUpperCase();
   };
 
-  const getCategoryBadgeVariant = (category?: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (category) {
-      case 'Family': return 'default'; 
-      case 'Partner': return 'destructive'; 
-      case 'Friend': return 'secondary'; 
-      case 'Pet': return 'outline'; 
-      case 'Colleague': return 'secondary';
+  const getCategoryBadgeVariant = (categoryOrRole?: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (categoryOrRole?.toLowerCase()) {
+      case 'family': case 'mother': case 'father': case 'parent': 
+      case 'sister': case 'brother': case 'sibling':
+      case 'son': case 'daughter': case 'child':
+      case 'grandmother': case 'grandfather': case 'grandparent':
+      case 'aunt': case 'uncle':
+        return 'default'; 
+      case 'partner': case 'girlfriend': case 'boyfriend': case 'spouse': case 'husband': case 'wife':
+        return 'destructive'; 
+      case 'friend': return 'secondary'; 
+      case 'pet': case 'dog': case 'cat': // Add specific pet types if needed
+        return 'outline'; 
+      case 'colleague': case 'professional':
+        return 'secondary';
       default: return 'outline';
     }
   };
   
-  const getCategoryBadgeStyle = (category?: string): React.CSSProperties => {
-     switch (category) {
-      case 'Family': return { backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', borderColor: 'hsl(var(--primary))' };
-      case 'Partner': return { backgroundColor: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))', borderColor: 'hsl(var(--destructive))' };
-      case 'Friend': return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))' };
-      case 'Pet': return { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))', borderColor: 'hsl(var(--accent))' }; 
+  const getCategoryBadgeStyle = (categoryOrRole?: string): React.CSSProperties => {
+     switch (categoryOrRole?.toLowerCase()) {
+      case 'family': case 'mother': case 'father': case 'parent':
+      case 'sister': case 'brother': case 'sibling':
+      case 'son': case 'daughter': case 'child':
+      case 'grandmother': case 'grandfather': case 'grandparent':
+      case 'aunt': case 'uncle':
+         return { backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', borderColor: 'hsl(var(--primary))' };
+      case 'partner': case 'girlfriend': case 'boyfriend': case 'spouse': case 'husband': case 'wife':
+        return { backgroundColor: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))', borderColor: 'hsl(var(--destructive))' };
+      case 'friend': return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))' };
+      case 'pet': case 'dog': case 'cat':
+        return { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))', borderColor: 'hsl(var(--accent))' }; 
       default: return {};
     }
   }
 
-  let badgeText = contact.category;
-  if (contact.category === 'Pet') {
-      badgeText = getPetTypeFromTags(contact.tags);
-  }
+  const badgeText = getBadgeText(contact);
+
 
   return (
     <div className="bg-card text-card-foreground rounded-lg shadow-xl p-3 flex flex-col items-center justify-between border border-border" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
@@ -118,17 +160,17 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
         <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="profile avatar"/>
         <AvatarFallback className="bg-muted text-xl">{getInitials(contact.name)}</AvatarFallback>
       </Avatar>
-      <p className="font-semibold text-sm text-center truncate w-full">{contact.name}</p>
+      <p className="font-semibold text-sm text-center truncate w-full" title={contact.name}>{contact.name}</p>
       {badgeText && (
         <Badge 
-            variant={getCategoryBadgeVariant(contact.category)} 
-            style={getCategoryBadgeStyle(contact.category)}
+            variant={getCategoryBadgeVariant(badgeText)} 
+            style={getCategoryBadgeStyle(badgeText)}
             className="mt-1 text-xs"
         >
             {badgeText}
         </Badge>
       )}
-      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate">
+      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate" title={contact.occupation || contact.college || contact.locationDetails || 'N/A'}>
         {contact.occupation || contact.college || contact.locationDetails || 'N/A'}
       </p>
       <Button 
@@ -161,21 +203,20 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
   const { nodes: initialNodes, groupLabels: initialGroupLabels } = useMemo(() => {
     if (!centralContact) return { nodes: [], groupLabels: [] };
 
-    let nodes: Node[] = [];
-    let groupLabels: GroupLabel[] = [];
+    const nodes: Node[] = [];
+    const groupLabels: GroupLabel[] = [];
 
-    // Central node always present
     nodes.push({ id: centralContact.id, contact: centralContact, x: COL2_X - CARD_WIDTH / 2, y: Y_SAM_Y });
 
     if (centralContact.id === '4') { // Sam Hendrickson - Detailed Layout
-      groupLabels = [
-        { text: "Partner", originalText: "Partner", cx: COL1_X, cy: Y_ROW1_LABEL_CY },
+      groupLabels.push(
+        { text: "Partner", originalText: "Partner", cx: COL1_X, cy: Y_ROW1_LABEL_CY }, // Could be "Girlfriend" if customLabel is preferred
         { text: "Parents", originalText: "Parent", cx: COL2_X, cy: Y_ROW1_LABEL_CY },
         { text: "Sister", originalText: "Sibling", cx: COL3_X, cy: Y_ROW1_LABEL_CY },
         { text: "Grandparents", originalText: "Grandparent", cx: COL1_X, cy: Y_ROW2_LABEL_CY },
         { text: "Uncles", originalText: "Uncle", cx: COL3_X, cy: Y_ROW2_LABEL_CY },
-        { text: "Pets", originalText: "Pet", cx: COL2_X, cy: Y_ROW3_LABEL_CY },
-      ];
+        { text: "Pets", originalText: "Pet", cx: COL2_X, cy: Y_ROW3_LABEL_CY }
+      );
       const samNodesRaw = [
         { id: 'emily_g', contact: mockContacts.find(c=>c.id==='emily_g')!, x: COL1_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
         { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
@@ -183,58 +224,98 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
         { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
         { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: COL1_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
-        { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: COL3_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
-        { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: COL3_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
-        { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD }, 
+        { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: COL3_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2 - (CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS)/2 , y: Y_ROW2_CARD_Y }, // Adjusted to fit 3 uncles
+        { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y },
+        { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
         { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
         { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
       ];
       nodes.push(...samNodesRaw.filter(node => node.contact).map(n => n as Node));
     } else { // Generic Layout for Chandra, Abhas, or others
-        const relationships = centralContact.relationships || [];
-        const relationshipTypes: { [key: string]: Contact[] } = {};
+        const organizedGroups: { [key: string]: { display: string, keyForMatching: string, colX: number, labelY: number, cardY: number, contacts: Contact[] } } = {
+            "Parents": { display: "Parents", keyForMatching: "Parent", colX: COL2_X, labelY: Y_ROW1_LABEL_CY, cardY: Y_ROW1_CARD_Y, contacts: [] },
+            "Partner": { display: "Partner", keyForMatching: "Partner", colX: COL1_X, labelY: Y_ROW1_LABEL_CY, cardY: Y_ROW1_CARD_Y, contacts: [] },
+            "Siblings": { display: "Siblings", keyForMatching: "Sibling", colX: COL3_X, labelY: Y_ROW1_LABEL_CY, cardY: Y_ROW1_CARD_Y, contacts: [] },
+        };
+        const otherRelationshipTypes = new Map<string, Contact[]>();
 
-        relationships.forEach(rel => {
-            const relatedContact = mockContacts.find(c => c.id === rel.relatedContactId);
-            if (relatedContact) {
-                const typeKey = rel.customLabel || rel.type;
-                if (!relationshipTypes[typeKey]) {
-                    relationshipTypes[typeKey] = [];
+        if (centralContact.relationships) {
+            centralContact.relationships.forEach(rel => {
+                const relatedContact = mockContacts.find(c => c.id === rel.relatedContactId);
+                if (!relatedContact) return;
+
+                if (rel.type === "Parent") {
+                    organizedGroups["Parents"].contacts.push(relatedContact);
+                } else if (rel.type === "Partner") {
+                    organizedGroups["Partner"].contacts.push(relatedContact);
+                    if (rel.customLabel) organizedGroups["Partner"].display = rel.customLabel; // e.g. "Girlfriend"
+                    if (rel.customLabel) organizedGroups["Partner"].keyForMatching = rel.customLabel;
+                } else if (rel.type === "Sibling") {
+                    organizedGroups["Siblings"].contacts.push(relatedContact);
+                     if (rel.customLabel) organizedGroups["Siblings"].display = rel.customLabel; 
+                    if (rel.customLabel) organizedGroups["Siblings"].keyForMatching = rel.customLabel;
+                } else {
+                    const key = rel.customLabel || rel.type;
+                    if (!otherRelationshipTypes.has(key)) otherRelationshipTypes.set(key, []);
+                    otherRelationshipTypes.get(key)!.push(relatedContact);
                 }
-                relationshipTypes[typeKey].push(relatedContact);
+            });
+        }
+
+        Object.values(organizedGroups).forEach(groupData => {
+            if (groupData.contacts.length > 0) {
+                groupLabels.push({
+                    text: groupData.display,
+                    originalText: groupData.keyForMatching,
+                    cx: groupData.colX,
+                    cy: groupData.labelY
+                });
+                groupData.contacts.forEach((contact, idx) => {
+                    let cardX = groupData.colX - CARD_WIDTH / 2;
+                    if (groupData.contacts.length > 1) {
+                        const totalWidthOfGroup = (groupData.contacts.length * CARD_WIDTH) + ((groupData.contacts.length - 1) * H_SPACING_BETWEEN_PAIRED_CARDS);
+                        const startXForGroup = groupData.colX - totalWidthOfGroup / 2;
+                        cardX = startXForGroup + (idx * (CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS));
+                    }
+                    nodes.push({ id: contact.id, contact, x: cardX, y: groupData.cardY });
+                });
             }
         });
+        
+        let otherY = Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_BETWEEN_ROWS; // Start other types lower
+        let otherColIdx = 0;
+        const otherCols = [COL1_X, COL2_X, COL3_X];
 
-        let currentY = Y_ROW1_CARD_Y;
-        let labelY = Y_ROW1_LABEL_CY;
-
-        Object.entries(relationshipTypes).forEach(([type, contacts], index) => {
-            const labelText = type.length > 15 ? type.substring(0,12) + "..." : type; // Truncate long labels
-            groupLabels.push({ text: labelText, originalText: type, cx: COL1_X - LABEL_WIDTH, cy: labelY });
-            
-            contacts.forEach((contact, contactIdx) => {
-                nodes.push({
-                    id: contact.id,
-                    contact,
-                    x: COL1_X + (contactIdx % 2 === 1 ? CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS : 0), // Simple horizontal arrangement
-                    y: currentY + Math.floor(contactIdx / 2) * (CARD_HEIGHT + V_SPACE_CARD)
-                });
+        otherRelationshipTypes.forEach((contacts, type) => {
+            const currentCx = otherCols[otherColIdx % otherCols.length];
+            groupLabels.push({ text: type, originalText: type, cx: currentCx, cy: otherY - V_SPACE_LABEL_CARD - LABEL_HEIGHT/2 });
+            contacts.forEach((contact, idx) => {
+                 let cardX = currentCx - CARD_WIDTH / 2;
+                if (contacts.length > 1) {
+                    const totalWidthOfGroup = (contacts.length * CARD_WIDTH) + ((contacts.length - 1) * H_SPACING_BETWEEN_PAIRED_CARDS);
+                    const startXForGroup = currentCx - totalWidthOfGroup / 2;
+                    cardX = startXForGroup + (idx * (CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS));
+                }
+                nodes.push({ id: contact.id, contact, x: cardX, y: otherY });
             });
-            currentY += (Math.ceil(contacts.length / 2) * (CARD_HEIGHT + V_SPACE_CARD)) + V_SPACE_BETWEEN_ROWS;
-            labelY = currentY - V_SPACE_BETWEEN_ROWS / 2 - V_SPACE_LABEL_CARD;
+            otherColIdx++;
+            if (otherColIdx % otherCols.length === 0 || contacts.length > 2) { // Move to next row if all cols used or group is large
+                 otherY += (Math.ceil(contacts.length / 2)) * (CARD_HEIGHT + V_SPACE_CARD) + V_SPACE_BETWEEN_ROWS;
+            } else if (otherColIdx % otherCols.length !== 0 && contacts.length <=2){
+                // keep same Y for next group in same row if space
+            }
         });
     }
     return { nodes, groupLabels };
+  }, [centralContactId, centralContact]);
 
-  }, [centralContact]);
 
-
-  const [nodes, setNodes] = useState<Node[]>(initialNodes);
-  const [currentGroupLabels, setCurrentGroupLabels] = useState<GroupLabel[]>(initialGroupLabels);
+  const [currentNodes, setCurrentNodes] = useState<Node[]>(initialNodes);
+  const [currentGroupLabels, setCurrentGroupLabelsState] = useState<GroupLabel[]>(initialGroupLabels);
 
   useEffect(() => {
-    setNodes(initialNodes);
-    setCurrentGroupLabels(initialGroupLabels);
+    setCurrentNodes(initialNodes);
+    setCurrentGroupLabelsState(initialGroupLabels);
   }, [initialNodes, initialGroupLabels]);
 
 
@@ -249,7 +330,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 
   const handleNodeMouseDown = useCallback((e: React.MouseEvent<SVGForeignObjectElement, MouseEvent>, nodeId: string) => {
     setDraggingNode(nodeId);
-    const node = nodes.find(n => n.id === nodeId);
+    const node = currentNodes.find(n => n.id === nodeId);
     const svgElement = svgRef.current;
     if (node && typeof node.x === 'number' && typeof node.y === 'number' && svgElement) { 
       const CTM = svgElement.getScreenCTM();
@@ -261,7 +342,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         setOffset({ x: transformedPoint.x - node.x, y: transformedPoint.y - node.y });
       }
     }
-  }, [nodes]);
+  }, [currentNodes]);
   
   const handleBackgroundMouseDown = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
     if (e.target === svgRef.current) { 
@@ -273,7 +354,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
   };
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-    if (isPanning && panStartCoords && viewBoxOriginAtPanStart) {
+    if (isPanning && panStartCoords && viewBoxOriginAtPanStart && svgRef.current) {
       e.preventDefault();
       const dx = e.clientX - panStartCoords.clientX;
       const dy = e.clientY - panStartCoords.clientY;
@@ -290,7 +371,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
           svgPoint.x = e.clientX;
           svgPoint.y = e.clientY;
           const transformedPoint = svgPoint.matrixTransform(CTM.inverse());
-          setNodes(prevNodes =>
+          setCurrentNodes(prevNodes =>
             prevNodes.map(n =>
                 n.id === draggingNode && typeof offset.x === 'number' && typeof offset.y === 'number'
                  ? { ...n, x: transformedPoint.x - offset.x, y: transformedPoint.y - offset.y } 
@@ -317,9 +398,9 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
      router.push(`/contacts/${contactId}`);
   },[router]);
   
-  const centralNodeDetails = nodes.find(n => n.id === centralContact?.id);
+  const centralNodeDetails = currentNodes.find(n => n.id === centralContact?.id);
 
-  if (!centralContact) return <p>Central contact not found.</p>;
+  if (!centralContact || !centralNodeDetails) return <p>Central contact or its details not found.</p>;
 
 
   return (
@@ -345,92 +426,83 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         </marker>
       </defs>
 
-      {/* Lines for Sam's layout */}
-      {centralContact.id === '4' && centralNodeDetails && currentGroupLabels.map(label => (
-        <line
-          key={`line-sam-to-group-${label.text.replace(/\s+/g, '-')}`}
-          x1={centralNodeDetails.x + CARD_WIDTH / 2}
-          y1={centralNodeDetails.y + CARD_HEIGHT / 2}
-          x2={label.cx}
-          y2={label.cy}
-          stroke="hsl(var(--border))"
-          strokeWidth="2"
-          markerEnd="url(#arrowhead)"
-        />
-      ))}
-
-      {/* Lines for Sam's layout from Group Labels to Nodes */}
-      {centralContact.id === '4' && nodes.map(node => {
+      {/* Lines */}
+      {currentNodes.map(node => {
         if (node.id === centralContact.id || !centralNodeDetails) return null; 
         
-        const samRelationship = centralContact.relationships?.find(rel => rel.relatedContactId === node.id);
-        let groupLabelText = samRelationship?.customLabel || samRelationship?.type;
-
-        if (node.contact.category === "Pet" && !groupLabelText) {
-            groupLabelText = "Pet";
-        }
+        const relationship = centralContact.relationships?.find(rel => rel.relatedContactId === node.id);
+        let groupKeyForNode = relationship?.customLabel || relationship?.type;
         
-        const parentGroupLabel = currentGroupLabels.find(gl => 
-          (groupLabelText && gl.originalText && groupLabelText.includes(gl.originalText)) || 
-          groupLabelText === gl.text ||
-          (gl.originalText === "Pet" && groupLabelText === "Pet")
-        );
+        if (node.contact.category === "Pet" && !groupKeyForNode) {
+            groupKeyForNode = "Pet"; // Default for pets if not explicitly typed in relationships
+        }
+
+        const parentGroupLabel = currentGroupLabels.find(gl => {
+            if (!groupKeyForNode || !gl.originalText) return false;
+            
+            // Direct match for specific labels (like "Girlfriend", "Uncle Joe")
+            if (gl.originalText.toLowerCase() === groupKeyForNode.toLowerCase()) return true;
+
+            // Match broader categories (e.g., rel.type "Parent" should match group label "Parent")
+            if (relationship?.type && gl.originalText.toLowerCase() === relationship.type.toLowerCase()) return true;
+            
+            // Specific handling for "Parents" group (originalText "Parent") matching individual parent types
+            if (gl.originalText === "Parent" && relationship?.type === "Parent") return true;
+            if (gl.originalText === "Sibling" && relationship?.type === "Sibling") return true;
+            if (gl.originalText === "Pet" && node.contact.category === "Pet") return true;
+
+
+            return false;
+        });
 
         if (parentGroupLabel) {
+          // Line from central node to group label
+          const lineToGroupKey = `line-central-to-group-${parentGroupLabel.text.replace(/\s+/g, '-')}`;
+          // Line from group label to node
+          const lineFromGroupToNodeKey = `line-group-${parentGroupLabel.text.replace(/\s+/g, '-')}-to-${node.id}`;
+          
           return (
-            <line
-              key={`line-group-${parentGroupLabel.text.replace(/\s+/g, '-')}-to-${node.id}`}
-              x1={parentGroupLabel.cx}
-              y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} 
-              x2={node.x + CARD_WIDTH / 2}              
-              y2={node.y}                                
-              stroke="hsl(var(--border))"
-              strokeWidth="2"
-              markerEnd="url(#arrowhead)"
-            />
+              <React.Fragment key={`${lineToGroupKey}-${lineFromGroupToNodeKey}`}>
+                  {/* Only draw one line from central to group label, even if multiple nodes in group */}
+                  {/* This check assumes first node for a group implies the group line drawing */}
+                  {currentNodes.filter(n => {
+                      const rel = centralContact.relationships?.find(r => r.relatedContactId === n.id);
+                      let key = rel?.customLabel || rel?.type;
+                      if (n.contact.category === "Pet" && !key) key = "Pet";
+                      const pgLabel = currentGroupLabels.find(gl => {
+                          if (!key || !gl.originalText) return false;
+                          if (gl.originalText.toLowerCase() === key.toLowerCase()) return true;
+                          if (rel?.type && gl.originalText.toLowerCase() === rel.type.toLowerCase()) return true;
+                          if (gl.originalText === "Parent" && rel?.type === "Parent") return true;
+                          if (gl.originalText === "Sibling" && rel?.type === "Sibling") return true;
+                          if (gl.originalText === "Pet" && n.contact.category === "Pet") return true;
+                          return false;
+                      });
+                      return pgLabel?.text === parentGroupLabel.text;
+                  })[0]?.id === node.id && (
+                      <line
+                          key={lineToGroupKey}
+                          x1={centralNodeDetails.x + CARD_WIDTH / 2}
+                          y1={centralNodeDetails.y + CARD_HEIGHT / 2}
+                          x2={parentGroupLabel.cx}
+                          y2={parentGroupLabel.cy}
+                          stroke="hsl(var(--border))"
+                          strokeWidth="2"
+                          markerEnd="url(#arrowhead)"
+                      />
+                  )}
+                  <line
+                      key={lineFromGroupToNodeKey}
+                      x1={parentGroupLabel.cx}
+                      y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} // From bottom-middle of label
+                      x2={node.x + CARD_WIDTH / 2}              // To top-middle of card
+                      y2={node.y}
+                      stroke="hsl(var(--border))"
+                      strokeWidth="2"
+                      markerEnd="url(#arrowhead)"
+                  />
+              </React.Fragment>
           );
-        }
-        return null;
-      })}
-
-      {/* Lines for Generic Layout (Non-Sam) */}
-      {centralContact.id !== '4' && centralNodeDetails && nodes.map(node => {
-        if (node.id === centralContact.id) return null; // Don't draw line to self
-        // Find the group label this node might belong to (simplified logic)
-        const relationship = centralContact.relationships?.find(r => r.relatedContactId === node.id);
-        const groupKey = relationship?.customLabel || relationship?.type;
-        const groupLabel = currentGroupLabels.find(gl => gl.originalText === groupKey);
-
-        if (groupLabel) {
-             // Line from central node to group label
-            const lineToGroupKey = `line-central-to-group-${groupLabel.text.replace(/\s+/g, '-')}`;
-            // Line from group label to node
-            const lineFromGroupToNodeKey = `line-group-${groupLabel.text.replace(/\s+/g, '-')}-to-${node.id}`;
-            
-            return (
-                <React.Fragment key={`${lineToGroupKey}-${lineFromGroupToNodeKey}`}>
-                    <line
-                        key={lineToGroupKey}
-                        x1={centralNodeDetails.x + CARD_WIDTH / 2}
-                        y1={centralNodeDetails.y + CARD_HEIGHT / 2}
-                        x2={groupLabel.cx}
-                        y2={groupLabel.cy}
-                        stroke="hsl(var(--border))"
-                        strokeWidth="2"
-                        markerEnd="url(#arrowhead)"
-                    />
-                    <line
-                        key={lineFromGroupToNodeKey}
-                        x1={groupLabel.cx}
-                        y1={groupLabel.cy + LABEL_HEIGHT / 2}
-                        x2={node.x + CARD_WIDTH / 2}
-                        y2={node.y}
-                        stroke="hsl(var(--border))"
-                        strokeWidth="2"
-                        markerEnd="url(#arrowhead)"
-                    />
-                </React.Fragment>
-            );
         } else { // Fallback: direct line from central to node if no group label matches
             return (
                  <line
@@ -461,7 +533,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
             />
             <text 
                 x={LABEL_WIDTH/2} 
-                y={LABEL_HEIGHT/2 + 5} 
+                y={LABEL_HEIGHT/2 + 5} // Adjust for vertical centering
                 fontFamily="sans-serif" 
                 fontSize="13px" 
                 fill="hsl(var(--accent-foreground))" 
@@ -474,7 +546,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
       ))}
 
       {/* Nodes (Contact Cards) */}
-      {nodes.map(node => (
+      {currentNodes.map(node => (
         <TooltipProvider key={node.id}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -484,7 +556,10 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
                     width={CARD_WIDTH} 
                     height={CARD_HEIGHT}
                     onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
-                    className={cn("active:cursor-grabbing cursor-grab transition-all duration-100 ease-in-out", draggingNode === node.id ? "scale-105 shadow-2xl" : "")}
+                    className={cn(
+                        "transition-all duration-100 ease-in-out active:cursor-grabbing cursor-grab",
+                        draggingNode === node.id ? "scale-105 shadow-2xl z-10" : "z-0" // Ensure dragging node is on top
+                    )}
                 >
                     <div xmlns="http://www.w3.org/1999/xhtml" className="w-full h-full p-1"> 
                         <RelationshipMapCard contact={node.contact} onButtonClick={handleViewProfileClick} />
@@ -494,7 +569,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
             <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg rounded-md p-2">
               <p className="font-semibold text-sm">{node.contact.name}</p>
               {node.contact.occupation && <p className="text-xs">Occupation: {node.contact.occupation}</p>}
-              {node.contact.category && <p className="text-xs">Category: {node.contact.category === 'Pet' ? getPetTypeFromTags(node.contact.tags) : node.contact.category}</p>}
+              { <p className="text-xs">Role: {getBadgeText(node.contact)}</p>}
               {node.contact.locationDetails && <p className="text-xs">Location: {node.contact.locationDetails}</p>}
             </TooltipContent>
           </Tooltip>
@@ -520,19 +595,23 @@ export default function RelationshipMapPage() {
   }, []);
 
   const initialViewBoxDimensions = useMemo(() => {
-    // This might need adjustment if generic layouts for Chandra/Abhas differ significantly in spread
-    const maxX = Math.max(
-      COL1_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
-      COL2_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, 
-      COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2,
-      COL3_X - CARD_WIDTH/2 + CARD_WIDTH 
-    );
-    // Y_ROW3_CARD_Y_VAL might not be defined if not Sam, use a sufficiently large default or calculate based on generic layout
-    const defaultMaxY = Y_SAM_Y + 3 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS); // Estimate for simpler layouts
-    const maxY = selectedCentralContactId === '4' ? Math.max(
-        Y_ROW2_CARD_Y + CARD_HEIGHT + V_SPACE_CARD + CARD_HEIGHT, 
-        Y_ROW3_CARD_Y_VAL + CARD_HEIGHT 
-    ) : defaultMaxY;
+    let maxX = 0;
+    let maxY = 0;
+
+    // Calculate based on the current layout logic for Sam or generic
+    if (selectedCentralContactId === '4') { // Sam's layout
+      maxX = Math.max(
+        COL1_X, COL2_X, COL3_X,
+        COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2 + CARD_WIDTH/2 // Furthest point for 3 uncles
+      );
+      maxY = Math.max(
+        Y_ROW1_CARD_Y, Y_SAM_Y, Y_ROW2_CARD_Y, Y_ROW3_CARD_Y_VAL
+      ) + CARD_HEIGHT;
+    } else { // Generic layout estimation (can be refined)
+      // Estimate based on 3 columns and potentially 2-3 rows of grouped contacts
+      maxX = COL3_X + CARD_WIDTH;
+      maxY = Y_SAM_Y + 2 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS + LABEL_HEIGHT + V_SPACE_LABEL_CARD); 
+    }
     
     const width = maxX + SVG_PADDING_HORIZONTAL * 2; 
     const height = maxY + SVG_PADDING_VERTICAL * 2; 
@@ -550,19 +629,23 @@ export default function RelationshipMapPage() {
       const oldScale = prevScale;
       let newScale = direction === 'in' ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
       
-      newScale = Math.max(0.1, Math.min(newScale, 5)); 
+      newScale = Math.max(0.2, Math.min(newScale, 3)); // Adjusted min/max zoom
 
       if (newScale === oldScale) return oldScale; 
 
-      const oldWidth = initialViewBoxDimensions.width / oldScale;
-      const oldHeight = initialViewBoxDimensions.height / oldScale;
+      // Calculate the center of the current view (in SVG coordinates)
+      const currentViewCenterX = viewBoxOrigin.x + (initialViewBoxDimensions.width / oldScale) / 2;
+      const currentViewCenterY = viewBoxOrigin.y + (initialViewBoxDimensions.height / oldScale) / 2;
+      
+      // New width and height of the viewBox
       const newWidth = initialViewBoxDimensions.width / newScale;
       const newHeight = initialViewBoxDimensions.height / newScale;
 
-      setViewBoxOrigin(prevOrigin => ({
-        x: prevOrigin.x + (oldWidth - newWidth) / 2,
-        y: prevOrigin.y + (oldHeight - newHeight) / 2,
-      }));
+      // Calculate new origin to keep center point fixed
+      setViewBoxOrigin({
+        x: currentViewCenterX - newWidth / 2,
+        y: currentViewCenterY - newHeight / 2,
+      });
       
       return newScale;
     });
@@ -603,7 +686,7 @@ export default function RelationshipMapPage() {
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0 items-start sm:items-center">
-                <Select value={selectedCentralContactId} onValueChange={setSelectedCentralContactId}>
+                <Select value={selectedCentralContactId} onValueChange={(value) => { setSelectedCentralContactId(value); setViewBoxOrigin({x:0, y:0}); setScale(1); } }>
                     <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Select Central Contact" />
                     </SelectTrigger>
@@ -628,8 +711,8 @@ export default function RelationshipMapPage() {
       </Card>
       
       <div className="flex-grow shadow-md overflow-hidden bg-card rounded-lg border border-border">
-          <CardContent className="p-4 h-full"> 
-              <p className="text-xs text-muted-foreground mb-2 text-center sm:text-left">
+          <CardContent className="p-0 sm:p-4 h-full"> 
+              <p className="text-xs text-muted-foreground mb-2 text-center sm:text-left px-4 pt-2 sm:px-0 sm:pt-0">
                 Hover over cards for quick info. Drag cards to reposition. Drag background to pan. Lines indicate connections.
               </p>
               <div className="h-[calc(100%-25px)] w-full"> 
@@ -669,7 +752,7 @@ export default function RelationshipMapPage() {
                     <li>Drag the background to pan the map view.</li>
                     <li>Hover over a contact card for quick information.</li>
                     <li>Click "View Profile" on a card to navigate to the contact's detail page.</li>
-                    <li>Lines connect the central node to group labels, and group labels to individuals (detailed for Sam, simpler for others).</li>
+                    <li>Lines connect the central node to group labels, and group labels to individuals.</li>
                     <li>Use Zoom In/Out buttons to adjust map scale.</li>
                 </ul>
             </div>
@@ -678,3 +761,4 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
+
