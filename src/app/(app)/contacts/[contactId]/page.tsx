@@ -39,33 +39,44 @@ const formatDate = (dateString?: string | Date): string => {
   
   let date: Date;
   if (typeof dateString === 'string') {
+    // For "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm:ss.sssZ" (ISO) strings
+    // Attempt to parse, if it's just date, treat as UTC, if ISO, parse as is.
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      // For "YYYY-MM-DD" strings, parse as UTC
       const [year, month, day] = dateString.split('-').map(Number);
       date = new Date(Date.UTC(year, month - 1, day));
     } else {
-      // For other strings (like ISO with time), parse directly
       date = parseISO(dateString);
     }
   } else {
-    // If it's already a Date object
     date = dateString;
   }
 
   if (!isValid(date)) {
-    return 'N/A'; // Invalid date
+    return 'N/A';
   }
-
+  // Use UTC to avoid client/server timezone mismatch for display of just date
   return formatDateFn(date, 'PPP', { timeZone: 'UTC' });
 };
 
+
 const formatDateTime = (dateTimeString?: string | Date): string => {
-    if (!dateTimeString) return 'N/A';
-    const date = dateTimeString instanceof Date ? dateTimeString : parseISO(dateTimeString);
-    if (!isValid(date)) {
-        return 'N/A'; // Invalid date
-    }
-    return formatDateFn(date, 'PPpp', { timeZone: 'UTC' });
+    const [clientDateTime, setClientDateTime] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!dateTimeString) {
+            setClientDateTime('N/A');
+            return;
+        }
+        const date = dateTimeString instanceof Date ? dateTimeString : parseISO(dateTimeString);
+        if (!isValid(date)) {
+            setClientDateTime('N/A');
+            return;
+        }
+        // Format on client to use client's locale for time part
+        setClientDateTime(formatDateFn(date, 'PPpp'));
+    }, [dateTimeString]);
+    
+    return clientDateTime || 'Loading...'; // Show loading until client-side format is ready
 };
 
 
@@ -184,6 +195,9 @@ export default function ContactDetailPage() {
     const relatedContact = mockContacts.find(c => c.id === relatedContactId);
     return relatedContact ? relatedContact.name : "Unknown Contact";
   };
+
+  const displayCreatedAt = formatDateTime(contact.createdAt);
+  const displayUpdatedAt = formatDateTime(contact.updatedAt);
   
 
   return (
@@ -318,15 +332,22 @@ export default function ContactDetailPage() {
                   
                   <div className="flex flex-wrap gap-2">
                     <span className="text-sm font-medium self-center">General Tags:</span>
-                    {contact.tags && contact.tags.length > 0 ? contact.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">{tag}</Badge>
-                    )) : (
+                    {contact.tags && contact.tags.filter(tag => tag.toLowerCase() !== "host family").length > 0 ? (
+                      contact.tags.filter(tag => tag.toLowerCase() !== "host family").map((tag) => (
+                        <Badge key={tag} variant="outline">{tag}</Badge>
+                      ))
+                    ) : (
                         <span className="text-sm text-muted-foreground">No general tags.</span>
                     )}
                   </div>
+                 
+                  {(!contact.category && (!contact.tags || contact.tags.filter(tag => tag.toLowerCase() !== "host family").length === 0)) && 
+                    !contact.ownerRelationshipLabel &&
+                    <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
+                  }
 
-                  {contact.ownerRelationshipLabel && (
-                     <div className="flex items-center gap-2 pt-2">
+                   {contact.ownerRelationshipLabel && (
+                     <div className="flex items-center gap-2 pt-3 mt-3 border-t border-border">
                       <span className="text-sm font-medium">My Relationship:</span>
                       <Badge variant="outline" className="flex items-center w-fit bg-accent/20 border-accent text-accent-foreground">
                         <UserCheck className="mr-1.5 h-3.5 w-3.5" />
@@ -334,10 +355,6 @@ export default function ContactDetailPage() {
                       </Badge>
                     </div>
                   )}
-
-                  {(!contact.category && (!contact.tags || contact.tags.length === 0) && !contact.ownerRelationshipLabel) && 
-                    <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
-                  }
                 </CardContent>
               </Card>
             </TabsContent>
@@ -558,12 +575,13 @@ export default function ContactDetailPage() {
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
-          <p>Contact created on: {formatDateTime(contact.createdAt)}</p>
-          <p className="ml-auto">Last updated: {formatDateTime(contact.updatedAt)}</p>
+            <p>Contact created on: {displayCreatedAt}</p>
+            <p className="ml-auto">Last updated: {displayUpdatedAt}</p>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
 
 
