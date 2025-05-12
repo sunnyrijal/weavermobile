@@ -41,7 +41,7 @@ const V_SPACE_BETWEEN_ROWS = 80;
 
 const COL1_X = 280; 
 const COL2_X = 600; 
-const COL3_X = 920; 
+const COL3_X = 980; // Increased from 920 to prevent overlap
 
 const H_SPACING_BETWEEN_PAIRED_CARDS = 30;
 
@@ -152,15 +152,16 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick }: { contact: C
   }
 
   const badgeText = getBadgeText(contact);
+  const displayName = contact.name.replace(/\s*\(Dog\)\s*/i, '').trim(); // Remove (Dog) from name
 
 
   return (
     <div className="bg-card text-card-foreground rounded-lg shadow-xl p-3 flex flex-col items-center justify-between border border-border" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
       <Avatar className="w-16 h-16 mb-2 border-2 border-muted">
-        <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="profile avatar"/>
-        <AvatarFallback className="bg-muted text-xl">{getInitials(contact.name)}</AvatarFallback>
+        <AvatarImage src={contact.photoURL} alt={displayName} data-ai-hint="profile avatar"/>
+        <AvatarFallback className="bg-muted text-xl">{getInitials(displayName)}</AvatarFallback>
       </Avatar>
-      <p className="font-semibold text-sm text-center truncate w-full" title={contact.name}>{contact.name}</p>
+      <p className="font-semibold text-sm text-center truncate w-full" title={displayName}>{displayName}</p>
       {badgeText && (
         <Badge 
             variant={getCategoryBadgeVariant(badgeText)} 
@@ -224,9 +225,10 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
         { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
         { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: COL1_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
-        { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: COL3_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2 - (CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS)/2 , y: Y_ROW2_CARD_Y }, // Adjusted to fit 3 uncles
+        // Uncles centered around Ty Baucum as the middle one
+        { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: (COL3_X - CARD_WIDTH/2) - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS , y: Y_ROW2_CARD_Y }, 
         { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y },
-        { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+        { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS, y: Y_ROW2_CARD_Y },
         { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
         { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
       ];
@@ -567,7 +569,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
                 </foreignObject>
             </TooltipTrigger>
             <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg rounded-md p-2">
-              <p className="font-semibold text-sm">{node.contact.name}</p>
+              <p className="font-semibold text-sm">{node.contact.name.replace(/\s*\(Dog\)\s*/i, '').trim()}</p>
               {node.contact.occupation && <p className="text-xs">Occupation: {node.contact.occupation}</p>}
               { <p className="text-xs">Role: {getBadgeText(node.contact)}</p>}
               {node.contact.locationDetails && <p className="text-xs">Location: {node.contact.locationDetails}</p>}
@@ -591,6 +593,7 @@ export default function RelationshipMapPage() {
         mockContacts.find(c => c.id === '4'), // Sam
         mockContacts.find(c => c.id === '1'), // Chandra
         mockContacts.find(c => c.id === '3'), // Abhas
+        mockContacts.find(c => c.id === 'ck_host'), // Curt Kowaleski
     ].filter(Boolean) as Contact[];
   }, []);
 
@@ -598,17 +601,13 @@ export default function RelationshipMapPage() {
     let maxX = 0;
     let maxY = 0;
 
-    // Calculate based on the current layout logic for Sam or generic
     if (selectedCentralContactId === '4') { // Sam's layout
       maxX = Math.max(
         COL1_X, COL2_X, COL3_X,
-        COL3_X + CARD_WIDTH/2 + H_SPACING_BETWEEN_PAIRED_CARDS/2 + CARD_WIDTH/2 // Furthest point for 3 uncles
+        (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS + CARD_WIDTH // Ryan H's right edge
       );
-      maxY = Math.max(
-        Y_ROW1_CARD_Y, Y_SAM_Y, Y_ROW2_CARD_Y, Y_ROW3_CARD_Y_VAL
-      ) + CARD_HEIGHT;
+       maxY = Y_ROW3_CARD_Y_VAL + CARD_HEIGHT; // Based on Pets being lowest for Sam
     } else { // Generic layout estimation (can be refined)
-      // Estimate based on 3 columns and potentially 2-3 rows of grouped contacts
       maxX = COL3_X + CARD_WIDTH;
       maxY = Y_SAM_Y + 2 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS + LABEL_HEIGHT + V_SPACE_LABEL_CARD); 
     }
@@ -629,19 +628,16 @@ export default function RelationshipMapPage() {
       const oldScale = prevScale;
       let newScale = direction === 'in' ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
       
-      newScale = Math.max(0.2, Math.min(newScale, 3)); // Adjusted min/max zoom
+      newScale = Math.max(0.2, Math.min(newScale, 3)); 
 
       if (newScale === oldScale) return oldScale; 
 
-      // Calculate the center of the current view (in SVG coordinates)
       const currentViewCenterX = viewBoxOrigin.x + (initialViewBoxDimensions.width / oldScale) / 2;
       const currentViewCenterY = viewBoxOrigin.y + (initialViewBoxDimensions.height / oldScale) / 2;
       
-      // New width and height of the viewBox
       const newWidth = initialViewBoxDimensions.width / newScale;
       const newHeight = initialViewBoxDimensions.height / newScale;
 
-      // Calculate new origin to keep center point fixed
       setViewBoxOrigin({
         x: currentViewCenterX - newWidth / 2,
         y: currentViewCenterY - newHeight / 2,
