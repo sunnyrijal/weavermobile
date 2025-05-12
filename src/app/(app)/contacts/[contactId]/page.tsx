@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -19,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud } from "lucide-react"; 
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud, UserSquare2 } from "lucide-react"; 
 import React, { useState, useEffect, useRef } from 'react';
 import { isValid, parseISO } from "date-fns";
 import { format as formatDateFnInternal } from "date-fns";
@@ -270,7 +269,7 @@ export default function ContactDetailPage() {
           />
           <div className="absolute bottom-0 left-0 p-6 flex items-end space-x-4">
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
-              <DialogTrigger asChild onClick={() => setIsPhotoDialogOpen(true)}>
+              <DialogTrigger asChild>
                 <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
                   <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" className="object-cover"/>
                   <AvatarFallback className="text-3xl sm:text-4xl">{getInitials(contact.name)}</AvatarFallback>
@@ -315,7 +314,7 @@ export default function ContactDetailPage() {
               <CardTitle className="text-2xl sm:text-3xl font-bold text-card-foreground drop-shadow-sm">{contact.name}</CardTitle>
               {contact.occupation && (
                 <CardDescription className="text-lg text-muted-foreground drop-shadow-sm">
-                  {contact.occupation} {contact.company && `at ${contact.company}`}
+                  {contact.occupation} {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && `at ${contact.company}`}
                 </CardDescription>
               )}
             </div>
@@ -382,7 +381,7 @@ export default function ContactDetailPage() {
                         <span>{contact.occupation}</span>
                       </div>
                     )}
-                    {contact.company && (
+                    {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && (
                       <div className="flex items-center">
                         <Building className="mr-3 h-5 w-5 text-muted-foreground" />
                         <span>{contact.company}</span>
@@ -421,8 +420,8 @@ export default function ContactDetailPage() {
                             )}
                         </div>
                         
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-sm font-medium self-center">General Tags:</span>
+                        <div className="flex flex-wrap gap-2 items-start">
+                            <span className="text-sm font-medium self-center pt-0.5">General Tags:</span>
                             {contact.tags && contact.tags.length > 0 ? (
                             contact.tags.map((tag) => (
                                 <Badge key={tag} variant="outline">{tag}</Badge>
@@ -435,7 +434,7 @@ export default function ContactDetailPage() {
                  
                   {(!contact.category && (!contact.tags || contact.tags.length === 0)) && 
                     !contact.ownerRelationshipLabel &&
-                    <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
+                     <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
                   }
                   {contact.ownerRelationshipLabel && (
                      <>
@@ -625,7 +624,7 @@ export default function ContactDetailPage() {
                           <CardHeader className="pb-2">
                             <CardTitle className="text-md flex items-center justify-between">
                               {event.title}
-                              <span className="text-xs font-normal text-muted-foreground"><ClientSideFormattedDate date={event.date} /></span>
+                              <ClientSideFormattedDate date={event.date} className="text-xs font-normal text-muted-foreground"/>
                             </CardTitle>
                           </CardHeader>
                           {event.description && (
@@ -715,12 +714,13 @@ export default function ContactDetailPage() {
 
           </Tabs>
         </CardContent>
-        <CardFooter className="border-t pt-4 text-xs text-muted-foreground">
+        <CardFooter className="border-t pt-4 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-0">
             <ClientSideFormattedDate date={contact.createdAt} format="PPpp" prefix="Contact created on: " />
-            <ClientSideFormattedDate date={contact.updatedAt} format="PPpp" prefix="Last updated: " className="ml-auto"/>
+            <ClientSideFormattedDate date={contact.updatedAt} format="PPpp" prefix="Last updated: " className="sm:ml-auto"/>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
 
