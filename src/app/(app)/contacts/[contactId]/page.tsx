@@ -35,31 +35,40 @@ const getInitials = (name: string) => {
 };
 
 const formatDate = (dateString?: string | Date): string => {
-  if (!dateString) return 'N/A';
-  
-  let date: Date;
-  if (typeof dateString === 'string') {
-    // For "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm:ss.sssZ" (ISO) strings
-    // Attempt to parse, if it's just date, treat as UTC, if ISO, parse as is.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      const [year, month, day] = dateString.split('-').map(Number);
-      date = new Date(Date.UTC(year, month - 1, day));
-    } else {
-      date = parseISO(dateString);
-    }
-  } else {
-    date = dateString;
-  }
+  const [clientDate, setClientDate] = useState<string | null>(null);
 
-  if (!isValid(date)) {
-    return 'N/A';
-  }
-  // Use UTC to avoid client/server timezone mismatch for display of just date
-  return formatDateFn(date, 'PPP', { timeZone: 'UTC' });
+  useEffect(() => {
+    if (!dateString) {
+      setClientDate('N/A');
+      return;
+    }
+    
+    let date: Date;
+    if (typeof dateString === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(Date.UTC(year, month - 1, day));
+      } else {
+        date = parseISO(dateString);
+      }
+    } else {
+      date = dateString;
+    }
+
+    if (!isValid(date)) {
+      setClientDate('N/A');
+      return;
+    }
+    // Format on client to use client's locale for date part, assuming UTC date input
+    setClientDate(formatDateFn(date, 'PPP', { timeZone: 'UTC' }));
+  }, [dateString]);
+  
+  return clientDate || 'Loading...';
 };
 
 
-const formatDateTime = (dateTimeString?: string | Date): string => {
+// Custom Hook for formatting date and time
+const useFormatDateTime = (dateTimeString?: string | Date): string => {
     const [clientDateTime, setClientDateTime] = useState<string | null>(null);
 
     useEffect(() => {
@@ -168,6 +177,7 @@ export default function ContactDetailPage() {
     setEventFormValues({ title: '', date: null, description: '' }); // Reset form
   };
 
+  const formattedBirthday = formatDate(contact?.birthday);
 
   if (contact === undefined) {
     return (
@@ -196,8 +206,8 @@ export default function ContactDetailPage() {
     return relatedContact ? relatedContact.name : "Unknown Contact";
   };
 
-  const displayCreatedAt = formatDateTime(contact.createdAt);
-  const displayUpdatedAt = formatDateTime(contact.updatedAt);
+  const displayCreatedAt = useFormatDateTime(contact.createdAt);
+  const displayUpdatedAt = useFormatDateTime(contact.updatedAt);
   
 
   return (
@@ -278,7 +288,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born {formatDate(contact.birthday)}</span>
+                        <span>Born {formattedBirthday}</span>
                       </div>
                     )}
                   </CardContent>
@@ -322,8 +332,8 @@ export default function ContactDetailPage() {
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {contact.category && (
+                <CardContent className="space-y-2">
+                   {contact.category && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">Primary Category:</span>
                       <Badge variant="secondary">{contact.category}</Badge>
@@ -332,8 +342,8 @@ export default function ContactDetailPage() {
                   
                   <div className="flex flex-wrap gap-2">
                     <span className="text-sm font-medium self-center">General Tags:</span>
-                    {contact.tags && contact.tags.filter(tag => tag.toLowerCase() !== "host family").length > 0 ? (
-                      contact.tags.filter(tag => tag.toLowerCase() !== "host family").map((tag) => (
+                    {contact.tags && contact.tags.length > 0 ? (
+                      contact.tags.map((tag) => (
                         <Badge key={tag} variant="outline">{tag}</Badge>
                       ))
                     ) : (
@@ -341,7 +351,7 @@ export default function ContactDetailPage() {
                     )}
                   </div>
                  
-                  {(!contact.category && (!contact.tags || contact.tags.filter(tag => tag.toLowerCase() !== "host family").length === 0)) && 
+                  {(!contact.category && (!contact.tags || contact.tags.length === 0)) && 
                     !contact.ownerRelationshipLabel &&
                     <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
                   }
@@ -583,5 +593,4 @@ export default function ContactDetailPage() {
   );
 }
 
-
-
+      
