@@ -31,10 +31,11 @@ const ClientSideFormattedDate: React.FC<ClientSideFormattedDateProps> = ({
 
     let dateObj: Date;
     if (typeof dateProp === 'string') {
-      // Handle YYYY-MM-DD strings as UTC to represent the calendar day correctly
+      // Handle YYYY-MM-DD strings as local date midnight
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateProp)) {
         const [year, month, day] = dateProp.split('-').map(Number);
-        dateObj = new Date(Date.UTC(year, month - 1, day));
+        // Create Date object representing midnight in the local timezone for the given year, month, day
+        dateObj = new Date(year, month - 1, day); 
       } else {
         dateObj = parseISO(dateProp); // For full ISO strings or other parsable formats
       }
@@ -66,3 +67,4 @@ const ClientSideFormattedDate: React.FC<ClientSideFormattedDateProps> = ({
 export default ClientSideFormattedDate;
 
     
+
