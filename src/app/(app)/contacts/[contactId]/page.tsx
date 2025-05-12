@@ -78,6 +78,10 @@ export default function ContactDetailPage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isPhotosTogetherDialogOpen, setIsPhotosTogetherDialogOpen] = useState(false);
+  const [isUploadingPhotosTogether, setIsUploadingPhotosTogether] = useState(false);
+  const photosTogetherFileInputRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     const foundContact = mockContacts.find((c) => c.id === contactId);
@@ -171,6 +175,43 @@ export default function ContactDetailPage() {
       setIsUploadingPhoto(false);
       // Reset file input value to allow uploading the same file again if needed
       if(fileInputRef.current) fileInputRef.current.value = ""; 
+    }
+  };
+
+  const handlePhotosTogetherUploadClick = () => {
+    photosTogetherFileInputRef.current?.click();
+  };
+
+  const handlePhotosTogetherFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!contact) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhotosTogether(true);
+    try {
+        const photoDataUrl = await readFileAsDataURL(file);
+        const newUpdatedAt = new Date();
+        const updatedPhotosTogether = [...(contact.photosTogether || []), photoDataUrl];
+
+        setContact(prev => prev ? ({ ...prev, photosTogether: updatedPhotosTogether, updatedAt: newUpdatedAt }) : null);
+
+        const contactIndex = mockContacts.findIndex(c => c.id === contactId);
+        if (contactIndex !== -1) {
+            if (!mockContacts[contactIndex].photosTogether) {
+                mockContacts[contactIndex].photosTogether = [];
+            }
+            mockContacts[contactIndex].photosTogether.push(photoDataUrl);
+            mockContacts[contactIndex].updatedAt = newUpdatedAt;
+        }
+
+        toast({ title: "Photo Added", description: "The photo has been added to 'Photos Together'." });
+        setIsPhotosTogetherDialogOpen(false);
+    } catch (error) {
+        console.error("Error adding photo together:", error);
+        toast({ title: "Upload Failed", description: "Could not add the photo.", variant: "destructive" });
+    } finally {
+        setIsUploadingPhotosTogether(false);
+        if (photosTogetherFileInputRef.current) photosTogetherFileInputRef.current.value = "";
     }
   };
 
@@ -325,7 +366,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <span>Born <ClientSideFormattedDate date={contact.birthday} /></span>
+                        <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
                       </div>
                     )}
                   </CardContent>
@@ -370,39 +411,43 @@ export default function ContactDetailPage() {
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Primary Category:</span>
-                    {contact.category ? (
-                      <Badge variant="secondary">{contact.category}</Badge>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">N/A</span>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <span className="text-sm font-medium self-center">General Tags:</span>
-                    {contact.tags && contact.tags.length > 0 ? (
-                      contact.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">{tag}</Badge>
-                      ))
-                    ) : (
-                        <span className="text-sm text-muted-foreground">No general tags.</span>
-                    )}
-                  </div>
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">Primary Category:</span>
+                            {contact.category ? (
+                            <Badge variant="secondary">{contact.category}</Badge>
+                            ) : (
+                            <span className="text-sm text-muted-foreground">N/A</span>
+                            )}
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 items-center">
+                            <span className="text-sm font-medium self-center">General Tags:</span>
+                            {contact.tags && contact.tags.length > 0 ? (
+                            contact.tags.map((tag) => (
+                                <Badge key={tag} variant="outline">{tag}</Badge>
+                            ))
+                            ) : (
+                                <span className="text-sm text-muted-foreground">No general tags.</span>
+                            )}
+                        </div>
+                    </div>
                  
                   {(!contact.category && (!contact.tags || contact.tags.length === 0)) && 
                     !contact.ownerRelationshipLabel &&
                     <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
                   }
-                  <Separator className="my-3" />
-                   {contact.ownerRelationshipLabel && (
-                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">My Relationship:</span>
-                       <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
-                            <UserCheck className="mr-1.5 h-3.5 w-3.5" />
-                            {contact.ownerRelationshipLabel}
-                        </Badge>
-                    </div>
+                  {contact.ownerRelationshipLabel && (
+                     <>
+                        <Separator className="my-3" />
+                        <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">My Relationship:</span>
+                        <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
+                                <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+                                {contact.ownerRelationshipLabel}
+                            </Badge>
+                        </div>
+                     </>
                   )}
                 </CardContent>
               </Card>
@@ -481,7 +526,37 @@ export default function ContactDetailPage() {
                         )}
                     </CardContent>
                      <CardFooter>
-                        <Button variant="outline">Add Photo</Button>
+                        <Dialog open={isPhotosTogetherDialogOpen} onOpenChange={setIsPhotosTogetherDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline"><UploadCloud className="mr-2 h-4 w-4" /> Add Photo</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle>Add Photo with {contact.name}</DialogTitle>
+                                    <DialogDescription>
+                                        Select an image file to add to your shared memories.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <input
+                                        type="file"
+                                        ref={photosTogetherFileInputRef}
+                                        onChange={handlePhotosTogetherFileChange}
+                                        style={{ display: 'none' }}
+                                        accept="image/*"
+                                    />
+                                    <Button onClick={handlePhotosTogetherUploadClick} disabled={isUploadingPhotosTogether} className="w-full">
+                                        {isUploadingPhotosTogether ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                                        {isUploadingPhotosTogether ? "Uploading..." : "Select Photo from Device"}
+                                    </Button>
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsPhotosTogetherDialogOpen(false)} disabled={isUploadingPhotosTogether}>
+                                        Cancel
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </CardFooter>
                 </Card>
             </TabsContent>
@@ -648,6 +723,3 @@ export default function ContactDetailPage() {
     </div>
   );
 }
-
-
-    
