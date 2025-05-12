@@ -5,13 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift } from "lucide-react";
+import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2 } from "lucide-react";
 import type { Contact, ContactViewMode } from '@/lib/types';
 import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, parseISO, getYear, getMonth, getDate, setYear, isPast, addYears } from 'date-fns';
+import { answerContactQuestion } from '@/ai/flows/answer-contact-question-flow';
+import type { AnswerContactQuestionInput, AnswerContactQuestionOutput } from '@/ai/flows/answer-contact-question-flow';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
   <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -79,8 +83,11 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
   contacts.forEach(contact => {
     if (contact.birthday) {
       try {
+        // Assuming birthday is YYYY-MM-DD. Adjust for UTC to avoid timezone issues.
         const [yearStr, monthStr, dayStr] = contact.birthday.split('-');
-        const birthDateThisYear = setYear(new Date(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)), getYear(today));
+        const birthDate = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)));
+        
+        const birthDateThisYear = setYear(birthDate, getYear(today));
         
         let nextBirthdayDate = birthDateThisYear;
         if (isPast(nextBirthdayDate) && differenceInDays(nextBirthdayDate, today) !== 0) {
@@ -105,11 +112,12 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
   });
 
   // Mock Anniversaries (as an example, since this data isn't in Contact type yet)
+  // This part should be replaced with actual anniversary data from contacts if available
   const mockAnniversariesRaw = [
     {
       id: 'anniv_abhas_parents',
       title: "Abhas Oli's Parents Anniversary",
-      originalDate: new Date(2000, 7, 1), // Example: August 1st
+      originalDate: new Date(Date.UTC(2000, 7, 1)), // Example: August 1st UTC
       type: 'Anniversary' as const,
       icon: Heart,
     }
@@ -144,9 +152,15 @@ export default function DashboardPage() {
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const { toast } = useToast();
 
-  const [isListeningToVoice, setIsListeningToVoice] = useState(false);
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const [isListeningToVoiceSearch, setIsListeningToVoiceSearch] = useState(false);
+  const speechRecognitionSearchRef = useRef<SpeechRecognition | null>(null);
   
+  const [isListeningToQuestion, setIsListeningToQuestion] = useState(false);
+  const [isLoadingAiAnswer, setIsLoadingAiAnswer] = useState(false);
+  const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null);
+  const speechRecognitionQuestionRef = useRef<SpeechRecognition | null>(null);
+
+
   const [showAllContacts, setShowAllContacts] = useState(false);
   const mainContactIds = ["1", "3", "4"]; // Chandra Oli, Abhas Oli, Sam Hendrickson
   
@@ -154,11 +168,15 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    // Clean up speech recognition instance if component unmounts while listening
+    // Clean up speech recognition instances if component unmounts while listening
     return () => {
-      if (speechRecognitionRef.current) {
-        speechRecognitionRef.current.stop();
-        speechRecognitionRef.current = null;
+      if (speechRecognitionSearchRef.current) {
+        speechRecognitionSearchRef.current.stop();
+        speechRecognitionSearchRef.current = null;
+      }
+      if (speechRecognitionQuestionRef.current) {
+        speechRecognitionQuestionRef.current.stop();
+        speechRecognitionQuestionRef.current = null;
       }
     };
   }, []);
@@ -172,20 +190,20 @@ export default function DashboardPage() {
       return;
     }
 
-    if (isListeningToVoice && speechRecognitionRef.current) {
-      speechRecognitionRef.current.stop();
-      // onend will set isListeningToVoice to false
+    if (isListeningToVoiceSearch && speechRecognitionSearchRef.current) {
+      speechRecognitionSearchRef.current.stop();
       return;
     }
+    setMicrophonePermissionError(null);
 
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
+      await navigator.mediaDevices.getUserMedia({ audio: true }); 
 
       const recognition = new SpeechRecognitionAPI();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
-      speechRecognitionRef.current = recognition;
+      speechRecognitionSearchRef.current = recognition;
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
@@ -194,38 +212,116 @@ export default function DashboardPage() {
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
+        console.error("Speech recognition error (search)", event.error);
         let errorMessage = "Speech recognition error.";
         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
         else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
-        else if (event.error === 'not-allowed') errorMessage = "Microphone access denied. Enable it in browser settings.";
-        else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection and try again.";
+        else if (event.error === 'not-allowed') {
+            errorMessage = "Microphone access denied. Enable it in browser settings.";
+            setMicrophonePermissionError(errorMessage);
         }
+        else if (event.error === 'network') errorMessage = "Network error for speech recognition. Check internet.";
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
       };
 
-      recognition.onstart = () => {
-        setIsListeningToVoice(true);
-        toast({ title: "Listening...", description: "Speak now to search contacts." });
-      };
-
+      recognition.onstart = () => setIsListeningToVoiceSearch(true);
       recognition.onend = () => {
-        setIsListeningToVoice(false);
-        if (speechRecognitionRef.current) {
-           try { speechRecognitionRef.current.stop(); } catch(e) {/* already stopped */}
+        setIsListeningToVoiceSearch(false);
+        if (speechRecognitionSearchRef.current) {
+            try { speechRecognitionSearchRef.current.stop(); } catch(e) {/* already stopped */}
         }
-        speechRecognitionRef.current = null; 
+        speechRecognitionSearchRef.current = null;
       };
-
       recognition.start();
 
-    } catch (err) {
-      console.error("Error accessing microphone", err);
-      toast({ title: "Microphone Access Error", description: "Could not access microphone. Please ensure permission is granted in browser settings.", variant: "destructive" });
-      setIsListeningToVoice(false);
+    } catch (err: any) {
+      console.error("Error accessing microphone (search)", err);
+      let description = "Could not access microphone. Please ensure permission is granted.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        description = "Microphone access denied. Please enable it in your browser settings.";
+        setMicrophonePermissionError(description);
+      }
+      toast({ title: "Microphone Access Error", description, variant: "destructive" });
+      setIsListeningToVoiceSearch(false);
     }
   };
+  
+  const handleVoiceQuestionClick = async () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionAPI) {
+      toast({ title: "Voice Input Not Supported", description: "Your browser doesn't support voice recognition.", variant: "destructive" });
+      return;
+    }
+
+    if (isListeningToQuestion && speechRecognitionQuestionRef.current) {
+      speechRecognitionQuestionRef.current.stop();
+      return;
+    }
+    setMicrophonePermissionError(null);
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const recognition = new SpeechRecognitionAPI();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      speechRecognitionQuestionRef.current = recognition;
+
+      recognition.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript;
+        toast({ title: "Question received", description: "Getting an answer from AI..." });
+        setIsLoadingAiAnswer(true);
+        try {
+          const result: AnswerContactQuestionOutput = await answerContactQuestion({ question: transcript });
+          toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
+        } catch (aiError) {
+          console.error("AI answering error:", aiError);
+          toast({ title: "AI Error", description: "Could not get an answer.", variant: "destructive" });
+        } finally {
+          setIsLoadingAiAnswer(false);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error (question)", event.error);
+        let errorMessage = "Speech recognition error.";
+         if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
+        else if (event.error === 'audio-capture') errorMessage = "Microphone problem. Please check your microphone.";
+        else if (event.error === 'not-allowed') {
+            errorMessage = "Microphone access denied. Enable it in browser settings.";
+            setMicrophonePermissionError(errorMessage);
+        }
+        else if (event.error === 'network') errorMessage = "Network error for speech recognition. Check internet.";
+        toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
+        setIsLoadingAiAnswer(false); // Also reset loading state on error
+      };
+
+      recognition.onstart = () => setIsListeningToQuestion(true);
+      recognition.onend = () => {
+        setIsListeningToQuestion(false);
+         if (speechRecognitionQuestionRef.current) {
+            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {/* already stopped */}
+        }
+        speechRecognitionQuestionRef.current = null;
+      };
+      recognition.start();
+
+    } catch (err: any) {
+      console.error("Error accessing microphone (question)", err);
+      let description = "Could not access microphone. Please ensure permission is granted.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        description = "Microphone access denied. Please enable it in your browser settings.";
+        setMicrophonePermissionError(description);
+      }
+      toast({ title: "Microphone Access Error", description, variant: "destructive" });
+      setIsListeningToQuestion(false);
+      setIsLoadingAiAnswer(false);
+    }
+  };
+
 
   const baseContacts = showAllContacts ? mockContacts : mockContacts.filter(c => mainContactIds.includes(c.id));
 
@@ -289,6 +385,35 @@ export default function DashboardPage() {
 
       <Card className="shadow-md">
         <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2"><Sparkles className="text-primary"/> Ask AI About Your Network</CardTitle>
+            <CardDescription>Use voice to ask questions like "When is Sam's birthday?" or "Who is Chandra's partner?".</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleVoiceQuestionClick}
+            disabled={isListeningToQuestion || isLoadingAiAnswer}
+            className="w-full max-w-md text-base py-6"
+          >
+            {isListeningToQuestion ? <MicOff className="mr-2 h-5 w-5 text-destructive" /> : <Mic className="mr-2 h-5 w-5" />}
+            {isListeningToQuestion ? "Listening..." : isLoadingAiAnswer ? "Getting Answer..." : "Ask a Question"}
+            {isLoadingAiAnswer && <Loader2 className="ml-2 h-5 w-5 animate-spin" />}
+          </Button>
+          {microphonePermissionError && (
+            <Alert variant="destructive" className="w-full max-w-md">
+              <MicOff className="h-4 w-4" />
+              <AlertTitle>Microphone Access Denied</AlertTitle>
+              <AlertDescription>
+                {microphonePermissionError} Please enable microphone permissions in your browser settings.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-md">
+        <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2"><CalendarDays className="text-primary"/> Upcoming Events</CardTitle>
             <CardDescription>Stay on top of important dates in your network.</CardDescription>
         </CardHeader>
@@ -332,7 +457,7 @@ export default function DashboardPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleVoiceSearchClick} title="Search with voice">
-            {isListeningToVoice ? <MicOff className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
+            {isListeningToVoiceSearch ? <MicOff className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
           </Button>
         </div>
         <div className="flex items-center gap-2">
@@ -419,4 +544,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
