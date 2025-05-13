@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
@@ -370,7 +371,9 @@ export default function DashboardPage() {
   };
 
 
-  const baseContacts = showAllContacts ? mockContacts : mockContacts.filter(c => mainContactIds.includes(c.id));
+  const baseContacts = (showAllContacts || searchTerm.trim() !== '') 
+    ? mockContacts 
+    : mockContacts.filter(c => mainContactIds.includes(c.id));
 
   const filteredContacts = baseContacts.filter(contact => {
     const searchTermLower = searchTerm.toLowerCase();
@@ -527,8 +530,9 @@ export default function DashboardPage() {
             variant="outline" 
             onClick={() => setShowAllContacts(prev => !prev)}
             className="whitespace-nowrap"
+            disabled={searchTerm.trim() !== ''} // Disable toggle if search term is active
             >
-            {showAllContacts ? <><EyeOff className="mr-2 h-4 w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-4 w-4" /> Show All Contacts</>}
+            {showAllContacts || searchTerm.trim() !== '' ? <><EyeOff className="mr-2 h-4 w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-4 w-4" /> Show All Contacts</>}
           </Button>
           <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')} aria-label="List view">
             <List className="h-5 w-5" />
@@ -568,7 +572,7 @@ export default function DashboardPage() {
             <div className="text-center py-10 text-muted-foreground">
               <Users className="mx-auto h-12 w-12 mb-4" />
               <p className="text-lg font-medium">No contacts found.</p>
-              <p>{showAllContacts ? "Try adjusting your search or filters, or add new contacts." : "Clear filters or 'Show All Contacts' to see more."}</p>
+              <p>{(showAllContacts || searchTerm.trim() !== '') ? "Try adjusting your search or filters, or add new contacts." : "Clear filters or 'Show All Contacts' to see more."}</p>
             </div>
           )}
         </TabsContent>
@@ -606,3 +610,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
