@@ -15,6 +15,7 @@ import { format, differenceInDays, parseISO, getYear, getMonth, getDate, setYear
 import { answerContactQuestion } from '@/ai/flows/answer-contact-question-flow';
 import type { AnswerContactQuestionInput, AnswerContactQuestionOutput } from '@/ai/flows/answer-contact-question-flow';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate';
 
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
@@ -232,7 +233,7 @@ export default function DashboardPage() {
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
         setIsListeningToVoiceSearch(false);
         if (speechRecognitionSearchRef.current) {
-            try { speechRecognitionSearchRef.current.stop(); } catch(e) {}
+            try { speechRecognitionSearchRef.current.stop(); } catch(e) {/* Already stopped */}
             speechRecognitionSearchRef.current = null;
         }
       };
@@ -241,7 +242,7 @@ export default function DashboardPage() {
       recognition.onend = () => {
         setIsListeningToVoiceSearch(false);
         if (speechRecognitionSearchRef.current) {
-            try { speechRecognitionSearchRef.current.stop(); } catch(e) {}
+            try { speechRecognitionSearchRef.current.stop(); } catch(e) {/* Already stopped */}
         }
         speechRecognitionSearchRef.current = null;
       };
@@ -266,7 +267,13 @@ export default function DashboardPage() {
     }
     setIsLoadingAiAnswer(true);
     try {
-      const result: AnswerContactQuestionOutput = await answerContactQuestion({ question });
+      // Pass all contacts to the AI flow if searchTerm is empty or showAllContacts is true,
+      // otherwise pass only filtered contacts.
+      const contactsForAI = (searchTerm.trim() === '' && !showAllContacts) 
+        ? mockContacts.filter(c => mainContactIds.includes(c.id)) // Default main contacts view for AI
+        : mockContacts; // All contacts if searching or "Show All" is active
+
+      const result: AnswerContactQuestionOutput = await answerContactQuestion({ question, contacts: contactsForAI });
       toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
       setAiQuestionText(''); 
     } catch (aiError: any) {
@@ -342,7 +349,7 @@ export default function DashboardPage() {
         setIsListeningToQuestion(false);
         setIsLoadingAiAnswer(false); 
         if (speechRecognitionQuestionRef.current) {
-            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {}
+            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {/* Already stopped */}
             speechRecognitionQuestionRef.current = null;
         }
       };
@@ -351,7 +358,7 @@ export default function DashboardPage() {
       recognition.onend = () => {
         setIsListeningToQuestion(false);
          if (speechRecognitionQuestionRef.current) {
-            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {}
+            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {/* Already stopped */}
         }
         speechRecognitionQuestionRef.current = null;
       };
@@ -371,22 +378,29 @@ export default function DashboardPage() {
   };
 
 
-  const baseContacts = (showAllContacts || searchTerm.trim() !== '') 
-    ? mockContacts 
-    : mockContacts.filter(c => mainContactIds.includes(c.id));
+  const displayedContacts = useMemo(() => {
+    let contactsToDisplay = mockContacts;
+    if (searchTerm.trim() === '' && !showAllContacts) {
+        contactsToDisplay = mockContacts.filter(c => mainContactIds.includes(c.id));
+    } else if (searchTerm.trim() !== '') {
+        contactsToDisplay = mockContacts.filter(contact => {
+            const searchTermLower = searchTerm.toLowerCase();
+            return contact.name.toLowerCase().includes(searchTermLower) ||
+                (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTermLower)) ||
+                (contact.hometown && contact.hometown.toLowerCase().includes(searchTermLower)) ||
+                (contact.currentLocation && contact.currentLocation.toLowerCase().includes(searchTermLower)) ||
+                (contact.occupation && contact.occupation.toLowerCase().includes(searchTermLower)) ||
+                (contact.company && contact.company.toLowerCase().includes(searchTermLower)) ||
+                (contact.college && contact.college.toLowerCase().includes(searchTermLower));
+        });
+    }
 
-  const filteredContacts = baseContacts.filter(contact => {
-    const searchTermLower = searchTerm.toLowerCase();
-    const matchesSearch = contact.name.toLowerCase().includes(searchTermLower) ||
-                          (contact.tags && contact.tags.join(' ').toLowerCase().includes(searchTermLower)) ||
-                          (contact.hometown && contact.hometown.toLowerCase().includes(searchTermLower)) ||
-                          (contact.currentLocation && contact.currentLocation.toLowerCase().includes(searchTermLower)) ||
-                          (contact.occupation && contact.occupation.toLowerCase().includes(searchTermLower)) ||
-                          (contact.company && contact.company.toLowerCase().includes(searchTermLower)) ||
-                          (contact.college && contact.college.toLowerCase().includes(searchTermLower));
-    const matchesFilter = activeFilter === "All" || (contact.category && contact.category === activeFilter);
-    return matchesSearch && matchesFilter;
-  });
+    if (activeFilter !== "All") {
+        contactsToDisplay = contactsToDisplay.filter(contact => contact.category === activeFilter);
+    }
+    return contactsToDisplay;
+  }, [searchTerm, showAllContacts, activeFilter, mainContactIds]);
+
   
   const filterCategories = ["All", "Family", "Friend", "Colleague", "Professional", "Partner"];
   const closeConnectionsCount = mockContacts.filter(c => c.category === 'Family' || c.category === 'Partner').length;
@@ -437,7 +451,7 @@ export default function DashboardPage() {
                                     <div>
                                         <p className="font-medium text-sm">{event.title}</p>
                                         <p className="text-xs text-muted-foreground">
-                                            {format(event.date, 'MMMM do')}
+                                            <ClientSideFormattedDate date={event.date} format="MMMM do" />
                                             {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
                                         </p>
                                     </div>
@@ -556,19 +570,19 @@ export default function DashboardPage() {
         <TabsContent value={activeFilter}>
            {viewMode === 'grid' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredContacts.map(contact => <ContactCardItem key={contact.id} contact={contact} />)}
+              {displayedContacts.map(contact => <ContactCardItem key={contact.id} contact={contact} />)}
             </div>
           )}
           {viewMode === 'list' && (
             <Card className="shadow-md">
               <CardContent className="p-0">
                 <ul className="divide-y divide-border">
-                  {filteredContacts.map(contact => <ContactListItem key={contact.id} contact={contact} />)}
+                  {displayedContacts.map(contact => <ContactListItem key={contact.id} contact={contact} />)}
                 </ul>
               </CardContent>
             </Card>
           )}
-          {filteredContacts.length === 0 && (
+          {displayedContacts.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
               <Users className="mx-auto h-12 w-12 mb-4" />
               <p className="text-lg font-medium">No contacts found.</p>
@@ -610,4 +624,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
