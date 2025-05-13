@@ -161,7 +161,7 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
       case 'friend': return 'secondary'; 
       case 'pet': case 'dog': case 'cat':
         return 'outline'; 
-      case 'colleague': case 'professional': case 'research assistant': // Added occupation
+      case 'colleague': case 'professional': case 'research assistant': 
         return 'secondary';
       default: return 'outline';
     }
@@ -183,7 +183,7 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
       case 'friend': return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))' };
       case 'pet': case 'dog': case 'cat':
         return { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))', borderColor: 'hsl(var(--accent))' }; 
-      case 'colleague': case 'professional': case 'research assistant': // Added occupation
+      case 'colleague': case 'professional': case 'research assistant': 
         return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))'};
       default: return {};
     }
@@ -195,27 +195,27 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
 
   return (
     <div className="bg-card text-card-foreground rounded-lg shadow-xl p-3 flex flex-col items-center justify-between border border-border" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
-      <Avatar className="w-14 h-14 mb-1 border-2 border-muted"> {/* Avatar size reduced, mb reduced */}
+      <Avatar className="w-14 h-14 mb-1 border-2 border-muted"> 
         <AvatarImage src={contact.photoURL} alt={displayName} data-ai-hint="profile avatar"/>
         <AvatarFallback className="bg-muted text-xl">{getInitials(displayName)}</AvatarFallback>
       </Avatar>
-      <p className="font-semibold text-sm text-center truncate w-full leading-tight" title={displayName}>{displayName}</p> {/* Added leading-tight */}
+      <p className="font-semibold text-sm text-center truncate w-full leading-tight" title={displayName}>{displayName}</p> 
       {badgeText && (
         <Badge 
             variant={getCategoryBadgeVariant(badgeText)} 
             style={getCategoryBadgeStyle(badgeText)}
-            className="mt-1 text-xs truncate max-w-[calc(100%-1rem)]" // Added truncate and max-width for badge
+            className="mt-1 text-xs truncate max-w-[calc(100%-1rem)]" 
         >
             {badgeText}
         </Badge>
       )}
-      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate leading-tight" title={contact.occupation || contact.college || contact.currentLocation || 'N/A'}> {/* Added leading-tight */}
+      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate leading-tight" title={contact.occupation || contact.college || contact.currentLocation || 'N/A'}> 
         {contact.occupation || contact.college || contact.currentLocation || 'N/A'}
       </p>
       <Button 
         size="sm" 
         variant="outline" 
-        className="mt-1.5 w-full text-xs h-7" // Reduced mt, ensured h-7
+        className="mt-1.5 w-full text-xs h-7" 
         onClick={() => onButtonClick(contact.id)}
       >
         View Profile
@@ -323,8 +323,8 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
                         const startXForGroup = groupData.colX - totalWidthOfGroup / 2;
                         cardX = startXForGroup + (idx * (CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS));
                     }
-                     // Special handling for paired parents like John & Sara
-                    if (groupData.keyForMatching === "Parent" && groupData.contacts.length === 2) {
+                     
+                    if ((groupData.keyForMatching === "Parent" || (groupData.display && groupData.display.toLowerCase() === "parents")) && groupData.contacts.length === 2) {
                         if (idx === 0) cardX = groupData.colX - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS / 2;
                         else cardX = groupData.colX + H_SPACING_BETWEEN_PAIRED_CARDS / 2;
                     }
@@ -337,9 +337,10 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         let otherColIdx = 0;
         const otherCols = [COL1_X, COL2_X, COL3_X];
 
-        otherRelationshipTypes.forEach((groupData, type) => {
+        otherRelationshipTypes.forEach((groupData, typeKey) => {
             const currentCx = otherCols[otherColIdx % otherCols.length];
-            groupLabels.push({ text: groupData.display, originalText: groupData.keyForMatching, cx: currentCx, cy: otherY - V_SPACE_LABEL_CARD - LABEL_HEIGHT/2 });
+            // Use groupData.display (which is rel.customLabel || rel.type) for originalText for specific matching
+            groupLabels.push({ text: groupData.display, originalText: groupData.display, cx: currentCx, cy: otherY - V_SPACE_LABEL_CARD - LABEL_HEIGHT/2 });
             groupData.contacts.forEach((contact, idx) => {
                  let cardX = currentCx - CARD_WIDTH / 2;
                 if (groupData.contacts.length > 1) {
@@ -475,7 +476,21 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         </marker>
       </defs>
 
-      {/* Lines */}
+      {/* Lines from Central to Group Labels */}
+      {currentGroupLabels.map(groupLabel => (
+          <line
+              key={`line-central-to-group-${groupLabel.text.replace(/\s+/g, '-')}-${groupLabel.cx}-${groupLabel.cy}`}
+              x1={centralNodeDetails.x + CARD_WIDTH / 2}
+              y1={centralNodeDetails.y + CARD_HEIGHT / 2}
+              x2={groupLabel.cx}
+              y2={groupLabel.cy}
+              stroke="hsl(var(--border))"
+              strokeWidth="2"
+              markerEnd="url(#arrowhead)"
+          />
+      ))}
+
+      {/* Lines from Group Labels to Nodes */}
       {currentNodes.map(node => {
         if (node.id === centralContact.id || !centralNodeDetails) return null; 
         
@@ -483,64 +498,36 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         let groupKeyForNode = relationship?.customLabel || relationship?.type;
         
         if (node.contact.category === "Pet" && !groupKeyForNode) {
-            groupKeyForNode = "Pet";
+            groupKeyForNode = "Pet"; // Default group key for pets if not specified in relationship
         }
 
-        const parentGroupLabel = currentGroupLabels.find(gl => {
+        const parentGroupLabelForNode = currentGroupLabels.find(gl => {
             if (!groupKeyForNode || !gl.originalText) return false;
+            // Prioritize direct match of label's originalText with node's specific groupKey
             if (gl.originalText.toLowerCase() === groupKeyForNode.toLowerCase()) return true;
-            if (relationship?.type && gl.originalText.toLowerCase() === relationship.type.toLowerCase()) return true;
-            if (gl.originalText === "Parent" && relationship?.type === "Parent") return true;
-            if (gl.originalText === "Sibling" && relationship?.type === "Sibling") return true;
-            if (gl.originalText === "Pet" && node.contact.category === "Pet") return true;
+            
+            // Fallback for primary categories like Parent, Sibling, Pet if originalText matches the generic type
+            const genericTypeMatch = relationship?.type && gl.originalText.toLowerCase() === relationship.type.toLowerCase();
+            if (genericTypeMatch && (gl.originalText === "Parent" || gl.originalText === "Sibling" || gl.originalText === "Pet")) return true;
+            
             return false;
         });
 
-        if (parentGroupLabel) {
-          const lineToGroupKey = `line-central-to-group-${parentGroupLabel.text.replace(/\s+/g, '-')}`;
-          const lineFromGroupToNodeKey = `line-group-${parentGroupLabel.text.replace(/\s+/g, '-')}-to-${node.id}`;
-          
+        if (parentGroupLabelForNode) {
           return (
-              <React.Fragment key={`${lineToGroupKey}-${lineFromGroupToNodeKey}`}>
-                  {currentNodes.filter(n => {
-                      const rel = centralContact.relationships?.find(r => r.relatedContactId === n.id);
-                      let key = rel?.customLabel || rel?.type;
-                      if (n.contact.category === "Pet" && !key) key = "Pet";
-                      const pgLabel = currentGroupLabels.find(gl => {
-                          if (!key || !gl.originalText) return false;
-                          if (gl.originalText.toLowerCase() === key.toLowerCase()) return true;
-                          if (rel?.type && gl.originalText.toLowerCase() === rel.type.toLowerCase()) return true;
-                          if (gl.originalText === "Parent" && rel?.type === "Parent") return true;
-                          if (gl.originalText === "Sibling" && rel?.type === "Sibling") return true;
-                          if (gl.originalText === "Pet" && n.contact.category === "Pet") return true;
-                          return false;
-                      });
-                      return pgLabel?.text === parentGroupLabel.text;
-                  })[0]?.id === node.id && (
-                      <line
-                          key={lineToGroupKey}
-                          x1={centralNodeDetails.x + CARD_WIDTH / 2}
-                          y1={centralNodeDetails.y + CARD_HEIGHT / 2}
-                          x2={parentGroupLabel.cx}
-                          y2={parentGroupLabel.cy}
-                          stroke="hsl(var(--border))"
-                          strokeWidth="2"
-                          markerEnd="url(#arrowhead)"
-                      />
-                  )}
-                  <line
-                      key={lineFromGroupToNodeKey}
-                      x1={parentGroupLabel.cx}
-                      y1={parentGroupLabel.cy + LABEL_HEIGHT / 2} 
-                      x2={node.x + CARD_WIDTH / 2}              
-                      y2={node.y}
-                      stroke="hsl(var(--border))"
-                      strokeWidth="2"
-                      markerEnd="url(#arrowhead)"
-                  />
-              </React.Fragment>
+              <line
+                  key={`line-group-${parentGroupLabelForNode.text.replace(/\s+/g, '-')}-to-${node.id}`}
+                  x1={parentGroupLabelForNode.cx}
+                  y1={parentGroupLabelForNode.cy + LABEL_HEIGHT / 2} 
+                  x2={node.x + CARD_WIDTH / 2}              
+                  y2={node.y}
+                  stroke="hsl(var(--border))"
+                  strokeWidth="2"
+                  markerEnd="url(#arrowhead)"
+              />
           );
         } else { 
+            // Draw direct line from central node if no group label found (should be rare with Pet default)
             return (
                  <line
                     key={`line-direct-central-to-${node.id}`}
@@ -639,12 +626,12 @@ export default function RelationshipMapPage() {
     if (selectedCentralContactId === '4') { 
       maxX = Math.max(
         COL1_X, COL2_X, COL3_X,
-        (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS + CARD_WIDTH + CARD_WIDTH // Adjusted for Ryan H
+        (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS + CARD_WIDTH 
       );
        maxY = Y_ROW3_CARD_Y_VAL + CARD_HEIGHT; 
     } else { 
-      maxX = COL3_X + CARD_WIDTH * 2; // General case
-      maxY = Y_SAM_Y + 2 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS + LABEL_HEIGHT + V_SPACE_LABEL_CARD); 
+      maxX = COL3_X + CARD_WIDTH * 1.5; // General case, allow for wider spread if many 'other' groups
+      maxY = Y_SAM_Y + 3 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS + LABEL_HEIGHT + V_SPACE_LABEL_CARD); // Allow more vertical space
     }
     
     const width = maxX + SVG_PADDING_HORIZONTAL * 2; 
@@ -792,4 +779,5 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
+
 
