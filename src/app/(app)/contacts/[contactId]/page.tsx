@@ -232,7 +232,7 @@ export default function ContactDetailPage() {
         <Users className="w-16 h-16 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-semibold mb-2">Contact Not Found</h1>
         <p className="text-muted-foreground mb-4">The contact you are looking for does not exist.</p>
-        <Button onClick={() => router.push("/contacts")}>
+        <Button onClick={() => router.push("/contacts")} className="w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Contacts
         </Button>
       </div>
@@ -247,11 +247,11 @@ export default function ContactDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => router.back()}>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+        <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <Button variant="default" asChild>
+        <Button variant="default" asChild className="w-full sm:w-auto">
           <Link href={`/contacts/${contact.id}/edit`}>
             <Edit3 className="mr-2 h-4 w-4" /> Edit Contact
           </Link>
@@ -267,15 +267,17 @@ export default function ContactDetailPage() {
             style={{objectFit:"cover"}}
             data-ai-hint="landscape nature"
             className="opacity-50"
-            priority={true} // Eager load cover photo
+            priority={true} 
           />
-          <div className="absolute bottom-0 left-0 p-6 flex items-end space-x-4">
+          <div className="absolute bottom-0 left-0 w-full sm:w-auto p-4 sm:p-6 flex flex-col items-center text-center sm:flex-row sm:items-end sm:space-x-4 sm:text-left">
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
               <DialogTrigger asChild>
-                <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
-                  <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" className="object-cover"/>
-                  <AvatarFallback className="text-3xl sm:text-4xl">{getInitials(contact.name)}</AvatarFallback>
-                </Avatar>
+                <div className="mb-2 sm:mb-0">
+                    <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
+                    <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" className="object-cover"/>
+                    <AvatarFallback className="text-3xl sm:text-4xl">{getInitials(contact.name)}</AvatarFallback>
+                    </Avatar>
+                </div>
               </DialogTrigger>
               <DialogContent className="max-w-md p-0">
                  <DialogHeader className="p-4 border-b">
@@ -296,7 +298,7 @@ export default function ContactDetailPage() {
                     <p className="text-muted-foreground">No profile photo available.</p>
                   </div>
                 )}
-                 <DialogFooter className="p-4 border-t flex justify-between sm:justify-end">
+                 <DialogFooter className="p-4 border-t flex flex-col sm:flex-row justify-between gap-2 sm:justify-end">
                     <input 
                         type="file" 
                         ref={fileInputRef} 
@@ -304,8 +306,8 @@ export default function ContactDetailPage() {
                         style={{ display: 'none' }} 
                         accept="image/*"
                     />
-                    <Button variant="outline" onClick={() => setIsPhotoDialogOpen(false)} disabled={isUploadingPhoto}>Cancel</Button>
-                    <Button onClick={handlePhotoUploadClick} disabled={isUploadingPhoto}>
+                    <Button variant="outline" onClick={() => setIsPhotoDialogOpen(false)} disabled={isUploadingPhoto} className="w-full sm:w-auto">Cancel</Button>
+                    <Button onClick={handlePhotoUploadClick} disabled={isUploadingPhoto} className="w-full sm:w-auto">
                         {isUploadingPhoto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                         Upload New Photo
                     </Button>
@@ -323,7 +325,7 @@ export default function ContactDetailPage() {
           </div>
         </div>
         
-        <CardContent className="pt-16 sm:pt-20">
+        <CardContent className="pt-28 sm:pt-20"> {/* Adjusted pt for stacked avatar */}
            <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="overview">
             <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -344,7 +346,7 @@ export default function ContactDetailPage() {
                     {contact.email && (
                       <div className="flex items-center">
                         <Mail className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <a href={`mailto:${contact.email}`} className="text-primary hover:underline">{contact.email}</a>
+                        <a href={`mailto:${contact.email}`} className="text-primary hover:underline break-all">{contact.email}</a>
                       </div>
                     )}
                     {contact.phone && (
@@ -399,7 +401,7 @@ export default function ContactDetailPage() {
                     {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
                       <div key={platform} className="flex items-center">
                         <Link2 className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline capitalize">
+                        <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline capitalize break-all">
                           {platform}
                         </a>
                       </div>
@@ -412,9 +414,9 @@ export default function ContactDetailPage() {
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-2">
                     <div className="space-y-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium">Primary Category:</span>
                             {contact.category ? (
                             <Badge variant="secondary">{contact.category}</Badge>
@@ -467,12 +469,12 @@ export default function ContactDetailPage() {
                   {contact.relationships && contact.relationships.length > 0 ? (
                     <ul className="space-y-3">
                       {contact.relationships.map((rel, index) => (
-                        <li key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                        <li key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg hover:bg-muted/50 gap-2 sm:gap-0">
                           <div>
                             <p className="font-medium">{getRelatedContactName(rel.relatedContactId)}</p>
                             <p className="text-sm text-muted-foreground">{rel.customLabel || rel.type}</p>
                           </div>
-                           <Button variant="ghost" size="sm" asChild>
+                           <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto">
                             <Link href={`/contacts/${rel.relatedContactId}`}>View Contact</Link>
                           </Button>
                         </li>
@@ -534,7 +536,7 @@ export default function ContactDetailPage() {
                      <CardFooter>
                         <Dialog open={isPhotosTogetherDialogOpen} onOpenChange={setIsPhotosTogetherDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline"><UploadCloud className="mr-2 h-4 w-4" /> Add Photo</Button>
+                                <Button variant="outline" className="w-full sm:w-auto"><UploadCloud className="mr-2 h-4 w-4" /> Add Photo</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                                 <DialogHeader>
@@ -556,8 +558,8 @@ export default function ContactDetailPage() {
                                         {isUploadingPhotosTogether ? "Uploading..." : "Select Photo from Device"}
                                     </Button>
                                 </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setIsPhotosTogetherDialogOpen(false)} disabled={isUploadingPhotosTogether}>
+                                <DialogFooter className="flex-col sm:flex-row gap-2">
+                                    <Button variant="outline" onClick={() => setIsPhotosTogetherDialogOpen(false)} disabled={isUploadingPhotosTogether} className="w-full sm:w-auto">
                                         Cancel
                                     </Button>
                                 </DialogFooter>
@@ -585,7 +587,7 @@ export default function ContactDetailPage() {
                  <CardFooter>
                     <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline">Edit Notes</Button>
+                            <Button variant="outline" className="w-full sm:w-auto">Edit Notes</Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
@@ -606,9 +608,9 @@ export default function ContactDetailPage() {
                                     />
                                 </div>
                             </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsNotesDialogOpen(false)} disabled={isSavingNotes}>Cancel</Button>
-                                <Button type="button" onClick={handleSaveNotes} disabled={isSavingNotes}>
+                            <DialogFooter className="flex-col sm:flex-row gap-2">
+                                <Button variant="outline" onClick={() => setIsNotesDialogOpen(false)} disabled={isSavingNotes} className="w-full sm:w-auto">Cancel</Button>
+                                <Button type="button" onClick={handleSaveNotes} disabled={isSavingNotes} className="w-full sm:w-auto">
                                     {isSavingNotes && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Save Notes
                                 </Button>
@@ -632,11 +634,11 @@ export default function ContactDetailPage() {
                     <div className="space-y-4">
                       {contact.notableEvents.map(event => (
                         <Card key={event.id} className="shadow-sm">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-md flex items-center justify-between">
+                          <CardHeader className="pb-2 flex-row items-center justify-between">
+                            <CardTitle className="text-md">
                               {event.title}
-                              <ClientSideFormattedDate date={event.date} className="text-xs font-normal text-muted-foreground"/>
                             </CardTitle>
+                            <ClientSideFormattedDate date={event.date} className="text-xs font-normal text-muted-foreground"/>
                           </CardHeader>
                           {event.description && (
                             <CardContent>
@@ -653,7 +655,7 @@ export default function ContactDetailPage() {
                 <CardFooter>
                   <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline"><CalendarPlus className="mr-2 h-4 w-4" /> Add Event</Button>
+                      <Button variant="outline" className="w-full sm:w-auto"><CalendarPlus className="mr-2 h-4 w-4" /> Add Event</Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                       <DialogHeader>
@@ -708,11 +710,11 @@ export default function ContactDetailPage() {
                           />
                         </div>
                       </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => {setIsEventDialogOpen(false); setEventFormValues({title: '', date: null, description: ''});}} disabled={isSavingEvent}>
+                      <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button variant="outline" onClick={() => {setIsEventDialogOpen(false); setEventFormValues({title: '', date: null, description: ''});}} disabled={isSavingEvent} className="w-full sm:w-auto">
                           Cancel
                         </Button>
-                        <Button type="button" onClick={handleSaveNotableEvent} disabled={isSavingEvent || !eventFormValues.title || !eventFormValues.date}>
+                        <Button type="button" onClick={handleSaveNotableEvent} disabled={isSavingEvent || !eventFormValues.title || !eventFormValues.date} className="w-full sm:w-auto">
                           {isSavingEvent && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Save Event
                         </Button>
@@ -733,3 +735,4 @@ export default function ContactDetailPage() {
     </div>
   );
 }
+

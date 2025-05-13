@@ -87,24 +87,29 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
     // Birthdays
     if (contact.birthday) {
       try {
-        const [yearStr, monthStr, dayStr] = contact.birthday.split('-');
-        const birthDate = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)));
-        const birthDateThisYear = setYear(birthDate, getYear(today));
-        let nextBirthdayDate = birthDateThisYear;
-        if (isPast(nextBirthdayDate) && differenceInDays(nextBirthdayDate, today) !== 0) {
-          nextBirthdayDate = addYears(birthDateThisYear, 1);
-        }
-        const daysRemaining = differenceInDays(nextBirthdayDate, today);
-        if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
-          events.push({
-            id: `birthday-${contact.id}`,
-            title: `${contact.name}'s Birthday`,
-            date: nextBirthdayDate,
-            type: 'Birthday',
-            icon: Gift,
-            daysRemaining,
-            contactId: contact.id,
-          });
+        // Assuming birthday is YYYY-MM-DD
+        const birthDate = parseISO(contact.birthday);
+        if (!isNaN(birthDate.getTime())) {
+            const birthDateThisYear = setYear(birthDate, getYear(today));
+            let nextBirthdayDate = birthDateThisYear;
+            // Check if birthday this year has passed, if so, set to next year
+            if (isPast(nextBirthdayDate) && differenceInDays(nextBirthdayDate, today) !== 0) {
+                 nextBirthdayDate = addYears(birthDateThisYear, 1);
+            }
+            const daysRemaining = differenceInDays(nextBirthdayDate, today);
+            if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
+                events.push({
+                id: `birthday-${contact.id}`,
+                title: `${contact.name}'s Birthday`,
+                date: nextBirthdayDate,
+                type: 'Birthday',
+                icon: Gift,
+                daysRemaining,
+                contactId: contact.id,
+                });
+            }
+        } else {
+            console.warn(`Invalid birthday date string for ${contact.name}: ${contact.birthday}`);
         }
       } catch (error) {
         console.error(`Error parsing birthday for ${contact.name}: ${contact.birthday}`, error);
@@ -114,33 +119,34 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
     // Notable Events (e.g., Anniversaries specific to contact, Work Anniversaries)
     contact.notableEvents?.forEach(event => {
       try {
-        const [yearStr, monthStr, dayStr] = event.date.split('-');
-        const eventDate = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)));
-        
-        // For recurring events like anniversaries, calculate next occurrence
-        let nextEventDate = eventDate;
-        if (event.title.toLowerCase().includes("anniversary")) {
-             const eventThisYear = setYear(eventDate, getYear(today));
-             nextEventDate = eventThisYear;
-             if (isPast(nextEventDate) && differenceInDays(nextEventDate, today) !==0) {
-                 nextEventDate = addYears(eventThisYear, 1);
-             }
-        } else if (isPast(eventDate)) { // For non-recurring past events, skip
-            return;
-        }
+        const eventDate = parseISO(event.date);
+         if (!isNaN(eventDate.getTime())) {
+            // For recurring events like anniversaries, calculate next occurrence
+            let nextEventDate = eventDate;
+            if (event.title.toLowerCase().includes("anniversary")) {
+                const eventThisYear = setYear(eventDate, getYear(today));
+                nextEventDate = eventThisYear;
+                if (isPast(nextEventDate) && differenceInDays(nextEventDate, today) !==0) {
+                    nextEventDate = addYears(eventThisYear, 1);
+                }
+            } else if (isPast(eventDate)) { // For non-recurring past events, skip
+                return;
+            }
 
-
-        const daysRemaining = differenceInDays(nextEventDate, today);
-        if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
-          events.push({
-            id: `event-${event.id}-${contact.id}`,
-            title: `${event.title} (${contact.name})`,
-            date: nextEventDate,
-            type: event.title.toLowerCase().includes("anniversary") ? 'Anniversary' : 'Notable Event',
-            icon: event.title.toLowerCase().includes("anniversary") ? Heart : CalendarDays,
-            daysRemaining,
-            contactId: contact.id,
-          });
+            const daysRemaining = differenceInDays(nextEventDate, today);
+            if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
+            events.push({
+                id: `event-${event.id}-${contact.id}`,
+                title: `${event.title} (${contact.name})`,
+                date: nextEventDate,
+                type: event.title.toLowerCase().includes("anniversary") ? 'Anniversary' : 'Notable Event',
+                icon: event.title.toLowerCase().includes("anniversary") ? Heart : CalendarDays,
+                daysRemaining,
+                contactId: contact.id,
+            });
+            }
+        } else {
+             console.warn(`Invalid notable event date string for ${contact.name}, event: ${event.title}, date: ${event.date}`);
         }
       } catch (error) {
         console.error(`Error parsing notable event for ${contact.name}: ${event.title}`, error);
@@ -259,7 +265,7 @@ export default function DashboardPage() {
             setMicrophonePermissionError(errorMessage);
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection. If this persists, it might be an issue with your network environment or the speech recognition service.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection. This could be a temporary issue with your network or the speech recognition service.";
         }
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
         setIsListeningToVoiceSearch(false);
@@ -298,13 +304,8 @@ export default function DashboardPage() {
     }
     setIsLoadingAiAnswer(true);
     try {
-      // Determine which contacts to pass to the AI based on current dashboard state
-      const contactsToQuery = (searchTerm.trim() === '' && !showAllContacts) 
-        ? mockContacts.filter(c => mainContactIds.includes(c.id))
-        : mockContacts; 
-      
-      const enrichedContactsForAI = enrichContactsForAI(contactsToQuery, mockContacts);
-
+      // Pass all contacts to the AI flow
+      const enrichedContactsForAI = enrichContactsForAI(mockContacts, mockContacts);
 
       const result: AnswerContactQuestionOutput = await answerContactQuestion({ question, contacts: enrichedContactsForAI });
       toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
@@ -376,7 +377,9 @@ export default function DashboardPage() {
             setMicrophonePermissionError(errorMessage);
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection. This could be a temporary issue with your network or the speech recognition service.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection and ensure your browser has access to the internet. This could be a temporary issue with your network environment or the speech recognition service.";
+        } else {
+          errorMessage = "An unknown speech recognition error occurred. Please try again."
         }
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
         setIsListeningToQuestion(false);
@@ -515,7 +518,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
           <div className="w-full max-w-md space-y-3">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
                 <Input 
                     type="text"
                     placeholder="Type your question here..."
@@ -531,6 +534,7 @@ export default function DashboardPage() {
                     onClick={handleTextQuestionSubmit}
                     disabled={isLoadingAiAnswer || isListeningToQuestion || !aiQuestionText.trim()}
                     title="Ask AI"
+                    className="w-full sm:w-auto"
                 >
                     {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 </Button>
@@ -560,7 +564,7 @@ export default function DashboardPage() {
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative flex-grow w-full md:w-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
             type="search" 
             placeholder="Search contacts, tags, company..." 
@@ -568,28 +572,30 @@ export default function DashboardPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleVoiceSearchClick} title="Search with voice">
+          <Button variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleVoiceSearchClick} title="Search with voice">
             {isListeningToVoiceSearch ? <MicOff className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
           </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
            <Button 
             variant="outline" 
             onClick={() => setShowAllContacts(prev => !prev)}
-            className="whitespace-nowrap"
-            disabled={searchTerm.trim() !== ''} // Disable toggle if search term is active
+            className="whitespace-nowrap w-full sm:w-auto"
+            disabled={searchTerm.trim() !== ''} 
             >
             {showAllContacts || searchTerm.trim() !== '' ? <><EyeOff className="mr-2 h-4 w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-4 w-4" /> Show All Contacts</>}
           </Button>
-          <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')} aria-label="List view">
-            <List className="h-5 w-5" />
-          </Button>
-          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')} aria-label="Grid view">
-            <LayoutGrid className="h-5 w-5" />
-          </Button>
-          <Button variant={viewMode === 'tree' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('tree')} aria-label="Tree view" asChild>
-             <Link href="/map"><Share2 className="h-5 w-5" /></Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')} aria-label="List view">
+                <List className="h-5 w-5" />
+            </Button>
+            <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')} aria-label="Grid view">
+                <LayoutGrid className="h-5 w-5" />
+            </Button>
+            <Button variant={viewMode === 'tree' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('tree')} aria-label="Tree view" asChild>
+                <Link href="/map"><Share2 className="h-5 w-5" /></Link>
+            </Button>
+          </div>
         </div>
       </div>
       
@@ -657,6 +663,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 

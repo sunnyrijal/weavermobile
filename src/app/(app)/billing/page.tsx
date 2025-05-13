@@ -113,7 +113,7 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {paymentMethods.map(pm => (
-              <div key={pm.id} className="flex items-center justify-between p-3 border rounded-lg">
+              <div key={pm.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
                    {/* Basic card type visualization */}
                   <div className={`w-10 h-7 rounded bg-muted flex items-center justify-center text-xs font-semibold ${pm.type === 'Visa' ? 'text-blue-600' : 'text-orange-500'}`}>
@@ -124,13 +124,13 @@ export default function BillingPage() {
                     <p className="text-xs text-muted-foreground">Expires {pm.expiry}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   {pm.isDefault && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Default</span>}
                   <Button variant="ghost" size="sm">Edit</Button>
                 </div>
               </div>
             ))}
-            <Button variant="outline">Add New Payment Method</Button>
+            <Button variant="outline" className="w-full sm:w-auto">Add New Payment Method</Button>
           </CardContent>
         </Card>
 
@@ -143,12 +143,12 @@ export default function BillingPage() {
             {invoiceHistory.length > 0 ? (
               <ul className="space-y-2">
                 {invoiceHistory.map(invoice => (
-                  <li key={invoice.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                  <li key={invoice.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg hover:bg-muted/50 gap-2 sm:gap-0">
                     <div>
                       <p className="font-medium">Invoice #{invoice.id.split('_')[1]}</p>
                       <p className="text-xs text-muted-foreground">Date: {invoice.date} - Amount: {invoice.amount}</p>
                     </div>
-                    <Button variant="outline" size="sm" asChild>
+                    <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
                       <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
                         <Download className="mr-2 h-4 w-4" /> Download PDF
                       </a>
@@ -169,10 +169,11 @@ export default function BillingPage() {
         </CardHeader>
         <CardContent>
             <p className="text-muted-foreground mb-4">If you have any questions about your billing or subscription, please contact our support team.</p>
-            <Button variant="outline">Contact Support</Button>
+            <Button variant="outline" className="w-full sm:w-auto">Contact Support</Button>
         </CardContent>
       </Card>
 
     </div>
   );
 }
+

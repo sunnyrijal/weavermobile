@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ const ContactCardItem = ({ contact }: { contact: Contact }) => (
       <CardTitle className="text-lg mb-1">{contact.name}</CardTitle>
       <CardDescription className="text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
       {contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.occupation}{contact.company ? ` at ${contact.company}` : ''}</p>}
-      {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">Studied at {contact.college}</p>}
+      {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.college}</p>}
       {contact.currentLocation && <p className="text-xs text-muted-foreground truncate">{contact.currentLocation}</p>}
       {!contact.currentLocation && contact.hometown && <p className="text-xs text-muted-foreground truncate">From: {contact.hometown}</p>}
     </CardContent>
@@ -106,13 +107,13 @@ export default function ContactsPage() {
               <CardTitle className="text-2xl">Your Contacts</CardTitle>
               <CardDescription>Browse, search, and manage your network connections.</CardDescription>
             </div>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
                 <Link href="/contacts/new"><PlusCircle className="mr-2 h-4 w-4" /> Add New Contact</Link>
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row items-stretch sm:items-center justify-between gap-4">
                 <div className="relative flex-grow w-full md:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
@@ -123,7 +124,7 @@ export default function ContactsPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-center sm:self-auto">
                 <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')} aria-label="List view">
                     <List className="h-5 w-5" />
                 </Button>
@@ -169,3 +170,4 @@ export default function ContactsPage() {
     </div>
   );
 }
+

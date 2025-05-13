@@ -85,7 +85,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background/80 backdrop-blur-sm px-2 sm:px-6">
           <SidebarTrigger className="md:hidden" /> {/* Mobile trigger for sidebar */}
           
           {/* Desktop Navigation - items moved here */}
@@ -98,7 +98,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       <Button
                         variant={pathname === item.href ? "secondary" : "ghost"}
                         size="sm"
-                        className="font-medium px-3" 
+                        className="font-medium px-2 lg:px-3" 
                       >
                         <item.icon className="h-4 w-4" />
                         <span className="ml-2 hidden lg:inline">{item.label}</span>
@@ -113,20 +113,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           
-          {/* Spacer removed, ml-auto on the next div will push it to the right */}
-          <div className="ml-auto flex items-center gap-2"> {/* Group for items on the right */}
+          <div className="ml-auto flex items-center gap-1 sm:gap-2"> {/* Group for items on the right */}
             <GlobalSearchInput />
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Bell className="h-5 w-5 text-muted-foreground" />
+            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 sm:h-9 sm:w-9">
+              <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
               <span className="sr-only">Notifications</span>
             </Button>
             {currentUser && <UserNav />}
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 bg-secondary/50">
+        <main className="flex-1 p-2 sm:p-4 md:p-6 bg-secondary/50">
             {children}
         </main>
       </SidebarInset>
     </SidebarProvider>
   );
 }
+

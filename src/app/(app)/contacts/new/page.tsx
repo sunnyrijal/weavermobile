@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ContactForm, contactFormSchema } from "@/components/contacts/ContactForm";
@@ -189,7 +190,9 @@ export default function NewContactPage() {
           setMicrophonePermissionError(errorMessage);
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection. This could be a temporary issue with your network or the speech recognition service.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection and ensure your browser has access to the internet. This could be a temporary issue with your network environment or the speech recognition service.";
+        } else {
+             errorMessage = "An unknown speech recognition error occurred. Please try again."
         }
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
         setIsListening(false);
@@ -277,3 +280,4 @@ const formatDateForStorage = (date: Date): string => {
     const day = date.getUTCDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
+

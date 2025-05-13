@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ContactForm, contactFormSchema } from "@/components/contacts/ContactForm";
@@ -136,7 +137,7 @@ export default function EditContactPage() {
         <Users className="w-16 h-16 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-semibold mb-2">Contact Not Found</h1>
         <p className="text-muted-foreground mb-4">The contact you are looking for does not exist or cannot be edited.</p>
-        <Button onClick={() => router.push("/contacts")}>
+        <Button onClick={() => router.push("/contacts")} className="w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Contacts
         </Button>
       </div>
@@ -163,7 +164,7 @@ export default function EditContactPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-       <Button variant="outline" onClick={() => router.back()} className="mb-4">
+       <Button variant="outline" onClick={() => router.back()} className="mb-4 w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       <ContactForm 
@@ -188,3 +189,4 @@ const format = (date: Date, formatStr: string): string => {
     }
     return date.toISOString();
 };
+

@@ -125,7 +125,7 @@ export default function ImportPage() {
                     disabled={isLoading}
                 >
                     <source.icon className={`h-10 w-10 ${source.color}`} />
-                    <span className="text-center">{source.name}</span>
+                    <span className="text-center text-sm sm:text-base">{source.name}</span>
                 </Button>
                 ))}
             </CardContent>
@@ -145,16 +145,16 @@ export default function ImportPage() {
       {!isLoading && selectedSource && importableContacts.length > 0 && (
         <Card className="shadow-md">
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
                     <CardTitle>Review Contacts from {currentSourceDetails?.name}</CardTitle>
                     <CardDescription>Select the contacts you wish to import.</CardDescription>
                 </div>
-                <Button variant="ghost" onClick={() => { setSelectedSource(null); setImportableContacts([]); }}>Change Source</Button>
+                <Button variant="ghost" onClick={() => { setSelectedSource(null); setImportableContacts([]); }} className="w-full sm:w-auto">Change Source</Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-md">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-2 mb-4 p-3 bg-muted/50 rounded-md">
               <div className="flex items-center space-x-2">
                 <Checkbox 
                     id="select-all" 
@@ -165,7 +165,7 @@ export default function ImportPage() {
                     Select All ({numSelected} / {importableContacts.length} selected)
                 </Label>
               </div>
-              <Button onClick={handleImportSelected} disabled={isImporting || numSelected === 0}>
+              <Button onClick={handleImportSelected} disabled={isImporting || numSelected === 0} className="w-full sm:w-auto">
                 {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Import Selected
               </Button>
@@ -192,7 +192,7 @@ export default function ImportPage() {
                             data-ai-hint="person avatar"
                         />
                         <div>
-                            <p className="font-medium">{contact.name}</p>
+                            <p className="font-medium text-sm sm:text-base">{contact.name}</p>
                             <p className="text-xs text-muted-foreground">{contact.email || contact.details}</p>
                         </div>
                     </Label>
@@ -215,10 +215,11 @@ export default function ImportPage() {
             <CardContent className="p-6 text-center">
                 <p className="text-lg font-medium">No contacts found in {currentSourceDetails?.name}.</p>
                 <p className="text-muted-foreground mb-4">Or, there might have been an issue fetching them.</p>
-                <Button onClick={() => { setSelectedSource(null); }} >Try Another Source</Button>
+                <Button onClick={() => { setSelectedSource(null); }} className="w-full sm:w-auto" >Try Another Source</Button>
             </CardContent>
          </Card>
       )}
     </div>
   );
 }
+
