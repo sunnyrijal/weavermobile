@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -77,13 +78,11 @@ const getPetTypeFromTags = (tags?: string[]): string => {
 };
 
 const getBadgeText = (
-  nodeContact: Contact,        // The contact whose card is being rendered
-  centralContact?: Contact    // The currently selected central contact for the map
+  nodeContact: Contact,
+  centralContact?: Contact
 ): string => {
-
-  // Case 1: The node being rendered IS the central contact.
-  // Display its own category or a prominent self-descriptive tag.
   if (centralContact && nodeContact.id === centralContact.id) {
+    // For central contact, show category or a primary tag/role
     if (nodeContact.category === 'Pet') return getPetTypeFromTags(nodeContact.tags);
 
     const selfFamilyRolePriority = [ 
@@ -98,11 +97,17 @@ const getBadgeText = (
         }
       }
     }
-    return nodeContact.occupation || nodeContact.category || "N/A"; 
+    // Prioritize category, then occupation only if category is generic or missing
+    if (nodeContact.category && nodeContact.category !== "Other" && nodeContact.category !== "N/A" && nodeContact.category !== "Friend" && nodeContact.category !== "Colleague") {
+        return nodeContact.category;
+    }
+    // If category is Friend or Colleague (often generic for central node), prefer occupation if available.
+    if ((nodeContact.category === "Friend" || nodeContact.category === "Colleague") && nodeContact.occupation) {
+        return nodeContact.occupation;
+    }
+    return nodeContact.category || nodeContact.occupation || "N/A"; 
   }
 
-  // Case 2: The node is NOT the central contact.
-  // Show how the CENTRAL contact relates TO THIS NODE.
   if (centralContact) {
     const relationshipFromCentralToNode = centralContact.relationships?.find(
       (rel) => rel.relatedContactId === nodeContact.id
@@ -112,8 +117,6 @@ const getBadgeText = (
     }
   }
 
-  // Fallback (Case 3): No direct relationship from central to node.
-  // Show the node's own general category or prominent role (as it describes itself).
   if (nodeContact.category === 'Pet') return getPetTypeFromTags(nodeContact.tags);
 
   const familyRolePriorityForFallback = [
@@ -158,7 +161,7 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
       case 'friend': return 'secondary'; 
       case 'pet': case 'dog': case 'cat':
         return 'outline'; 
-      case 'colleague': case 'professional':
+      case 'colleague': case 'professional': case 'research assistant': // Added occupation
         return 'secondary';
       default: return 'outline';
     }
@@ -180,6 +183,8 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
       case 'friend': return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))' };
       case 'pet': case 'dog': case 'cat':
         return { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))', borderColor: 'hsl(var(--accent))' }; 
+      case 'colleague': case 'professional': case 'research assistant': // Added occupation
+        return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))'};
       default: return {};
     }
   }
@@ -190,27 +195,27 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
 
   return (
     <div className="bg-card text-card-foreground rounded-lg shadow-xl p-3 flex flex-col items-center justify-between border border-border" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
-      <Avatar className="w-16 h-16 mb-2 border-2 border-muted">
+      <Avatar className="w-14 h-14 mb-1 border-2 border-muted"> {/* Avatar size reduced, mb reduced */}
         <AvatarImage src={contact.photoURL} alt={displayName} data-ai-hint="profile avatar"/>
         <AvatarFallback className="bg-muted text-xl">{getInitials(displayName)}</AvatarFallback>
       </Avatar>
-      <p className="font-semibold text-sm text-center truncate w-full" title={displayName}>{displayName}</p>
+      <p className="font-semibold text-sm text-center truncate w-full leading-tight" title={displayName}>{displayName}</p> {/* Added leading-tight */}
       {badgeText && (
         <Badge 
             variant={getCategoryBadgeVariant(badgeText)} 
             style={getCategoryBadgeStyle(badgeText)}
-            className="mt-1 text-xs"
+            className="mt-1 text-xs truncate max-w-[calc(100%-1rem)]" // Added truncate and max-width for badge
         >
             {badgeText}
         </Badge>
       )}
-      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate" title={contact.occupation || contact.college || contact.currentLocation || 'N/A'}>
+      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate leading-tight" title={contact.occupation || contact.college || contact.currentLocation || 'N/A'}> {/* Added leading-tight */}
         {contact.occupation || contact.college || contact.currentLocation || 'N/A'}
       </p>
       <Button 
         size="sm" 
         variant="outline" 
-        className="mt-2 w-full text-xs"
+        className="mt-1.5 w-full text-xs h-7" // Reduced mt, ensured h-7
         onClick={() => onButtonClick(contact.id)}
       >
         View Profile
@@ -634,11 +639,11 @@ export default function RelationshipMapPage() {
     if (selectedCentralContactId === '4') { 
       maxX = Math.max(
         COL1_X, COL2_X, COL3_X,
-        (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS + CARD_WIDTH + CARD_WIDTH
+        (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS + CARD_WIDTH + CARD_WIDTH // Adjusted for Ryan H
       );
        maxY = Y_ROW3_CARD_Y_VAL + CARD_HEIGHT; 
     } else { 
-      maxX = COL3_X + CARD_WIDTH * 2;
+      maxX = COL3_X + CARD_WIDTH * 2; // General case
       maxY = Y_SAM_Y + 2 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS + LABEL_HEIGHT + V_SPACE_LABEL_CARD); 
     }
     
@@ -787,3 +792,4 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
+
