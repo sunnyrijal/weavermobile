@@ -1,9 +1,11 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label"; // Added import
 import { Mic, MicOff, Loader2, Save, XCircle, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { processVoiceInput } from '@/ai/flows/process-voice-input-flow';
@@ -76,17 +78,17 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
 
       recognition.onresult = (event) => {
         let finalTranscript = '';
+        let interimTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscript += event.results[i][0].transcript;
           } else {
             // Show interim transcript, useful for user feedback
-            setTranscript(prev => prev + event.results[i][0].transcript);
+            interimTranscript += event.results[i][0].transcript;
           }
         }
-        if (finalTranscript) {
-            setTranscript(finalTranscript); // Set final transcript
-        }
+        // Update with interim first, then final if available
+        setTranscript(prev => finalTranscript || (prev + interimTranscript)); 
       };
       
       recognition.onerror = (event) => {
@@ -100,6 +102,8 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
             setMicrophonePermissionError(errorMessage);
         } else if (event.error === 'network') {
             errorMessage = "Network error during speech recognition. Please check your internet connection.";
+        } else {
+            errorMessage = `An unknown error occurred with speech recognition: ${event.error}.`;
         }
         toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
         setIsListening(false);
@@ -115,13 +119,23 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       recognition.onend = () => {
         setIsListening(false);
         if (speechRecognitionRef.current) {
-          speechRecognitionRef.current.stop();
+          speechRecognitionRef.current.stop(); // Ensure it's stopped
         }
         speechRecognitionRef.current = null;
         // Process the final transcript after speech ends
-        if (transcript.trim()) {
-          handleProcessTranscript(transcript.trim());
-        }
+        // This ensures we use the transcript state that was updated by onresult
+        // Need to access transcript via a state callback or ref if onresult is the only place it's finalized.
+        // For simplicity, we'll assume `transcript` state is up-to-date after onresult/onend sequence.
+        // A slight delay might be needed if transcript state isn't immediately updated before onend.
+        setTimeout(() => { 
+            // Access the transcript state here which should be updated by onresult
+            setTranscript(currentTranscript => {
+                if (currentTranscript.trim()) {
+                    handleProcessTranscript(currentTranscript.trim());
+                }
+                return currentTranscript;
+            });
+        }, 0);
       };
       recognition.start();
     } catch (err: any) {
@@ -129,6 +143,9 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       let description = "Could not access microphone.";
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         description = "Microphone access denied. Please enable it in browser settings.";
+        setMicrophonePermissionError(description);
+      } else if (err.name === "NotFoundError") {
+        description = "No microphone found. Please ensure a microphone is connected and enabled.";
         setMicrophonePermissionError(description);
       }
       toast({ title: "Microphone Error", description, variant: "destructive" });
@@ -149,7 +166,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       toast({ title: "AI Processing Complete", description: "Review summary and entities." });
     } catch (error) {
       console.error("AI processing error:", error);
-      toast({ title: "AI Error", description: "Could not process memory.", variant: "destructive" });
+      toast({ title: "AI Error", description: (error as Error).message || "Could not process memory.", variant: "destructive" });
     } finally {
       setIsProcessingAi(false);
     }
@@ -281,3 +298,4 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     </Dialog>
   );
 }
+
