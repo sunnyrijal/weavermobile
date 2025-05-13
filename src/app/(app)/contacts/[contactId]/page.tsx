@@ -21,7 +21,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud, UserSquare2 } from "lucide-react"; 
 import React, { useState, useEffect, useRef } from 'react';
-import { isValid, parseISO } from "date-fns";
 import { format as formatDateFnInternal } from "date-fns";
 import { cn } from "@/lib/utils";
 import ClientSideFormattedDate from "@/components/shared/ClientSideFormattedDate";
@@ -81,6 +80,8 @@ export default function ContactDetailPage() {
   const [isPhotosTogetherDialogOpen, setIsPhotosTogetherDialogOpen] = useState(false);
   const [isUploadingPhotosTogether, setIsUploadingPhotosTogether] = useState(false);
   const photosTogetherFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeTab, setActiveTab] = useState("overview");
 
 
   useEffect(() => {
@@ -323,7 +324,7 @@ export default function ContactDetailPage() {
         </div>
         
         <CardContent className="pt-16 sm:pt-20">
-          <Tabs defaultValue="overview">
+           <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="overview">
             <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="relationships">Relationships</TabsTrigger>
@@ -332,6 +333,7 @@ export default function ContactDetailPage() {
               <TabsTrigger value="events">Notable Events</TabsTrigger>
             </TabsList>
 
+            {activeTab === "overview" && (
             <TabsContent value="overview" className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <Card>
@@ -366,7 +368,7 @@ export default function ContactDetailPage() {
                      {contact.birthday && (
                        <div className="flex items-center">
                         <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
+                         <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
                       </div>
                     )}
                   </CardContent>
@@ -437,7 +439,7 @@ export default function ContactDetailPage() {
                     !contact.ownerRelationshipLabel &&
                      <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
                   }
-                  {contact.ownerRelationshipLabel && (
+                   {contact.ownerRelationshipLabel && (
                      <>
                         <Separator className="my-3" />
                         <div className="flex items-center gap-2">
@@ -452,7 +454,9 @@ export default function ContactDetailPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+            )}
 
+            {activeTab === "relationships" && (
             <TabsContent value="relationships">
               <Card>
                 <CardHeader>
@@ -480,7 +484,9 @@ export default function ContactDetailPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+            )}
             
+            {activeTab === "photos" && (
             <TabsContent value="photos">
                 <Card>
                     <CardHeader>
@@ -560,7 +566,9 @@ export default function ContactDetailPage() {
                     </CardFooter>
                 </Card>
             </TabsContent>
+            )}
 
+            {activeTab === "notes" && (
             <TabsContent value="notes">
                <Card>
                 <CardHeader>
@@ -610,7 +618,9 @@ export default function ContactDetailPage() {
                 </CardFooter>
                </Card>
             </TabsContent>
+            )}
 
+            {activeTab === "events" && (
             <TabsContent value="events">
               <Card>
                 <CardHeader>
@@ -712,7 +722,7 @@ export default function ContactDetailPage() {
                 </CardFooter>
               </Card>
             </TabsContent>
-
+            )}
           </Tabs>
         </CardContent>
         <CardFooter className="border-t pt-4 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-0">
@@ -723,6 +733,3 @@ export default function ContactDetailPage() {
     </div>
   );
 }
-
-
-
