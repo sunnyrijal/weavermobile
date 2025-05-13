@@ -1,6 +1,7 @@
+
 "use client";
-import React, { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
+import React, { useEffect, useState } from 'react'; // Added useState
+import { useRouter, usePathname } from 'next/navigation'; 
 import { useAuth } from '@/hooks/useAuth';
 import {
   SidebarProvider,
@@ -16,11 +17,12 @@ import {
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/shared/Logo";
 import { UserNav } from "@/components/layout/UserNav";
-import { Home, UsersRound, Share2, UploadCloud, Settings, Bell } from 'lucide-react';
+import { Home, UsersRound, Share2, UploadCloud, Settings, Bell, PlusCircle, Brain } from 'lucide-react'; // Added PlusCircle, Brain
 import { Button } from "@/components/ui/button";
 import { GlobalSearchInput } from '@/components/layout/GlobalSearchInput';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
+import { VoiceMemoryInputModal } from '@/components/memory/VoiceMemoryInputModal'; // Added
 
 const mainNavItemsDefinition = [
   { hrefInitial: "/dashboard", icon: Home, label: "Dashboard", tooltip: "Dashboard" },
@@ -37,6 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth(); 
   const router = useRouter();
   const pathname = usePathname(); 
+  const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false); // Added state for modal
 
   const navItems = mainNavItemsDefinition.map(item => {
     let currentHref = item.hrefInitial;
@@ -44,7 +47,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       const contactPageMatch = pathname.match(/^\/contacts\/([^/]+)(?:\/(edit|notes|events|relationships|photos))?$/);
       if (contactPageMatch && contactPageMatch[1]) {
         const currentContactIdOnScreen = contactPageMatch[1];
-        // The map page will validate if this contactId is mappable.
         currentHref = `/map?contactId=${currentContactIdOnScreen}`;
       }
     }
@@ -66,7 +68,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <Link href={item.href} legacyBehavior passHref>
                   <SidebarMenuButton
                     tooltip={{ children: item.tooltip, side: 'right', className: 'bg-primary text-primary-foreground' }}
-                    isActive={pathname === item.hrefInitial || (item.id === "map-link" && pathname.startsWith("/map"))} // Adjust active state for map link
+                    isActive={pathname === item.hrefInitial || (item.id === "map-link" && pathname.startsWith("/map"))} 
                     className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                   >
                     <item.icon className="shrink-0" />
@@ -134,10 +136,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {currentUser && <UserNav />}
           </div>
         </header>
-        <main className="flex-1 p-2 sm:p-4 md:p-6 bg-secondary/50">
+        <main className="flex-1 p-2 sm:p-4 md:p-6 bg-secondary/50 relative"> {/* Added relative for FAB positioning */}
             {children}
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="default" 
+                    size="icon" 
+                    className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-xl z-50"
+                    onClick={() => setIsMemoryModalOpen(true)}
+                  >
+                    <Brain className="h-7 w-7"/>
+                    <span className="sr-only">Add Memory</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Add New Memory</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
         </main>
       </SidebarInset>
+      <VoiceMemoryInputModal isOpen={isMemoryModalOpen} onOpenChange={setIsMemoryModalOpen} /> {/* Added Modal */}
     </SidebarProvider>
   );
 }

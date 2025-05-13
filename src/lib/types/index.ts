@@ -1,6 +1,8 @@
 import type { Timestamp } from 'firebase/firestore'; // Only for type, mock will use Date
 import type { z } from 'zod';
 import type { contactFormSchema } from '@/components/contacts/ContactForm'; // Assuming ContactForm will export its schema
+import type { ExtractedEntitiesSchema as VoiceExtractedEntitiesSchema } from '@/ai/flows/process-voice-input-flow';
+
 
 export interface UserProfile {
   uid: string;
@@ -84,3 +86,24 @@ export type ContactViewMode = 'list' | 'grid' | 'tree';
 
 // Form specific types
 export type ContactFormValues = z.infer<typeof contactFormSchema>;
+
+
+// For Voice Input and Memory System
+export type ExtractedEntities = z.infer<typeof VoiceExtractedEntitiesSchema>;
+export interface Memory {
+  id: string; // Firestore document ID
+  ownerId: string; // User UID
+  timestamp: Date | Timestamp; // When the memory was recorded in NetworkNest
+  eventDate?: string; // YYYY-MM-DD, date the actual event happened, if specified by NLU or user
+  inputType: 'voice' | 'text';
+  transcript?: string; // Raw transcript if voice input
+  summary: string; // AI-generated or user-written summary
+  entities?: ExtractedEntities; // Parsed entities from NLU
+  linkedContactIds: string[]; // IDs of contacts this memory relates to
+  tags: string[]; // User-defined tags for the memory
+  sentiment?: { // For feature 6.1
+    score: number; // e.g., -1.0 to 1.0
+    label: 'positive' | 'negative' | 'neutral' | 'mixed';
+  };
+  photos?: string[]; // URLs to photos related to this memory (Firebase Storage)
+}
