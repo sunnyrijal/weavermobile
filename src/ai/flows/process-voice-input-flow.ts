@@ -6,13 +6,13 @@
  * - processVoiceInput - A function that takes a voice transcript and returns a summary and extracted entities.
  * - ProcessVoiceInputInput - The input type for the processVoiceInput function.
  * - ProcessVoiceInputOutput - The return type for the processVoiceInput function.
- * - ExtractedEntitiesSchema - The schema for entities extracted from the transcript.
+ * - ExtractedEntities - The type for entities extracted from the transcript.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const ExtractedEntitiesSchema = z.object({
+const ExtractedEntitiesSchema = z.object({
   people: z.array(z.string()).optional().describe("List of names of individuals mentioned. Include full names if available. Example: ['John Doe', 'Mary Smith']"),
   organizations: z.array(z.string()).optional().describe("List of names of companies, schools, or other organizations mentioned. Example: ['Acme Corp', 'State University']"),
   relationships: z.array(z.string()).optional().describe("List of phrases describing relationships. Example: ['John's brother', 'Mary, wife of Peter', 'grandmother on his dad's side']"),
@@ -20,14 +20,15 @@ export const ExtractedEntitiesSchema = z.object({
   locations: z.array(z.string()).optional().describe("List of geographical places, addresses, or significant locations. Example: ['Paris', 'the park', 'Pittman Hall 216']"),
   keyEvents: z.array(z.string()).optional().describe("List of significant happenings, life events, or activities. Example: ['had a daughter', 'went to the game', 'transferred to Mankato', 'met at BNKS']")
 }).describe("Key entities extracted from the memory transcript.");
+export type ExtractedEntities = z.infer<typeof ExtractedEntitiesSchema>;
 
-export const ProcessVoiceInputOutputSchema = z.object({
+const ProcessVoiceInputOutputSchema = z.object({
   summary: z.string().describe("A concise summary of the memory provided in the transcript."),
   extractedEntities: ExtractedEntitiesSchema,
 });
 export type ProcessVoiceInputOutput = z.infer<typeof ProcessVoiceInputOutputSchema>;
 
-export const ProcessVoiceInputInputSchema = z.object({
+const ProcessVoiceInputInputSchema = z.object({
   transcript: z.string().describe("The voice transcript containing the memory."),
 });
 export type ProcessVoiceInputInput = z.infer<typeof ProcessVoiceInputInputSchema>;
