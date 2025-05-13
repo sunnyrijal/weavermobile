@@ -426,7 +426,7 @@ export default function ContactDetailPage() {
                         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                             <span className="font-medium">Primary Category:</span>
                             {contact.category ? (
-                            <Badge variant="secondary">{contact.category}</Badge>
+                            <Badge variant="secondary" className="text-xs sm:text-sm">{contact.category}</Badge>
                             ) : (
                             <span className="text-muted-foreground">N/A</span>
                             )}
@@ -436,7 +436,7 @@ export default function ContactDetailPage() {
                             <span className="font-medium self-center pt-0.5">General Tags:</span>
                             {contact.tags && contact.tags.length > 0 ? (
                             contact.tags.map((tag) => (
-                                <Badge key={tag} variant="outline">{tag}</Badge>
+                                <Badge key={tag} variant="outline" className="text-xs sm:text-sm">{tag}</Badge>
                             ))
                             ) : (
                                 <span className="text-muted-foreground">No general tags.</span>
@@ -453,7 +453,7 @@ export default function ContactDetailPage() {
                         <Separator className="my-2 sm:my-3" />
                         <div className="flex items-center gap-1 sm:gap-2">
                         <span className="font-medium">My Relationship:</span>
-                        <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
+                        <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground text-xs sm:text-sm">
                                 <UserCheck className="mr-1 h-3 w-3 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
                                 {contact.ownerRelationshipLabel}
                             </Badge>
@@ -742,5 +742,6 @@ export default function ContactDetailPage() {
     </div>
   );
 }
+
 
 
