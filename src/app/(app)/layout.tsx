@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
@@ -17,17 +16,17 @@ import {
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/shared/Logo";
 import { UserNav } from "@/components/layout/UserNav";
-import { Home, UsersRound, GitFork, UploadCloud, Settings, FileText, Share2, Bell, MicOff } from 'lucide-react';
+import { Home, UsersRound, Share2, UploadCloud, Settings, Bell } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { GlobalSearchInput } from '@/components/layout/GlobalSearchInput';
 import Link from 'next/link';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip imports
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
 
-const navItems = [
-  { href: "/dashboard", icon: Home, label: "Dashboard", tooltip: "Dashboard" },
-  { href: "/contacts", icon: UsersRound, label: "Contacts", tooltip: "Contacts" },
-  { href: "/map", icon: Share2, label: "Relationship Map", tooltip: "Relationship Map" },
-  { href: "/import", icon: UploadCloud, label: "Import Network", tooltip: "Import Network" },
+const mainNavItemsDefinition = [
+  { hrefInitial: "/dashboard", icon: Home, label: "Dashboard", tooltip: "Dashboard" },
+  { hrefInitial: "/contacts", icon: UsersRound, label: "Contacts", tooltip: "Contacts" },
+  { hrefInitial: "/map", icon: Share2, label: "Relationship Map", tooltip: "Relationship Map", id: "map-link" },
+  { hrefInitial: "/import", icon: UploadCloud, label: "Import Network", tooltip: "Import Network" },
 ];
 
 const bottomNavItems = [
@@ -37,23 +36,37 @@ const bottomNavItems = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth(); 
   const router = useRouter();
-  const pathname = usePathname(); // Get current pathname for active link styling
+  const pathname = usePathname(); 
+
+  const navItems = mainNavItemsDefinition.map(item => {
+    let currentHref = item.hrefInitial;
+    if (item.id === "map-link") {
+      const contactPageMatch = pathname.match(/^\/contacts\/([^/]+)(?:\/(edit|notes|events|relationships|photos))?$/);
+      if (contactPageMatch && contactPageMatch[1]) {
+        const currentContactIdOnScreen = contactPageMatch[1];
+        // The map page will validate if this contactId is mappable.
+        currentHref = `/map?contactId=${currentContactIdOnScreen}`;
+      }
+    }
+    return { ...item, href: currentHref };
+  });
+
 
   return (
-    <SidebarProvider defaultOpen={false}> {/* Changed defaultOpen to false for desktop */}
+    <SidebarProvider defaultOpen={false}> 
       <Sidebar collapsible="icon" className="border-r border-sidebar-border shadow-md">
         <SidebarHeader className="p-4">
           <Logo showText={false} className="group-data-[collapsible=icon]:hidden" />
           <Logo size="sm" showText={false} className="hidden group-data-[collapsible=icon]:flex justify-center w-full" />
         </SidebarHeader>
-        <SidebarContent> {/* This content is primarily for the mobile drawer now, or if desktop sidebar is expanded */}
+        <SidebarContent> 
           <SidebarMenu>
             {navItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
+              <SidebarMenuItem key={item.hrefInitial}>
                 <Link href={item.href} legacyBehavior passHref>
                   <SidebarMenuButton
                     tooltip={{ children: item.tooltip, side: 'right', className: 'bg-primary text-primary-foreground' }}
-                    isActive={pathname === item.href}
+                    isActive={pathname === item.hrefInitial || (item.id === "map-link" && pathname.startsWith("/map"))} // Adjust active state for map link
                     className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                   >
                     <item.icon className="shrink-0" />
@@ -86,17 +99,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <SidebarInset>
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 sm:gap-4 border-b bg-background/80 backdrop-blur-sm px-2 sm:px-6">
-          <SidebarTrigger className="md:hidden" /> {/* Mobile trigger for sidebar */}
+          <SidebarTrigger className="md:hidden" /> 
           
-          {/* Desktop Navigation - items moved here */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
-              <TooltipProvider key={item.href} delayDuration={0}>
+              <TooltipProvider key={item.hrefInitial} delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link href={item.href}>
                       <Button
-                        variant={pathname === item.href ? "secondary" : "ghost"}
+                        variant={(pathname === item.hrefInitial || (item.id === "map-link" && pathname.startsWith("/map"))) ? "secondary" : "ghost"}
                         size="sm"
                         className="font-medium px-2 lg:px-3" 
                       >
@@ -105,7 +117,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       </Button>
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" className="lg:hidden"> {/* Show tooltip only if label is hidden */}
+                  <TooltipContent side="bottom" className="lg:hidden"> 
                     <p>{item.tooltip}</p>
                   </TooltipContent>
                 </Tooltip>
@@ -113,7 +125,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           
-          <div className="ml-auto flex items-center gap-1 sm:gap-2"> {/* Group for items on the right */}
+          <div className="ml-auto flex items-center gap-1 sm:gap-2"> 
             <GlobalSearchInput />
             <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 sm:h-9 sm:w-9">
               <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
@@ -129,4 +141,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-

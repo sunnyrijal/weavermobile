@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Share2, ZoomIn, ZoomOut, Download, Users, Link as LinkIcon, UsersRound, UserSquare2, Group, Heart, Briefcase, PawPrint, Home as HomeIcon, Brain, UserCog, ChevronsLeftRight } from "lucide-react"; 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { mockContacts } from "@/lib/mockData";
 import type { Contact } from "@/lib/types";
@@ -31,14 +30,14 @@ interface GroupLabel {
 
 // Layout Constants
 const CARD_WIDTH = 160; 
-const CARD_HEIGHT = 200; 
+const CARD_HEIGHT = 65; // Reduced height
 const LABEL_WIDTH = 120;
 const LABEL_HEIGHT = 30;
 
 const Y_OFFSET_TOP = 50;
 const V_SPACE_LABEL_CARD = 20;
-const V_SPACE_CARD = 40; 
-const V_SPACE_BETWEEN_ROWS = 80; 
+const V_SPACE_CARD = 30; // Reduced vertical space between cards in the same group
+const V_SPACE_BETWEEN_ROWS = 70; // Reduced vertical space between rows
 
 const COL1_X = 280; 
 const COL2_X = 600; 
@@ -82,7 +81,6 @@ const getBadgeText = (
   centralContact?: Contact
 ): string => {
   if (centralContact && nodeContact.id === centralContact.id) {
-    // For central contact, show category or a primary tag/role
     if (nodeContact.category === 'Pet') return getPetTypeFromTags(nodeContact.tags);
 
     const selfFamilyRolePriority = [ 
@@ -97,15 +95,13 @@ const getBadgeText = (
         }
       }
     }
-    // Prioritize category, then occupation only if category is generic or missing
     if (nodeContact.category && nodeContact.category !== "Other" && nodeContact.category !== "N/A" && nodeContact.category !== "Friend" && nodeContact.category !== "Colleague") {
         return nodeContact.category;
     }
-    // If category is Friend or Colleague (often generic for central node), prefer occupation if available.
     if ((nodeContact.category === "Friend" || nodeContact.category === "Colleague") && nodeContact.occupation) {
         return nodeContact.occupation;
     }
-    return nodeContact.category || nodeContact.occupation || "N/A"; 
+    return nodeContact.occupation || nodeContact.category || "N/A"; 
   }
 
   if (centralContact) {
@@ -131,7 +127,7 @@ const getBadgeText = (
       }
     }
   }
-  return nodeContact.category || "N/A";
+  return nodeContact.category || nodeContact.occupation || "N/A";
 };
 
 
@@ -144,78 +140,40 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
     }
     return name.substring(0, 2).toUpperCase();
   };
-
-  const getCategoryBadgeVariant = (categoryOrRole?: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (categoryOrRole?.toLowerCase()) {
-      case 'family': case 'mother': case 'father': case 'parent': 
-      case 'sister': case 'brother': case 'sibling':
-      case 'son': case 'daughter': case 'child':
-      case 'grandmother': case 'grandfather': case 'grandparent':
-      case 'aunt': case 'uncle': case 'uncle by marriage':
-      case 'nephew': case 'niece':
-      case 'cousin':
-      case 'host mom': case 'host father': case 'host parent':
-        return 'default'; 
-      case 'partner': case 'girlfriend': case 'boyfriend': case 'spouse': case 'husband': case 'wife':
-        return 'destructive'; 
-      case 'friend': return 'secondary'; 
-      case 'pet': case 'dog': case 'cat':
-        return 'outline'; 
-      case 'colleague': case 'professional': case 'research assistant': 
-        return 'secondary';
-      default: return 'outline';
-    }
-  };
   
-  const getCategoryBadgeStyle = (categoryOrRole?: string): React.CSSProperties => {
-     switch (categoryOrRole?.toLowerCase()) {
-      case 'family': case 'mother': case 'father': case 'parent':
-      case 'sister': case 'brother': case 'sibling':
-      case 'son': case 'daughter': case 'child':
-      case 'grandmother': case 'grandfather': case 'grandparent':
-      case 'aunt': case 'uncle': case 'uncle by marriage':
-      case 'nephew': case 'niece':
-      case 'cousin':
-      case 'host mom': case 'host father': case 'host parent':
-         return { backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', borderColor: 'hsl(var(--primary))' };
-      case 'partner': case 'girlfriend': case 'boyfriend': case 'spouse': case 'husband': case 'wife':
-        return { backgroundColor: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))', borderColor: 'hsl(var(--destructive))' };
-      case 'friend': return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))' };
-      case 'pet': case 'dog': case 'cat':
-        return { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))', borderColor: 'hsl(var(--accent))' }; 
-      case 'colleague': case 'professional': case 'research assistant': 
-        return { backgroundColor: 'hsl(var(--secondary))', color: 'hsl(var(--secondary-foreground))', borderColor: 'hsl(var(--secondary))'};
-      default: return {};
-    }
-  }
-
   const badgeText = getBadgeText(contact, centralContactForMap);
   const displayName = contact.name.replace(/\s*\((Dog|Cat|Pet)\)\s*/i, '').trim();
 
-
   return (
-    <div className="bg-card text-card-foreground rounded-lg shadow-xl p-3 flex flex-col items-center justify-between border border-border" style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
-      <Avatar className="w-14 h-14 mb-1 border-2 border-muted"> 
-        <AvatarImage src={contact.photoURL} alt={displayName} data-ai-hint="profile avatar"/>
-        <AvatarFallback className="bg-muted text-xl">{getInitials(displayName)}</AvatarFallback>
-      </Avatar>
-      <p className="font-semibold text-sm text-center truncate w-full leading-tight" title={displayName}>{displayName}</p> 
+    <div 
+      className="bg-card text-card-foreground rounded-lg shadow-lg p-2 flex flex-col items-center justify-between border border-border overflow-hidden" 
+      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+    >
+      <p 
+        className="font-semibold text-xs text-center truncate w-full leading-tight pt-1" 
+        title={displayName}
+      >
+        {displayName}
+      </p> 
       {badgeText && (
         <Badge 
-            variant={getCategoryBadgeVariant(badgeText)} 
-            style={getCategoryBadgeStyle(badgeText)}
-            className="mt-1 text-xs truncate max-w-[calc(100%-1rem)]" 
+            variant="outline" // Using outline for consistency, color handled by style
+            style={{ backgroundColor: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))', borderColor: 'hsl(var(--border))' }} // Neutral badge for role
+            className="mt-0.5 text-[10px] truncate max-w-[calc(100%-0.5rem)] px-1.5 py-0.5" 
         >
             {badgeText}
         </Badge>
       )}
-      <p className="text-xs text-muted-foreground mt-1 text-center w-full truncate leading-tight" title={contact.occupation || contact.college || contact.currentLocation || 'N/A'}> 
+      <p 
+        className="text-[10px] text-muted-foreground mt-0.5 text-center w-full truncate leading-tight" 
+        title={contact.occupation || contact.college || contact.currentLocation || 'N/A'}
+      > 
         {contact.occupation || contact.college || contact.currentLocation || 'N/A'}
       </p>
       <Button 
         size="sm" 
-        variant="outline" 
-        className="mt-1.5 w-full text-xs h-7" 
+        variant="ghost" 
+        className="mt-0.5 w-full text-[10px] h-6 py-0.5" 
         onClick={() => onButtonClick(contact.id)}
       >
         View Profile
@@ -274,7 +232,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
         { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
       ];
-      nodes.push(...samNodesRaw.filter(node => node.contact).map(n => n as Node));
+      nodes.push(...samNodesRaw.filter(node => node.contact).map(n => ({ ...n, contact: n.contact } as Node)));
     } else { 
         const organizedGroups: { [key: string]: { display: string, keyForMatching: string, colX: number, labelY: number, cardY: number, contacts: Contact[] } } = {
             "Parents": { display: "Parents", keyForMatching: "Parent", colX: COL2_X, labelY: Y_ROW1_LABEL_CY, cardY: Y_ROW1_CARD_Y, contacts: [] },
@@ -318,15 +276,13 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
                 });
                 groupData.contacts.forEach((contact, idx) => {
                     let cardX = groupData.colX - CARD_WIDTH / 2;
-                    if (groupData.contacts.length > 1) {
+                    if (groupData.contacts.length > 1 && groupData.keyForMatching === "Parent") { // Special handling for paired parents
+                         if (idx === 0) cardX = groupData.colX - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS / 2;
+                         else cardX = groupData.colX + H_SPACING_BETWEEN_PAIRED_CARDS / 2;
+                    } else if (groupData.contacts.length > 1) { // General horizontal stacking for other groups if multiple
                         const totalWidthOfGroup = (groupData.contacts.length * CARD_WIDTH) + ((groupData.contacts.length - 1) * H_SPACING_BETWEEN_PAIRED_CARDS);
                         const startXForGroup = groupData.colX - totalWidthOfGroup / 2;
                         cardX = startXForGroup + (idx * (CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS));
-                    }
-                     
-                    if ((groupData.keyForMatching === "Parent" || (groupData.display && groupData.display.toLowerCase() === "parents")) && groupData.contacts.length === 2) {
-                        if (idx === 0) cardX = groupData.colX - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS / 2;
-                        else cardX = groupData.colX + H_SPACING_BETWEEN_PAIRED_CARDS / 2;
                     }
                     nodes.push({ id: contact.id, contact, x: cardX, y: groupData.cardY });
                 });
@@ -339,7 +295,6 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 
         otherRelationshipTypes.forEach((groupData, typeKey) => {
             const currentCx = otherCols[otherColIdx % otherCols.length];
-            // Use groupData.display (which is rel.customLabel || rel.type) for originalText for specific matching
             groupLabels.push({ text: groupData.display, originalText: groupData.display, cx: currentCx, cy: otherY - V_SPACE_LABEL_CARD - LABEL_HEIGHT/2 });
             groupData.contacts.forEach((contact, idx) => {
                  let cardX = currentCx - CARD_WIDTH / 2;
@@ -351,13 +306,13 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
                 nodes.push({ id: contact.id, contact, x: cardX, y: otherY });
             });
             otherColIdx++;
-            if (otherColIdx % otherCols.length === 0 || groupData.contacts.length > 2) {
-                 otherY += (Math.ceil(groupData.contacts.length / 2)) * (CARD_HEIGHT + V_SPACE_CARD) + V_SPACE_BETWEEN_ROWS;
+            if (otherColIdx % otherCols.length === 0 || groupData.contacts.length > 2) { // Adjust Y for next row of 'other' groups
+                 otherY += (Math.ceil(groupData.contacts.length / Math.min(groupData.contacts.length,2))) * (CARD_HEIGHT + V_SPACE_CARD) + V_SPACE_BETWEEN_ROWS;
             }
         });
     }
     return { nodes, groupLabels };
-  }, [centralContactId, centralContact]);
+  }, [centralContact]);
 
 
   const [currentNodes, setCurrentNodes] = useState<Node[]>(initialNodes);
@@ -498,15 +453,13 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         let groupKeyForNode = relationship?.customLabel || relationship?.type;
         
         if (node.contact.category === "Pet" && !groupKeyForNode) {
-            groupKeyForNode = "Pet"; // Default group key for pets if not specified in relationship
+            groupKeyForNode = "Pet"; 
         }
 
         const parentGroupLabelForNode = currentGroupLabels.find(gl => {
             if (!groupKeyForNode || !gl.originalText) return false;
-            // Prioritize direct match of label's originalText with node's specific groupKey
             if (gl.originalText.toLowerCase() === groupKeyForNode.toLowerCase()) return true;
             
-            // Fallback for primary categories like Parent, Sibling, Pet if originalText matches the generic type
             const genericTypeMatch = relationship?.type && gl.originalText.toLowerCase() === relationship.type.toLowerCase();
             if (genericTypeMatch && (gl.originalText === "Parent" || gl.originalText === "Sibling" || gl.originalText === "Pet")) return true;
             
@@ -527,7 +480,6 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
               />
           );
         } else { 
-            // Draw direct line from central node if no group label found (should be rare with Pet default)
             return (
                  <line
                     key={`line-direct-central-to-${node.id}`}
@@ -585,7 +537,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
                         draggingNode === node.id ? "scale-105 shadow-2xl z-10" : "z-0" 
                     )}
                 >
-                    <div xmlns="http://www.w3.org/1999/xhtml" className="w-full h-full p-1"> 
+                    <div xmlns="http://www.w3.org/1999/xhtml" className="w-full h-full p-0.5"> 
                         <RelationshipMapCard contact={node.contact} onButtonClick={handleViewProfileClick} centralContactForMap={centralContact}/>
                     </div>
                 </foreignObject>
@@ -605,38 +557,69 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 
 
 export default function RelationshipMapPage() {
-  const [scale, setScale] = useState(1);
-  const [viewBoxOrigin, setViewBoxOrigin] = useState({ x: 0, y: 0 });
-  const ZOOM_FACTOR = 1.2;
-  const [selectedCentralContactId, setSelectedCentralContactId] = useState<string>('4'); 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
 
   const mapContacts = useMemo(() => {
     return [
-        mockContacts.find(c => c.id === '4'), 
-        mockContacts.find(c => c.id === '1'), 
-        mockContacts.find(c => c.id === '3'), 
-        mockContacts.find(c => c.id === 'ck_host'),
+        mockContacts.find(c => c.id === '4'), // Sam
+        mockContacts.find(c => c.id === '1'), // Chandra
+        mockContacts.find(c => c.id === '3'), // Abhas
+        mockContacts.find(c => c.id === 'ck_host'), // Curt
     ].filter(Boolean) as Contact[];
   }, []);
+
+  const defaultMapContactId = useMemo(() => {
+    return mapContacts.length > 0 ? mapContacts[0].id : '4'; // Default to Sam or first in list
+  }, [mapContacts]);
+
+  const [selectedCentralContactId, setSelectedCentralContactId] = useState<string>(() => {
+    const contactIdFromQuery = searchParams.get('contactId');
+    if (contactIdFromQuery && mapContacts.some(c => c.id === contactIdFromQuery)) {
+      return contactIdFromQuery;
+    }
+    return defaultMapContactId;
+  });
+  
+  useEffect(() => {
+    const contactIdFromQuery = searchParams.get('contactId');
+    if (contactIdFromQuery && mapContacts.some(c => c.id === contactIdFromQuery)) {
+        if (selectedCentralContactId !== contactIdFromQuery) {
+            setSelectedCentralContactId(contactIdFromQuery);
+        }
+    } else if (!contactIdFromQuery && selectedCentralContactId !== defaultMapContactId ) {
+        // If query param removed and current is not the overall default, revert to overall default.
+        // Or, simply let the current selection persist if query is removed.
+        // For now, if a contactId was in query and is removed, revert to defaultMapContactId.
+        // If user just selected from dropdown, that persists until query changes again.
+         if (searchParams.has('contactId') === false) { // only revert if contactId is truly gone from URL
+            // setSelectedCentralContactId(defaultMapContactId); // This could be too aggressive.
+         }
+    }
+  }, [searchParams, mapContacts, defaultMapContactId, selectedCentralContactId]);
+
+
+  const [scale, setScale] = useState(1);
+  const [viewBoxOrigin, setViewBoxOrigin] = useState({ x: 0, y: 0 });
+  const ZOOM_FACTOR = 1.2;
 
   const initialViewBoxDimensions = useMemo(() => {
     let maxX = 0;
     let maxY = 0;
-
-    if (selectedCentralContactId === '4') { 
-      maxX = Math.max(
-        COL1_X, COL2_X, COL3_X,
-        (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS + CARD_WIDTH 
-      );
-       maxY = Y_ROW3_CARD_Y_VAL + CARD_HEIGHT; 
-    } else { 
-      maxX = COL3_X + CARD_WIDTH * 1.5; // General case, allow for wider spread if many 'other' groups
-      maxY = Y_SAM_Y + 3 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS + LABEL_HEIGHT + V_SPACE_LABEL_CARD); // Allow more vertical space
+    
+    // Simplified calculation, can be refined based on actual node positions of the selected contact
+    if (selectedCentralContactId === '4' || selectedCentralContactId === 'ck_host') { // More complex maps
+      maxX = Math.max( COL3_X, (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS + CARD_WIDTH );
+      maxY = Y_ROW3_CARD_Y_VAL + CARD_HEIGHT; 
+    } else { // Simpler maps (Chandra, Abhas)
+      maxX = COL3_X + CARD_WIDTH * 1.5; 
+      maxY = Y_SAM_Y + 2 * (CARD_HEIGHT + V_SPACE_BETWEEN_ROWS + LABEL_HEIGHT + V_SPACE_LABEL_CARD); 
     }
     
     const width = maxX + SVG_PADDING_HORIZONTAL * 2; 
     const height = maxY + SVG_PADDING_VERTICAL * 2; 
-    return { width: Math.max(1200, width), height: Math.max(1100, height) }; 
+    return { width: Math.max(1200, width), height: Math.max(900, height) }; // Min dimensions
   }, [selectedCentralContactId]);
 
   const currentViewBoxString = useMemo(() => {
@@ -683,6 +666,9 @@ export default function RelationshipMapPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      toast({title: "SVG Downloaded", description: "Map saved as SVG file."})
+    } else {
+      toast({title: "Download Failed", description: "Could not find SVG element.", variant: "destructive"})
     }
   };
   
@@ -690,38 +676,47 @@ export default function RelationshipMapPage() {
     return mockContacts.find(c => c.id === selectedCentralContactId)?.name || "Selected Contact";
   }, [selectedCentralContactId]);
 
+  const handleSelectChange = (value: string) => {
+    setSelectedCentralContactId(value);
+    // Update URL without full page reload for better UX and shareability
+    router.push(`/map?contactId=${value}`, { scroll: false });
+    setViewBoxOrigin({x:0, y:0}); // Reset pan/zoom for new contact
+    setScale(1);
+  };
+
+
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-2 sm:space-y-4 md:space-y-6 h-full flex flex-col p-1 sm:p-0">
       <Card className="shadow-md bg-card flex-shrink-0">
-        <CardHeader>
+        <CardHeader className="p-3 sm:p-4 md:p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <div>
-              <CardTitle className="text-2xl flex items-center gap-2 text-foreground">
-                <Brain className="text-primary" /> Interactive Relationship Map
+              <CardTitle className="text-lg sm:text-xl md:text-2xl flex items-center gap-2 text-foreground">
+                <Brain className="text-primary h-5 w-5 sm:h-6 sm:w-6" /> Interactive Relationship Map
               </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Visualize and explore connections for: <span className="font-semibold text-primary">{centralContactName}</span>
+              <CardDescription className="text-xs sm:text-sm text-muted-foreground">
+                Visualizing connections for: <span className="font-semibold text-primary">{centralContactName}</span>
               </CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0 items-start sm:items-center">
-                <Select value={selectedCentralContactId} onValueChange={(value) => { setSelectedCentralContactId(value); setViewBoxOrigin({x:0, y:0}); setScale(1); } }>
-                    <SelectTrigger className="w-full sm:w-[200px]">
+            <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0 items-stretch sm:items-center w-full sm:w-auto">
+                <Select value={selectedCentralContactId} onValueChange={handleSelectChange}>
+                    <SelectTrigger className="w-full sm:w-[180px] md:w-[200px] h-9 sm:h-10 text-xs sm:text-sm">
                         <SelectValue placeholder="Select Central Contact" />
                     </SelectTrigger>
                     <SelectContent>
                         {mapContacts.map(contact => (
-                            <SelectItem key={contact.id} value={contact.id}>
+                            <SelectItem key={contact.id} value={contact.id} className="text-xs sm:text-sm">
                                <div className="flex items-center gap-2">
-                                 <UserCog className="h-4 w-4 text-muted-foreground"/> {contact.name}
+                                 <UserCog className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground"/> {contact.name}
                                </div>
                             </SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="icon" title="Zoom In" onClick={() => handleZoom('in')}><ZoomIn className="h-4 w-4"/></Button>
-                    <Button variant="outline" size="icon" title="Zoom Out" onClick={() => handleZoom('out')}><ZoomOut className="h-4 w-4"/></Button>
-                    <Button variant="outline" size="icon" title="Download SVG" onClick={handleDownloadSVG}><Download className="h-4 w-4"/></Button>
+                <div className="flex gap-1 sm:gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                    <Button variant="outline" size="icon" title="Zoom In" onClick={() => handleZoom('in')} className="h-9 w-9 sm:h-10 sm:w-10"><ZoomIn className="h-4 w-4 sm:h-5 sm:w-5"/></Button>
+                    <Button variant="outline" size="icon" title="Zoom Out" onClick={() => handleZoom('out')} className="h-9 w-9 sm:h-10 sm:w-10"><ZoomOut className="h-4 w-4 sm:h-5 sm:w-5"/></Button>
+                    <Button variant="outline" size="icon" title="Download SVG" onClick={handleDownloadSVG} className="h-9 w-9 sm:h-10 sm:w-10"><Download className="h-4 w-4 sm:h-5 sm:w-5"/></Button>
                 </div>
             </div>
           </div>
@@ -729,11 +724,11 @@ export default function RelationshipMapPage() {
       </Card>
       
       <div className="flex-grow shadow-md overflow-hidden bg-card rounded-lg border border-border">
-          <CardContent className="p-0 sm:p-4 h-full"> 
-              <p className="text-xs text-muted-foreground mb-2 text-center sm:text-left px-4 pt-2 sm:px-0 sm:pt-0">
-                Hover over cards for quick info. Drag cards to reposition. Drag background to pan. Lines indicate connections.
+          <CardContent className="p-1 sm:p-2 md:p-4 h-full"> 
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-2 text-center sm:text-left px-1 sm:px-0">
+                Hover for info. Drag cards to move. Drag background to pan.
               </p>
-              <div className="h-[calc(100%-25px)] w-full"> 
+              <div className="h-[calc(100%-20px)] sm:h-[calc(100%-25px)] w-full"> 
                   <RelationshipMapPlaceholder 
                     centralContactId={selectedCentralContactId}
                     viewBox={currentViewBoxString} 
@@ -746,32 +741,31 @@ export default function RelationshipMapPage() {
       </div>
 
       <Card className="shadow-md bg-card flex-shrink-0">
-        <CardHeader>
-            <CardTitle className="text-lg text-foreground">Map Legend & Interactions</CardTitle>
+        <CardHeader className="p-3 sm:p-4 md:p-6">
+            <CardTitle className="text-base sm:text-lg text-foreground">Map Legend & Interactions</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-4 text-sm">
-            <div className="space-y-2">
+        <CardContent className="flex flex-col md:flex-row gap-3 sm:gap-4 text-xs sm:text-sm p-3 sm:p-4 md:p-6 pt-0">
+            <div className="space-y-1 sm:space-y-2">
                 <p className="font-medium mb-1 text-foreground">Node Types:</p>
                 <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-md bg-card border border-border flex items-center justify-center p-1 shadow-sm">
-                        <UserSquare2 className="w-6 h-6 text-primary"/>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md bg-card border border-border flex items-center justify-center p-1 shadow-sm">
+                        <UserSquare2 className="w-4 h-4 sm:w-6 sm:w-6 text-primary"/>
                     </div> 
                     <span className="text-muted-foreground">Contact Card</span>
                 </div>
-                 <div className="flex items-center gap-2 mt-2">
-                    <div className="px-3 py-1 rounded-md bg-accent text-accent-foreground text-xs font-semibold shadow-sm">Group Label</div>
-                    <span className="text-muted-foreground">Relationship Group (e.g., Parents, Pets)</span>
+                 <div className="flex items-center gap-2 mt-1 sm:mt-2">
+                    <div className="px-2 sm:px-3 py-1 rounded-md bg-accent text-accent-foreground text-[10px] sm:text-xs font-semibold shadow-sm">Group Label</div>
+                    <span className="text-muted-foreground">Relationship Group</span>
                 </div>
             </div>
-            <div className="md:ml-auto space-y-2">
+            <div className="md:ml-auto space-y-1 sm:space-y-2">
                 <p className="font-medium mb-1 text-foreground">Interactions:</p>
-                <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                    <li>Drag cards to reposition them on the map.</li>
-                    <li>Drag the background to pan the map view.</li>
-                    <li>Hover over a contact card for quick information.</li>
-                    <li>Click "View Profile" on a card to navigate to the contact's detail page.</li>
-                    <li>Lines connect the central node to group labels, and group labels to individuals.</li>
-                    <li>Use Zoom In/Out buttons to adjust map scale.</li>
+                <ul className="list-disc list-inside text-muted-foreground space-y-0.5 sm:space-y-1">
+                    <li>Drag cards to reposition.</li>
+                    <li>Drag background to pan map.</li>
+                    <li>Hover on cards for quick info.</li>
+                    <li>Click "View Profile" for details.</li>
+                    <li>Use Zoom & Download buttons.</li>
                 </ul>
             </div>
         </CardContent>
@@ -779,5 +773,3 @@ export default function RelationshipMapPage() {
     </div>
   );
 }
-
-
