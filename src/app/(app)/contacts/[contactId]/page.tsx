@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { mockContacts } from "@/lib/mockData";
@@ -60,6 +60,7 @@ export default function ContactDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const contactId = params.contactId as string;
+  const searchParams = useSearchParams();
 
   const [contact, setContact] = useState<Contact | undefined | null>(undefined);
   const [notesInput, setNotesInput] = useState('');
@@ -90,7 +91,13 @@ export default function ContactDetailPage() {
     if (foundContact) {
       setNotesInput(foundContact.notes || "");
     }
-  }, [contactId]);
+    const tabFromQuery = searchParams.get('tab');
+    if (tabFromQuery) {
+      setActiveTab(tabFromQuery);
+    } else {
+      setActiveTab("overview"); 
+    }
+  }, [contactId, searchParams]);
 
 
   const handleSaveNotes = async () => {
@@ -246,7 +253,7 @@ export default function ContactDetailPage() {
   
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6 p-2 sm:p-0">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -259,7 +266,7 @@ export default function ContactDetailPage() {
       </div>
 
       <Card className="shadow-xl overflow-hidden">
-        <div className="relative h-48 bg-muted">
+        <div className="relative h-32 sm:h-48 bg-muted">
           <Image 
             src={contact.photoURL || `https://picsum.photos/seed/${contact.id}_cover/1000/200`} 
             alt={`${contact.name} cover photo`} 
@@ -269,17 +276,17 @@ export default function ContactDetailPage() {
             className="opacity-50"
             priority={true} 
           />
-          <div className="absolute bottom-0 left-0 w-full sm:w-auto p-4 sm:p-6 flex flex-col items-center text-center sm:flex-row sm:items-end sm:space-x-4 sm:text-left">
+          <div className="absolute bottom-0 left-0 w-full sm:w-auto p-2 sm:p-4 md:p-6 flex flex-col items-center text-center sm:flex-row sm:items-end sm:space-x-4 sm:text-left">
             <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
               <DialogTrigger asChild>
-                <div className="mb-2 sm:mb-0">
-                    <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
+                <div className="mb-1 sm:mb-0">
+                    <Avatar className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 border-2 sm:border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
                     <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" className="object-cover"/>
-                    <AvatarFallback className="text-3xl sm:text-4xl">{getInitials(contact.name)}</AvatarFallback>
+                    <AvatarFallback className="text-2xl sm:text-3xl md:text-4xl">{getInitials(contact.name)}</AvatarFallback>
                     </Avatar>
                 </div>
               </DialogTrigger>
-              <DialogContent className="max-w-md p-0">
+              <DialogContent className="max-w-xs sm:max-w-md p-0">
                  <DialogHeader className="p-4 border-b">
                     <DialogTitle>{contact.name}'s Profile Photo</DialogTitle>
                   </DialogHeader>
@@ -294,7 +301,7 @@ export default function ContactDetailPage() {
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-64 bg-muted">
+                  <div className="flex items-center justify-center h-48 sm:h-64 bg-muted">
                     <p className="text-muted-foreground">No profile photo available.</p>
                   </div>
                 )}
@@ -315,9 +322,9 @@ export default function ContactDetailPage() {
               </DialogContent>
             </Dialog>
             <div>
-              <CardTitle className="text-2xl sm:text-3xl font-bold text-card-foreground drop-shadow-sm">{contact.name}</CardTitle>
+              <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-card-foreground drop-shadow-sm">{contact.name}</CardTitle>
               {contact.occupation && (
-                <CardDescription className="text-lg text-muted-foreground drop-shadow-sm">
+                <CardDescription className="text-base sm:text-lg text-muted-foreground drop-shadow-sm">
                   {contact.occupation} {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && `at ${contact.company}`}
                 </CardDescription>
               )}
@@ -325,7 +332,7 @@ export default function ContactDetailPage() {
           </div>
         </div>
         
-        <CardContent className="pt-28 sm:pt-20"> {/* Adjusted pt for stacked avatar */}
+        <CardContent className="pt-24 sm:pt-28 md:pt-20"> {/* Adjusted pt for stacked avatar */}
            <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="overview">
             <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -336,40 +343,40 @@ export default function ContactDetailPage() {
             </TabsList>
 
             {activeTab === "overview" && (
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
+            <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+              <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Contact Information</CardTitle>
+                    <CardTitle className="text-md sm:text-lg">Contact Information</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
+                  <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                     {contact.email && (
                       <div className="flex items-center">
-                        <Mail className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <Mail className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <a href={`mailto:${contact.email}`} className="text-primary hover:underline break-all">{contact.email}</a>
                       </div>
                     )}
                     {contact.phone && (
                       <div className="flex items-center">
-                        <Phone className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <Phone className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <span>{contact.phone}</span>
                       </div>
                     )}
                     {contact.hometown && (
                        <div className="flex items-center">
-                        <Home className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <Home className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <span>From: {contact.hometown}</span>
                       </div>
                     )}
                     {contact.currentLocation && (
                        <div className="flex items-center">
-                        <MapPin className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <MapPin className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <span>Lives in: {contact.currentLocation}</span>
                       </div>
                     )}
                      {contact.birthday && (
                        <div className="flex items-center">
-                        <CalendarDays className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                          <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
                       </div>
                     )}
@@ -377,30 +384,30 @@ export default function ContactDetailPage() {
                 </Card>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Professional &amp; Education</CardTitle>
+                    <CardTitle className="text-md sm:text-lg">Professional &amp; Education</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
+                  <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                     {contact.occupation && (
                       <div className="flex items-center">
-                        <Briefcase className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <Briefcase className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <span>{contact.occupation}</span>
                       </div>
                     )}
                     {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && (
                       <div className="flex items-center">
-                        <Building className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <Building className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <span>{contact.company}</span>
                       </div>
                     )}
                     {contact.college && (
                       <div className="flex items-center">
-                        <University className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <span>{contact.college}</span>
                       </div>
                     )}
                     {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
                       <div key={platform} className="flex items-center">
-                        <Link2 className="mr-3 h-5 w-5 text-muted-foreground" />
+                        <Link2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                         <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline capitalize break-all">
                           {platform}
                         </a>
@@ -412,42 +419,42 @@ export default function ContactDetailPage() {
               
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center"><Tags className="mr-2 h-5 w-5 text-primary"/> Tags &amp; Categories</CardTitle>
+                  <CardTitle className="text-md sm:text-lg flex items-center"><Tags className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Tags &amp; Categories</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium">Primary Category:</span>
+                <CardContent className="space-y-2 text-xs sm:text-sm">
+                    <div className="space-y-1 sm:space-y-2">
+                        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                            <span className="font-medium">Primary Category:</span>
                             {contact.category ? (
                             <Badge variant="secondary">{contact.category}</Badge>
                             ) : (
-                            <span className="text-sm text-muted-foreground">N/A</span>
+                            <span className="text-muted-foreground">N/A</span>
                             )}
                         </div>
                         
-                        <div className="flex flex-wrap gap-2 items-start">
-                            <span className="text-sm font-medium self-center pt-0.5">General Tags:</span>
+                        <div className="flex flex-wrap gap-1 sm:gap-2 items-start">
+                            <span className="font-medium self-center pt-0.5">General Tags:</span>
                             {contact.tags && contact.tags.length > 0 ? (
                             contact.tags.map((tag) => (
                                 <Badge key={tag} variant="outline">{tag}</Badge>
                             ))
                             ) : (
-                                <span className="text-sm text-muted-foreground">No general tags.</span>
+                                <span className="text-muted-foreground">No general tags.</span>
                             )}
                         </div>
                     </div>
                  
                   {(!contact.category && (!contact.tags || contact.tags.length === 0)) && 
                     !contact.ownerRelationshipLabel &&
-                     <p className="text-sm text-muted-foreground">No tags or categories defined.</p>
+                     <p className="text-muted-foreground">No tags or categories defined.</p>
                   }
                    {contact.ownerRelationshipLabel && (
                      <>
-                        <Separator className="my-3" />
-                        <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">My Relationship:</span>
+                        <Separator className="my-2 sm:my-3" />
+                        <div className="flex items-center gap-1 sm:gap-2">
+                        <span className="font-medium">My Relationship:</span>
                         <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground">
-                                <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+                                <UserCheck className="mr-1 h-3 w-3 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
                                 {contact.ownerRelationshipLabel}
                             </Badge>
                         </div>
@@ -462,26 +469,26 @@ export default function ContactDetailPage() {
             <TabsContent value="relationships">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Relationships</CardTitle>
-                  <CardDescription>How {contact.name} is connected to others in your network.</CardDescription>
+                  <CardTitle className="text-md sm:text-lg flex items-center"><Users className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Relationships</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">How {contact.name} is connected to others in your network.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {contact.relationships && contact.relationships.length > 0 ? (
-                    <ul className="space-y-3">
+                    <ul className="space-y-2 sm:space-y-3">
                       {contact.relationships.map((rel, index) => (
-                        <li key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg hover:bg-muted/50 gap-2 sm:gap-0">
-                          <div>
+                        <li key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted/50 gap-1 sm:gap-0">
+                          <div className="text-xs sm:text-sm">
                             <p className="font-medium">{getRelatedContactName(rel.relatedContactId)}</p>
-                            <p className="text-sm text-muted-foreground">{rel.customLabel || rel.type}</p>
+                            <p className="text-muted-foreground">{rel.customLabel || rel.type}</p>
                           </div>
-                           <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto">
+                           <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto text-xs sm:text-sm h-7 sm:h-8">
                             <Link href={`/contacts/${rel.relatedContactId}`}>View Contact</Link>
                           </Button>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-muted-foreground">No relationships defined for {contact.name}.</p>
+                    <p className="text-muted-foreground text-xs sm:text-sm">No relationships defined for {contact.name}.</p>
                   )}
                 </CardContent>
               </Card>
@@ -492,12 +499,12 @@ export default function ContactDetailPage() {
             <TabsContent value="photos">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg flex items-center"><Camera className="mr-2 h-5 w-5 text-primary"/> Photos Together</CardTitle>
-                        <CardDescription>Visual memories with {contact.name}.</CardDescription>
+                        <CardTitle className="text-md sm:text-lg flex items-center"><Camera className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Photos Together</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">Visual memories with {contact.name}.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {contact.photosTogether && contact.photosTogether.length > 0 ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                                 {contact.photosTogether.map((photoUrl, index) => (
                                   <Dialog key={index}>
                                     <DialogTrigger asChild>
@@ -512,7 +519,7 @@ export default function ContactDetailPage() {
                                           />
                                       </div>
                                     </DialogTrigger>
-                                    <DialogContent className="max-w-xl p-0">
+                                    <DialogContent className="max-w-sm sm:max-w-xl p-0">
                                        <DialogHeader className="p-4 border-b">
                                           <DialogTitle>Photo with {contact.name}</DialogTitle>
                                         </DialogHeader>
@@ -530,13 +537,13 @@ export default function ContactDetailPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-muted-foreground">No photos together have been added yet.</p>
+                            <p className="text-muted-foreground text-xs sm:text-sm">No photos together have been added yet.</p>
                         )}
                     </CardContent>
                      <CardFooter>
                         <Dialog open={isPhotosTogetherDialogOpen} onOpenChange={setIsPhotosTogetherDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="w-full sm:w-auto"><UploadCloud className="mr-2 h-4 w-4" /> Add Photo</Button>
+                                <Button variant="outline" className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9"><UploadCloud className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Add Photo</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                                 <DialogHeader>
@@ -553,13 +560,13 @@ export default function ContactDetailPage() {
                                         style={{ display: 'none' }}
                                         accept="image/*"
                                     />
-                                    <Button onClick={handlePhotosTogetherUploadClick} disabled={isUploadingPhotosTogether} className="w-full">
-                                        {isUploadingPhotosTogether ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                                    <Button onClick={handlePhotosTogetherUploadClick} disabled={isUploadingPhotosTogether} className="w-full text-xs sm:text-sm h-8 sm:h-9">
+                                        {isUploadingPhotosTogether ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />}
                                         {isUploadingPhotosTogether ? "Uploading..." : "Select Photo from Device"}
                                     </Button>
                                 </div>
                                 <DialogFooter className="flex-col sm:flex-row gap-2">
-                                    <Button variant="outline" onClick={() => setIsPhotosTogetherDialogOpen(false)} disabled={isUploadingPhotosTogether} className="w-full sm:w-auto">
+                                    <Button variant="outline" onClick={() => setIsPhotosTogetherDialogOpen(false)} disabled={isUploadingPhotosTogether} className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">
                                         Cancel
                                     </Button>
                                 </DialogFooter>
@@ -574,20 +581,20 @@ export default function ContactDetailPage() {
             <TabsContent value="notes">
                <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary"/> Notes</CardTitle>
-                    <CardDescription>Personal notes and reminders about {contact.name}.</CardDescription>
+                    <CardTitle className="text-md sm:text-lg flex items-center"><MessageSquare className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Notes</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Personal notes and reminders about {contact.name}.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {contact.notes ? (
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed">{contact.notes}</p>
+                        <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed">{contact.notes}</p>
                     ) : (
-                        <p className="text-muted-foreground">No notes added yet for {contact.name}.</p>
+                        <p className="text-muted-foreground text-xs sm:text-sm">No notes added yet for {contact.name}.</p>
                     )}
                 </CardContent>
                  <CardFooter>
                     <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="w-full sm:w-auto">Edit Notes</Button>
+                            <Button variant="outline" className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">Edit Notes</Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
@@ -603,14 +610,14 @@ export default function ContactDetailPage() {
                                         id="notes-input"
                                         value={notesInput}
                                         onChange={(e) => setNotesInput(e.target.value)}
-                                        className="col-span-4 min-h-[150px]"
+                                        className="col-span-4 min-h-[100px] sm:min-h-[150px] text-xs sm:text-sm"
                                         placeholder="Type your notes here..."
                                     />
                                 </div>
                             </div>
                             <DialogFooter className="flex-col sm:flex-row gap-2">
-                                <Button variant="outline" onClick={() => setIsNotesDialogOpen(false)} disabled={isSavingNotes} className="w-full sm:w-auto">Cancel</Button>
-                                <Button type="button" onClick={handleSaveNotes} disabled={isSavingNotes} className="w-full sm:w-auto">
+                                <Button variant="outline" onClick={() => setIsNotesDialogOpen(false)} disabled={isSavingNotes} className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">Cancel</Button>
+                                <Button type="button" onClick={handleSaveNotes} disabled={isSavingNotes} className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">
                                     {isSavingNotes && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Save Notes
                                 </Button>
@@ -626,36 +633,36 @@ export default function ContactDetailPage() {
             <TabsContent value="events">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center"><PartyPopper className="mr-2 h-5 w-5 text-primary"/> Notable Events</CardTitle>
-                  <CardDescription>Keep track of important dates and milestones with {contact.name}.</CardDescription>
+                  <CardTitle className="text-md sm:text-lg flex items-center"><PartyPopper className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Notable Events</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Keep track of important dates and milestones with {contact.name}.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {contact.notableEvents && contact.notableEvents.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-2 sm:space-y-4">
                       {contact.notableEvents.map(event => (
                         <Card key={event.id} className="shadow-sm">
                           <CardHeader className="pb-2 flex-row items-center justify-between">
-                            <CardTitle className="text-md">
+                            <CardTitle className="text-sm sm:text-md">
                               {event.title}
                             </CardTitle>
                             <ClientSideFormattedDate date={event.date} className="text-xs font-normal text-muted-foreground"/>
                           </CardHeader>
                           {event.description && (
                             <CardContent>
-                              <p className="text-sm text-muted-foreground">{event.description}</p>
+                              <p className="text-xs sm:text-sm text-muted-foreground">{event.description}</p>
                             </CardContent>
                           )}
                         </Card>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">No notable events added yet for {contact.name}.</p>
+                    <p className="text-muted-foreground text-xs sm:text-sm">No notable events added yet for {contact.name}.</p>
                   )}
                 </CardContent>
                 <CardFooter>
                   <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-auto"><CalendarPlus className="mr-2 h-4 w-4" /> Add Event</Button>
+                      <Button variant="outline" className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9"><CalendarPlus className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Add Event</Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                       <DialogHeader>
@@ -664,7 +671,7 @@ export default function ContactDetailPage() {
                           Record a new significant date or milestone.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-4 py-4">
+                      <div className="space-y-4 py-4 text-xs sm:text-sm">
                         <div>
                           <Label htmlFor="event-title">Event Title *</Label>
                           <Input 
@@ -681,11 +688,11 @@ export default function ContactDetailPage() {
                               <Button
                                 variant={"outline"}
                                 className={cn(
-                                  "w-full justify-start text-left font-normal",
+                                  "w-full justify-start text-left font-normal h-8 sm:h-9",
                                   !eventFormValues.date && "text-muted-foreground"
                                 )}
                               >
-                                <CalendarDays className="mr-2 h-4 w-4" />
+                                <CalendarDays className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                 {eventFormValues.date ? formatDateFnInternal(eventFormValues.date, "PPP") : <span>Pick a date</span>}
                               </Button>
                             </PopoverTrigger>
@@ -711,10 +718,10 @@ export default function ContactDetailPage() {
                         </div>
                       </div>
                       <DialogFooter className="flex-col sm:flex-row gap-2">
-                        <Button variant="outline" onClick={() => {setIsEventDialogOpen(false); setEventFormValues({title: '', date: null, description: ''});}} disabled={isSavingEvent} className="w-full sm:w-auto">
+                        <Button variant="outline" onClick={() => {setIsEventDialogOpen(false); setEventFormValues({title: '', date: null, description: ''});}} disabled={isSavingEvent} className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">
                           Cancel
                         </Button>
-                        <Button type="button" onClick={handleSaveNotableEvent} disabled={isSavingEvent || !eventFormValues.title || !eventFormValues.date} className="w-full sm:w-auto">
+                        <Button type="button" onClick={handleSaveNotableEvent} disabled={isSavingEvent || !eventFormValues.title || !eventFormValues.date} className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">
                           {isSavingEvent && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Save Event
                         </Button>
@@ -727,7 +734,7 @@ export default function ContactDetailPage() {
             )}
           </Tabs>
         </CardContent>
-        <CardFooter className="border-t pt-4 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-0">
+        <CardFooter className="border-t pt-2 sm:pt-4 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
             <ClientSideFormattedDate date={contact.createdAt} format="PPpp" prefix="Contact created on: " />
             <ClientSideFormattedDate date={contact.updatedAt} format="PPpp" prefix="Last updated: " className="sm:ml-auto"/>
         </CardFooter>
@@ -735,4 +742,5 @@ export default function ContactDetailPage() {
     </div>
   );
 }
+
 

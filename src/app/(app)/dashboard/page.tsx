@@ -266,6 +266,8 @@ export default function DashboardPage() {
         }
         else if (event.error === 'network') {
             errorMessage = "Network error during speech recognition. Please check your internet connection. This could be a temporary issue with your network or the speech recognition service.";
+        }  else {
+             errorMessage = "An unknown speech recognition error occurred. Please try again."
         }
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
         setIsListeningToVoiceSearch(false);
@@ -304,7 +306,6 @@ export default function DashboardPage() {
     }
     setIsLoadingAiAnswer(true);
     try {
-      // Pass all contacts to the AI flow
       const enrichedContactsForAI = enrichContactsForAI(mockContacts, mockContacts);
 
       const result: AnswerContactQuestionOutput = await answerContactQuestion({ question, contacts: enrichedContactsForAI });
@@ -313,7 +314,9 @@ export default function DashboardPage() {
     } catch (aiError: any) {
       console.error("AI answering error:", aiError);
       let description = "Could not get an answer from the AI.";
-      if (aiError.message) {
+      if (aiError.message && typeof aiError.message === 'string' && aiError.message.includes("blocked")) {
+        description = "The AI model blocked the response due to safety settings. Please rephrase your question or try a different topic.";
+      } else if (aiError.message) {
         description = aiError.message;
       }
       toast({ title: "AI Error", description, variant: "destructive" });
@@ -377,7 +380,7 @@ export default function DashboardPage() {
             setMicrophonePermissionError(errorMessage);
         }
         else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection and ensure your browser has access to the internet. This could be a temporary issue with your network environment or the speech recognition service.";
+            errorMessage = "Network error during speech recognition. Please check your internet connection and ensure your browser has access to the internet. This could be a temporary issue with your network or the speech recognition service.";
         } else {
           errorMessage = "An unknown speech recognition error occurred. Please try again."
         }
@@ -494,7 +497,7 @@ export default function DashboardPage() {
                                 </div>
                                 {event.contactId && (
                                     <Button variant="ghost" size="sm" asChild>
-                                      <Link href={`/contacts/${event.contactId}`}>View</Link>
+                                      <Link href={`/contacts/${event.contactId}?tab=events`}>View</Link>
                                     </Button>
                                 )}
                             </li>
@@ -663,6 +666,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
