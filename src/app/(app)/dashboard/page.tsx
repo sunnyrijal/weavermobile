@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, parseISO, getYear, getMonth, getDate, setYear, isPast, addYears } from 'date-fns';
 import { answerContactQuestion } from '@/ai/flows/answer-contact-question-flow';
-import type { AnswerContactQuestionInput, AnswerContactQuestionOutput } from '@/ai/flows/answer-contact-question-flow';
+import type { AnswerContactQuestionInput, AnswerContactQuestionOutput, PromptContact } from '@/ai/flows/answer-contact-question-flow';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate';
 
@@ -33,6 +33,8 @@ const ContactCardItem = ({ contact }: { contact: Contact }) => (
     <CardContent className="p-4">
       <CardTitle className="text-lg mb-1">{contact.name}</CardTitle>
       <CardDescription className="text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
+      {contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.occupation}{contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) ? ` at ${contact.company}` : ''}</p>}
+      {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.college}</p>}
       {contact.currentLocation && <p className="text-xs text-muted-foreground truncate">{contact.currentLocation}</p>}
       {!contact.currentLocation && contact.hometown && <p className="text-xs text-muted-foreground truncate">From: {contact.hometown}</p>}
     </CardContent>
@@ -57,7 +59,7 @@ const ContactListItem = ({ contact }: { contact: Contact }) => (
       />
       <div>
         <p className="font-medium">{contact.name}</p>
-        <p className="text-sm text-muted-foreground">{contact.category || 'N/A'}</p>
+        <p className="text-sm text-muted-foreground">{contact.occupation || contact.college || contact.category || 'N/A'}</p>
       </div>
     </div>
     <Button variant="ghost" size="sm" asChild>
@@ -147,6 +149,35 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
   });
   
   return events.sort((a, b) => a.daysRemaining - b.daysRemaining);
+};
+
+const enrichContactsForAI = (contactsToEnrich: Contact[], allContacts: Contact[]): PromptContact[] => {
+  return contactsToEnrich.map(contact => {
+    const contactRelationships = contact.relationships?.map(rel => {
+      const relatedContact = allContacts.find(c => c.id === rel.relatedContactId);
+      return {
+        relatedContactName: relatedContact ? relatedContact.name : 'Unknown Contact',
+        type: rel.type,
+        customLabel: rel.customLabel || undefined,
+      };
+    }) || [];
+    return {
+      name: contact.name,
+      email: contact.email || undefined,
+      phone: contact.phone || undefined,
+      occupation: contact.occupation || undefined,
+      company: contact.company || undefined,
+      college: contact.college || undefined,
+      category: contact.category || undefined,
+      hometown: contact.hometown || undefined,
+      currentLocation: contact.currentLocation || undefined,
+      birthday: contact.birthday || undefined,
+      ownerRelationshipLabel: contact.ownerRelationshipLabel || undefined,
+      notes: contact.notes || undefined,
+      tags: contact.tags || [],
+      relationships: contactRelationships,
+    };
+  });
 };
 
 
@@ -267,13 +298,15 @@ export default function DashboardPage() {
     }
     setIsLoadingAiAnswer(true);
     try {
-      // Pass all contacts to the AI flow if searchTerm is empty or showAllContacts is true,
-      // otherwise pass only filtered contacts.
-      const contactsForAI = (searchTerm.trim() === '' && !showAllContacts) 
-        ? mockContacts.filter(c => mainContactIds.includes(c.id)) // Default main contacts view for AI
-        : mockContacts; // All contacts if searching or "Show All" is active
+      // Determine which contacts to pass to the AI based on current dashboard state
+      const contactsToQuery = (searchTerm.trim() === '' && !showAllContacts) 
+        ? mockContacts.filter(c => mainContactIds.includes(c.id))
+        : mockContacts; 
+      
+      const enrichedContactsForAI = enrichContactsForAI(contactsToQuery, mockContacts);
 
-      const result: AnswerContactQuestionOutput = await answerContactQuestion({ question, contacts: contactsForAI });
+
+      const result: AnswerContactQuestionOutput = await answerContactQuestion({ question, contacts: enrichedContactsForAI });
       toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
       setAiQuestionText(''); 
     } catch (aiError: any) {
@@ -450,10 +483,10 @@ export default function DashboardPage() {
                                     <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
                                     <div>
                                         <p className="font-medium text-sm">{event.title}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            <ClientSideFormattedDate date={event.date} format="MMMM do" />
+                                        <ClientSideFormattedDate date={event.date} format="MMMM do" className="text-xs text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">
                                             {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
-                                        </p>
+                                        </span>
                                     </div>
                                 </div>
                                 {event.contactId && (
@@ -624,5 +657,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
