@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2, Send } from "lucide-react";
-import type { Contact, ContactViewMode } from '@/lib/types';
+import type { Contact, ContactViewMode, NotableEvent } from '@/lib/types';
 import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -68,9 +68,10 @@ interface DisplayEvent {
   id: string;
   title: string;
   date: Date;
-  type: 'Birthday' | 'Anniversary';
+  type: 'Birthday' | 'Anniversary' | 'Notable Event';
   icon: React.ElementType;
   daysRemaining: number;
+  contactId?: string; 
 }
 
 const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
@@ -78,21 +79,17 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
   const upcomingThresholdDays = 30;
   let events: DisplayEvent[] = [];
 
-  // Birthdays
   contacts.forEach(contact => {
+    // Birthdays
     if (contact.birthday) {
       try {
-        // Assuming birthday is YYYY-MM-DD. Adjust for UTC to avoid timezone issues.
         const [yearStr, monthStr, dayStr] = contact.birthday.split('-');
         const birthDate = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)));
-        
         const birthDateThisYear = setYear(birthDate, getYear(today));
-        
         let nextBirthdayDate = birthDateThisYear;
         if (isPast(nextBirthdayDate) && differenceInDays(nextBirthdayDate, today) !== 0) {
           nextBirthdayDate = addYears(birthDateThisYear, 1);
         }
-        
         const daysRemaining = differenceInDays(nextBirthdayDate, today);
         if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
           events.push({
@@ -102,43 +99,49 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
             type: 'Birthday',
             icon: Gift,
             daysRemaining,
+            contactId: contact.id,
           });
         }
       } catch (error) {
         console.error(`Error parsing birthday for ${contact.name}: ${contact.birthday}`, error);
       }
     }
-  });
 
-  // Mock Anniversaries (as an example, since this data isn't in Contact type yet)
-  // This part should be replaced with actual anniversary data from contacts if available
-  const mockAnniversariesRaw = [
-    {
-      id: 'anniv_abhas_parents',
-      title: "Abhas Oli's Parents Anniversary",
-      originalDate: new Date(Date.UTC(2000, 7, 1)), // Example: August 1st UTC
-      type: 'Anniversary' as const,
-      icon: Heart,
-    }
-  ];
+    // Notable Events (e.g., Anniversaries specific to contact, Work Anniversaries)
+    contact.notableEvents?.forEach(event => {
+      try {
+        const [yearStr, monthStr, dayStr] = event.date.split('-');
+        const eventDate = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)));
+        
+        // For recurring events like anniversaries, calculate next occurrence
+        let nextEventDate = eventDate;
+        if (event.title.toLowerCase().includes("anniversary")) {
+             const eventThisYear = setYear(eventDate, getYear(today));
+             nextEventDate = eventThisYear;
+             if (isPast(nextEventDate) && differenceInDays(nextEventDate, today) !==0) {
+                 nextEventDate = addYears(eventThisYear, 1);
+             }
+        } else if (isPast(eventDate)) { // For non-recurring past events, skip
+            return;
+        }
 
-  mockAnniversariesRaw.forEach(anniv => {
-    const anniversaryThisYear = setYear(anniv.originalDate, getYear(today));
-    let nextAnniversaryDate = anniversaryThisYear;
-    if (isPast(nextAnniversaryDate) && differenceInDays(nextAnniversaryDate, today) !== 0) {
-      nextAnniversaryDate = addYears(anniversaryThisYear, 1);
-    }
-    const daysRemaining = differenceInDays(nextAnniversaryDate, today);
-    if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
-      events.push({
-        id: anniv.id,
-        title: anniv.title,
-        date: nextAnniversaryDate,
-        type: anniv.type,
-        icon: anniv.icon,
-        daysRemaining,
-      });
-    }
+
+        const daysRemaining = differenceInDays(nextEventDate, today);
+        if (daysRemaining >= 0 && daysRemaining <= upcomingThresholdDays) {
+          events.push({
+            id: `event-${event.id}-${contact.id}`,
+            title: `${event.title} (${contact.name})`,
+            date: nextEventDate,
+            type: event.title.toLowerCase().includes("anniversary") ? 'Anniversary' : 'Notable Event',
+            icon: event.title.toLowerCase().includes("anniversary") ? Heart : CalendarDays,
+            daysRemaining,
+            contactId: contact.id,
+          });
+        }
+      } catch (error) {
+        console.error(`Error parsing notable event for ${contact.name}: ${event.title}`, error);
+      }
+    });
   });
   
   return events.sort((a, b) => a.daysRemaining - b.daysRemaining);
@@ -162,13 +165,12 @@ export default function DashboardPage() {
 
 
   const [showAllContacts, setShowAllContacts] = useState(false);
-  const mainContactIds = ["1", "3", "4", "ck_host", "lk_wife_ck"]; // Chandra Oli, Abhas Oli, Sam Hendrickson, Curt Kowaleski, Lori Kowaleski
+  const mainContactIds = ["1", "3", "4", "ck_host", "lk_wife_ck"]; 
   
   const upcomingEvents = useMemo(() => getUpcomingEvents(mockContacts), []);
 
 
   useEffect(() => {
-    // Clean up speech recognition instances if component unmounts while listening
     return () => {
       if (speechRecognitionSearchRef.current) {
         speechRecognitionSearchRef.current.stop();
@@ -198,7 +200,7 @@ export default function DashboardPage() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
-      stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately after permission is granted
+      stream.getTracks().forEach(track => track.stop()); 
 
       const recognition = new SpeechRecognitionAPI();
       recognition.continuous = false;
@@ -229,7 +231,7 @@ export default function DashboardPage() {
         toast({ title: "Voice Search Error", description: errorMessage, variant: "destructive" });
         setIsListeningToVoiceSearch(false);
         if (speechRecognitionSearchRef.current) {
-            try { speechRecognitionSearchRef.current.stop(); } catch(e) {/* Already stopped */}
+            try { speechRecognitionSearchRef.current.stop(); } catch(e) {}
             speechRecognitionSearchRef.current = null;
         }
       };
@@ -238,7 +240,7 @@ export default function DashboardPage() {
       recognition.onend = () => {
         setIsListeningToVoiceSearch(false);
         if (speechRecognitionSearchRef.current) {
-            try { speechRecognitionSearchRef.current.stop(); } catch(e) {/* already stopped */}
+            try { speechRecognitionSearchRef.current.stop(); } catch(e) {}
         }
         speechRecognitionSearchRef.current = null;
       };
@@ -265,7 +267,7 @@ export default function DashboardPage() {
     try {
       const result: AnswerContactQuestionOutput = await answerContactQuestion({ question });
       toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
-      setAiQuestionText(''); // Clear input after successful submission
+      setAiQuestionText(''); 
     } catch (aiError: any) {
       console.error("AI answering error:", aiError);
       let description = "Could not get an answer from the AI.";
@@ -306,7 +308,7 @@ export default function DashboardPage() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately after permission is granted
+      stream.getTracks().forEach(track => track.stop()); 
 
       const recognition = new SpeechRecognitionAPI();
       recognition.continuous = false;
@@ -316,7 +318,7 @@ export default function DashboardPage() {
 
       recognition.onresult = async (event) => {
         const transcript = event.results[0][0].transcript;
-        setAiQuestionText(transcript); // Set the text in the input field
+        setAiQuestionText(transcript); 
         toast({ title: "Question received", description: `Asking: "${transcript}"...` });
         await processAiQuestion(transcript);
       };
@@ -339,7 +341,7 @@ export default function DashboardPage() {
         setIsListeningToQuestion(false);
         setIsLoadingAiAnswer(false); 
         if (speechRecognitionQuestionRef.current) {
-            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {/* Already stopped */}
+            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {}
             speechRecognitionQuestionRef.current = null;
         }
       };
@@ -348,7 +350,7 @@ export default function DashboardPage() {
       recognition.onend = () => {
         setIsListeningToQuestion(false);
          if (speechRecognitionQuestionRef.current) {
-            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {/* already stopped */}
+            try { speechRecognitionQuestionRef.current.stop(); } catch(e) {}
         }
         speechRecognitionQuestionRef.current = null;
       };
@@ -389,44 +391,72 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Welcome to your NetworkNest!</CardTitle>
-          <CardDescription>Manage and visualize your connections like never before.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-4">
-            <Card className="shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-lg">Network Overview</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
-                    <div className="text-center md:text-left">
-                        <UsersRound className="h-6 w-6 text-primary mx-auto md:mx:0 mb-1"/>
-                        <p className="text-xs text-muted-foreground">Total Contacts</p>
-                        <p className="text-2xl font-bold">{mockContacts.length}</p>
-                    </div>
-                    <div className="text-center md:text-left">
-                        <Heart className="h-6 w-6 text-accent mx-auto md:mx-0 mb-1"/>
-                        <p className="text-xs text-muted-foreground">Close Connections</p>
-                        <p className="text-2xl font-bold">{closeConnectionsCount}</p>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-lg">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col space-y-2">
-                    <Button variant="default" asChild>
-                        <Link href="/contacts/new"><PlusCircle className="mr-2 h-4 w-4" /> Add New Contact</Link>
-                    </Button>
-                    <Button variant="outline" asChild>
-                        <Link href="/import"><UploadCloud className="mr-2 h-4 w-4" /> Import Contacts</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        </CardContent>
-      </Card>
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="shadow-md">
+            <CardHeader>
+            <CardTitle className="text-2xl">Welcome to NetworkNest!</CardTitle>
+            <CardDescription>Manage and visualize your connections.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+                <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <UsersRound className="h-6 w-6 text-primary mx-auto md:mx-0 mb-1"/>
+                    <p className="text-xs text-muted-foreground">Total Contacts</p>
+                    <p className="text-2xl font-bold">{mockContacts.length}</p>
+                </div>
+                <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <Heart className="h-6 w-6 text-accent mx-auto md:mx-0 mb-1"/>
+                    <p className="text-xs text-muted-foreground">Close Connections</p>
+                    <p className="text-2xl font-bold">{closeConnectionsCount}</p>
+                </div>
+            </CardContent>
+            <CardFooter className="flex flex-col sm:flex-row gap-2">
+                <Button variant="default" asChild className="w-full sm:w-auto">
+                    <Link href="/contacts/new"><PlusCircle className="mr-2 h-4 w-4" /> Add Contact</Link>
+                </Button>
+                <Button variant="outline" asChild className="w-full sm:w-auto">
+                    <Link href="/import"><UploadCloud className="mr-2 h-4 w-4" /> Import Contacts</Link>
+                </Button>
+            </CardFooter>
+        </Card>
+
+        <Card className="shadow-md">
+            <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2"><CalendarDays className="text-primary"/> Upcoming Events</CardTitle>
+                <CardDescription>Stay on top of important dates in your network.</CardDescription>
+            </CardHeader>
+            <CardContent className="max-h-60 overflow-y-auto pr-2">
+                {upcomingEvents.length > 0 ? (
+                    <ul className="space-y-3">
+                        {upcomingEvents.map(event => (
+                            <li key={event.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                                <div className="flex items-center gap-3">
+                                    <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
+                                    <div>
+                                        <p className="font-medium text-sm">{event.title}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {format(event.date, 'MMMM do')}
+                                            {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
+                                        </p>
+                                    </div>
+                                </div>
+                                {event.contactId && (
+                                    <Button variant="ghost" size="sm" asChild>
+                                      <Link href={`/contacts/${event.contactId}`}>View</Link>
+                                    </Button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-muted-foreground text-sm">No upcoming events in the next 30 days.</p>
+                )}
+            </CardContent>
+            <CardFooter>
+                <p className="text-xs text-muted-foreground">Showing events within the next 30 days.</p>
+            </CardFooter>
+        </Card>
+      </div>
+
 
       <Card className="shadow-md">
         <CardHeader>
@@ -477,40 +507,6 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
-
-      <Card className="shadow-md">
-        <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2"><CalendarDays className="text-primary"/> Upcoming Events</CardTitle>
-            <CardDescription>Stay on top of important dates in your network.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            {upcomingEvents.length > 0 ? (
-                <ul className="space-y-3 max-h-60 overflow-y-auto">
-                    {upcomingEvents.map(event => (
-                        <li key={event.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-                            <div className="flex items-center gap-3">
-                                <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : 'text-pink-500'}`} />
-                                <div>
-                                    <p className="font-medium">{event.title}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {format(event.date, 'MMMM do')}
-                                        {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
-                                    </p>
-                                </div>
-                            </div>
-                            {/* Future: Link to contact if birthday */}
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <p className="text-muted-foreground">No upcoming events in the next 30 days.</p>
-            )}
-        </CardContent>
-         <CardFooter>
-             <p className="text-xs text-muted-foreground">Showing events within the next 30 days.</p>
-         </CardFooter>
-      </Card>
-
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative flex-grow w-full md:w-auto">
