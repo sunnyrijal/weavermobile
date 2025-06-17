@@ -9,7 +9,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "docker:dev:build": "docker-compose -f docker-compose.dev.yml build",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:dev:logs": "docker-compose -f docker-compose.dev.yml logs -f",
+    "docker:seed": "docker-compose up mongodb-seeder",
+    "docker:dev:seed": "docker-compose -f docker-compose.dev.yml up mongodb-seeder",
+    "docker:restart": "docker-compose restart",
+    "docker:dev:restart": "docker-compose -f docker-compose.dev.yml restart",
+    "db:seed": "tsx src/scripts/seed-db.ts"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -44,6 +57,7 @@
     "firebase": "^11.7.0",
     "genkit": "^1.8.0",
     "lucide-react": "^0.475.0",
+    "mongoose": "^8.16.0",
     "next": "15.2.3",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
@@ -62,6 +76,7 @@
     "genkit-cli": "^1.8.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.20.3",
     "typescript": "^5"
   }
 }
