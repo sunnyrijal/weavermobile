@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud, UserSquare2 } from "lucide-react"; 
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud, UserSquare2, Trash2, AlertTriangle } from "lucide-react"; 
 import React, { useState, useEffect, useRef } from 'react';
 import { format as formatDateFnInternal } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -83,6 +83,9 @@ export default function ContactDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
   const [relatedContacts, setRelatedContacts] = useState<Record<string, string>>({});
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
   useEffect(() => {
@@ -316,6 +319,39 @@ export default function ContactDetailPage() {
     return relatedContacts[relatedContactId] || "Unknown Contact";
   };
 
+  // Add delete contact function
+  const handleDeleteContact = async () => {
+    if (!contact) return;
+    setIsDeleting(true);
+    
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete contact');
+      }
+      
+      toast({ 
+        title: "Contact Deleted", 
+        description: `${contact.name} has been removed from your contacts.` 
+      });
+      
+      // Redirect to contacts page after successful deletion
+      router.push('/contacts');
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete contact", 
+        variant: "destructive" 
+      });
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
   if (contact === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -344,11 +380,50 @@ export default function ContactDetailPage() {
         <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
-        <Button variant="default" asChild className="w-full sm:w-auto">
-          <Link href={`/contacts/${contact.id}/edit`}>
-            <Edit3 className="mr-2 h-4 w-4" /> Edit Contact
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="default" asChild className="w-full sm:w-auto">
+            <Link href={`/contacts/${contact.id}/edit`}>
+              <Edit3 className="mr-2 h-4 w-4" /> Edit Contact
+            </Link>
+          </Button>
+          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" className="w-full sm:w-auto">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  Delete Contact
+                </DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete {contact.name}? This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsDeleteDialogOpen(false)} 
+                  disabled={isDeleting}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteContact} 
+                  disabled={isDeleting}
+                  className="w-full sm:w-auto"
+                >
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                  {isDeleting ? "Deleting..." : "Delete Contact"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card className="shadow-xl overflow-hidden">

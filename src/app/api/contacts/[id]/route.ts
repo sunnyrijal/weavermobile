@@ -4,10 +4,10 @@ import { ContactService } from '@/lib/mongodb/services/contactService';
 // GET /api/contacts/[id] - Get a contact by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     const contact = await ContactService.getContactById(id);
     
     if (!contact) {
@@ -24,10 +24,10 @@ export async function GET(
 // PATCH /api/contacts/[id] - Update a contact
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     const body = await request.json();
     
     const updatedContact = await ContactService.updateContact(id, body);
@@ -46,10 +46,10 @@ export async function PATCH(
 // DELETE /api/contacts/[id] - Delete a contact
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     const deleted = await ContactService.deleteContact(id);
     
     if (!deleted) {

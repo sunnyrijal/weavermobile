@@ -1,4 +1,3 @@
-
 "use client";
 
 import { ContactForm, contactFormSchema } from "@/components/contacts/ContactForm";
@@ -7,9 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import React, { useState, useEffect } from "react";
-import { mockContacts } from "@/lib/mockData";
 import type { Contact } from "@/lib/types";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -35,16 +33,37 @@ export default function EditContactPage() {
   const [isFormLoading, setIsFormLoading] = useState(true);
 
   useEffect(() => {
-    setIsFormLoading(true);
-    // Simulate fetching contact data
-    const foundContact = mockContacts.find((c) => c.id === contactId);
-    if (foundContact) {
-      setContact(foundContact);
-    } else {
-      setContact(null); // Not found
-    }
-    setIsFormLoading(false);
-  }, [contactId]);
+    const fetchContactDetails = async () => {
+      setIsFormLoading(true);
+      try {
+        const response = await fetch(`/api/contacts/${contactId}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setContact(null);
+          } else {
+            throw new Error('Failed to fetch contact details');
+          }
+          return;
+        }
+        
+        const data = await response.json();
+        setContact(data.contact);
+      } catch (error) {
+        console.error('Error fetching contact details:', error);
+        toast({ 
+          title: "Error", 
+          description: "Failed to load contact details", 
+          variant: "destructive" 
+        });
+        setContact(null);
+      } finally {
+        setIsFormLoading(false);
+      }
+    };
+
+    fetchContactDetails();
+  }, [contactId, toast]);
 
   const handleSubmit = async (values: ContactFormValues) => {
     setIsLoading(true);
@@ -83,40 +102,49 @@ export default function EditContactPage() {
       }
     }
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const updatedContactData: Contact = {
-      ...contact, // Spread existing contact data
-      ...values,  // Spread form values
-      photoURL: photoUrlToStore, // Use processed photo URL
+    const updatedContactData = {
+      ...values,
+      photoURL: photoUrlToStore,
       hometown: values.hometown || undefined,
       currentLocation: values.currentLocation || undefined,
-      updatedAt: new Date(),
       birthday: values.birthday ? format(values.birthday, "yyyy-MM-dd") : undefined,
       college: values.college || undefined, 
       ownerRelationshipLabel: values.ownerRelationshipLabel || undefined,
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
     };
-     // Remove photoFile from the data to be stored if it exists
+    
+    // Remove photoFile from the data to be sent to API
     delete (updatedContactData as any).photoFile;
 
-
-    console.log("Updated Contact Data:", updatedContactData);
-    // In a real app, you would update this in Firestore or your backend
-    // Update mockContacts array for immediate reflection
-    const contactIndex = mockContacts.findIndex(c => c.id === contactId);
-    if (contactIndex !== -1) {
-        mockContacts[contactIndex] = updatedContactData;
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedContactData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update contact');
+      }
+      
+      toast({
+        title: "Contact Updated",
+        description: `${values.name} has been successfully updated.`,
+      });
+      
+      router.push(`/contacts/${contactId}`); // Redirect to contact detail page
+    } catch (error) {
+      console.error("Error updating contact:", error);
+      toast({
+        title: "Update Failed",
+        description: "Could not update the contact. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-
-    toast({
-      title: "Contact Updated",
-      description: `${values.name} has been successfully updated.`,
-    });
-    setIsLoading(false);
-    router.push(`/contacts/${contactId}`); // Redirect to contact detail page
   };
   
   if (isFormLoading || contact === undefined) {
