@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, LayoutGrid, Search, PlusCircle, Users } from "lucide-react";
+import { List, LayoutGrid, Search, PlusCircle, Users, Loader2 } from "lucide-react";
 import type { Contact, ContactViewMode } from '@/lib/types';
-import { mockContacts } from '@/lib/mockData';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useContacts } from '@/hooks/useContacts';
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
   <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -66,6 +66,7 @@ export default function ContactsPage() {
   const searchParams = useSearchParams();
   const initialSearchQuery = searchParams.get('search') || '';
   
+  const { contacts, isLoading, error } = useContacts();
   const [searchTerm, setSearchTerm] = useState(initialSearchQuery);
   const [viewMode, setViewMode] = useState<ContactViewMode>('grid');
   const [activeFilter, setActiveFilter] = useState<string>("All");
@@ -79,7 +80,7 @@ export default function ContactsPage() {
   }, [searchParams, searchTerm]);
 
 
-  const filteredContacts = mockContacts.filter(contact => {
+  const filteredContacts = contacts.filter(contact => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch = 
         contact.name.toLowerCase().includes(searchTermLower) ||
@@ -133,6 +134,17 @@ export default function ContactsPage() {
                 </Button>
                 </div>
             </div>
+            {isLoading && (
+              <div className="flex justify-center items-center mt-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="ml-2">Loading contacts...</span>
+              </div>
+            )}
+            {error && (
+              <div className="text-destructive mt-4 p-2 bg-destructive/10 rounded-md">
+                Error loading contacts: {error}
+              </div>
+            )}
         </CardContent>
       </Card>
       
@@ -146,14 +158,24 @@ export default function ContactsPage() {
         <TabsContent value={activeFilter}>
            {viewMode === 'grid' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredContacts.map(contact => <ContactCardItem key={contact.id} contact={contact} />)}
+              {filteredContacts.map((contact, index) => (
+                <ContactCardItem 
+                  key={contact.id || `contact-${index}`} 
+                  contact={contact} 
+                />
+              ))}
             </div>
           )}
           {viewMode === 'list' && (
             <Card className="shadow-md">
               <CardContent className="p-0">
                 <ul className="divide-y divide-border">
-                  {filteredContacts.map(contact => <ContactListItem key={contact.id} contact={contact} />)}
+                  {filteredContacts.map((contact, index) => (
+                    <ContactListItem 
+                      key={contact.id || `contact-${index}`} 
+                      contact={contact} 
+                    />
+                  ))}
                 </ul>
               </CardContent>
             </Card>

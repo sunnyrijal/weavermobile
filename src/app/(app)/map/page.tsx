@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Share2, ZoomIn, ZoomOut, Download, Users, Link as LinkIcon, UsersRound, UserSquare2, Group, Heart, Briefcase, PawPrint, Home as HomeIcon, Brain, UserCog, ChevronsLeftRight } from "lucide-react"; 
+import { Share2, ZoomIn, ZoomOut, Download, Users, Link as LinkIcon, UsersRound, UserSquare2, Group, Heart, Briefcase, PawPrint, Home as HomeIcon, Brain, UserCog, ChevronsLeftRight, Loader2 } from "lucide-react"; 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { mockContacts } from "@/lib/mockData";
+import { useContacts } from '@/hooks/useContacts';
 import type { Contact } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -190,12 +190,13 @@ interface RelationshipMapPlaceholderProps {
   scale: number;
   currentViewBoxOrigin: { x: number; y: number };
   onViewBoxOriginChange: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+  contacts: Contact[];
 }
 
-const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({ centralContactId, viewBox, scale, currentViewBoxOrigin, onViewBoxOriginChange }) => {
+const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({ centralContactId, viewBox, scale, currentViewBoxOrigin, onViewBoxOriginChange, contacts }) => {
   const router = useRouter();
   
-  const centralContact = useMemo(() => mockContacts.find(c => c.id === centralContactId), [centralContactId]);
+  const centralContact = useMemo(() => contacts.find(c => c.id === centralContactId), [centralContactId, contacts]);
   
   const { nodes: initialNodes, groupLabels: initialGroupLabels } = useMemo(() => {
     if (!centralContact) return { nodes: [], groupLabels: [] };
@@ -215,22 +216,22 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
         { text: "Pets", originalText: "Pet", cx: COL2_X, cy: Y_ROW3_LABEL_CY }
       );
       const samNodesRaw = [
-        { id: 'emily_g', contact: mockContacts.find(c=>c.id==='emily_g')!, x: COL1_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
+        { id: 'emily_g', contact: contacts.find(c=>c.id==='emily_g')!, x: COL1_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
         
-        { id: 'sara_h', contact: mockContacts.find(c=>c.id==='sara_h')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
-        { id: 'john_h', contact: mockContacts.find(c=>c.id==='john_h')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
+        { id: 'sara_h', contact: contacts.find(c=>c.id==='sara_h')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
+        { id: 'john_h', contact: contacts.find(c=>c.id==='john_h')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW1_CARD_Y },
 
-        { id: 'greta_h', contact: mockContacts.find(c=>c.id==='greta_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
+        { id: 'greta_h', contact: contacts.find(c=>c.id==='greta_h')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW1_CARD_Y },
 
-        { id: 'anne_e', contact: mockContacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
-        { id: 'jim_e', contact: mockContacts.find(c=>c.id==='jim_e')!, x: COL1_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+        { id: 'anne_e', contact: contacts.find(c=>c.id==='anne_e')!, x: COL1_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
+        { id: 'jim_e', contact: contacts.find(c=>c.id==='jim_e')!, x: COL1_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW2_CARD_Y },
         
-        { id: 'philip_e', contact: mockContacts.find(c=>c.id==='philip_e')!, x: (COL3_X - CARD_WIDTH/2) - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS , y: Y_ROW2_CARD_Y }, 
-        { id: 'ty_b', contact: mockContacts.find(c=>c.id==='ty_b')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y },
-        { id: 'ryan_h', contact: mockContacts.find(c=>c.id==='ryan_h')!, x: (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS, y: Y_ROW2_CARD_Y },
+        { id: 'philip_e', contact: contacts.find(c=>c.id==='philip_e')!, x: (COL3_X - CARD_WIDTH/2) - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS , y: Y_ROW2_CARD_Y }, 
+        { id: 'ty_b', contact: contacts.find(c=>c.id==='ty_b')!, x: COL3_X - CARD_WIDTH/2, y: Y_ROW2_CARD_Y },
+        { id: 'ryan_h', contact: contacts.find(c=>c.id==='ryan_h')!, x: (COL3_X - CARD_WIDTH/2) + CARD_WIDTH + H_SPACING_BETWEEN_PAIRED_CARDS, y: Y_ROW2_CARD_Y },
         
-        { id: 'alpine_d', contact: mockContacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
-        { id: 'shula_d', contact: mockContacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
+        { id: 'alpine_d', contact: contacts.find(c=>c.id==='alpine_d')!, x: COL2_X - CARD_WIDTH - H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
+        { id: 'shula_d', contact: contacts.find(c=>c.id==='shula_d')!, x: COL2_X + H_SPACING_BETWEEN_PAIRED_CARDS/2, y: Y_ROW3_CARD_Y_VAL },
       ];
       nodes.push(...samNodesRaw.filter(node => node.contact).map(n => ({ ...n, contact: n.contact } as Node)));
     } else { 
@@ -243,7 +244,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 
         if (centralContact.relationships) {
             centralContact.relationships.forEach(rel => {
-                const relatedContact = mockContacts.find(c => c.id === rel.relatedContactId);
+                const relatedContact = contacts.find(c => c.id === rel.relatedContactId);
                 if (!relatedContact) return;
 
                 if (rel.type === "Parent") {
@@ -560,18 +561,15 @@ export default function RelationshipMapPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { contacts, isLoading, error } = useContacts();
 
   const mapContacts = useMemo(() => {
-    return [
-        mockContacts.find(c => c.id === '4'), // Sam
-        mockContacts.find(c => c.id === '1'), // Chandra
-        mockContacts.find(c => c.id === '3'), // Abhas
-        mockContacts.find(c => c.id === 'ck_host'), // Curt
-    ].filter(Boolean) as Contact[];
-  }, []);
+    // Use all contacts from the database
+    return contacts;
+  }, [contacts]);
 
   const defaultMapContactId = useMemo(() => {
-    return mapContacts.length > 0 ? mapContacts[0].id : '4'; // Default to Sam or first in list
+    return mapContacts.length > 0 ? mapContacts[0].id : ''; // Default to first contact
   }, [mapContacts]);
 
   const [selectedCentralContactId, setSelectedCentralContactId] = useState<string>(() => {
@@ -661,7 +659,7 @@ export default function RelationshipMapPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `relationship-map-${mockContacts.find(c=>c.id === selectedCentralContactId)?.name.replace(/\s+/g, '_') || 'contact'}.svg`;
+      a.download = `relationship-map-${contacts.find(c=>c.id === selectedCentralContactId)?.name.replace(/\s+/g, '_') || 'contact'}.svg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -673,8 +671,8 @@ export default function RelationshipMapPage() {
   };
   
   const centralContactName = useMemo(() => {
-    return mockContacts.find(c => c.id === selectedCentralContactId)?.name || "Selected Contact";
-  }, [selectedCentralContactId]);
+    return contacts.find(c => c.id === selectedCentralContactId)?.name || "Selected Contact";
+  }, [selectedCentralContactId, contacts]);
 
   const handleSelectChange = (value: string) => {
     setSelectedCentralContactId(value);
@@ -684,6 +682,40 @@ export default function RelationshipMapPage() {
     setScale(1);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="w-16 h-16 text-muted-foreground animate-spin mb-4" />
+        <p className="text-muted-foreground">Loading contacts...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <Users className="w-16 h-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-2">Error Loading Contacts</h1>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Button onClick={() => router.push("/dashboard")} className="w-full sm:w-auto">
+          Back to Dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  if (mapContacts.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <Users className="w-16 h-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-2">No Contacts Found</h1>
+        <p className="text-muted-foreground mb-4">Add contacts to view relationship map.</p>
+        <Button onClick={() => router.push("/contacts/new")} className="w-full sm:w-auto">
+          Add New Contact
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2 sm:space-y-4 md:space-y-6 h-full flex flex-col p-1 sm:p-0">
@@ -735,6 +767,7 @@ export default function RelationshipMapPage() {
                     scale={scale}
                     currentViewBoxOrigin={viewBoxOrigin}
                     onViewBoxOriginChange={setViewBoxOrigin}
+                    contacts={contacts}
                   />
               </div>
           </CardContent>

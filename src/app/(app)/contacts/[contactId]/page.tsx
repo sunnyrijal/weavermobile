@@ -1,10 +1,8 @@
-
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { mockContacts } from "@/lib/mockData";
 import type { Contact, NotableEvent } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -84,39 +82,84 @@ export default function ContactDetailPage() {
 
   const [activeTab, setActiveTab] = useState("overview");
 
+  const [relatedContacts, setRelatedContacts] = useState<Record<string, string>>({});
+
 
   useEffect(() => {
-    const foundContact = mockContacts.find((c) => c.id === contactId);
-    setContact(foundContact);
-    if (foundContact) {
-      setNotesInput(foundContact.notes || "");
-    }
+    const fetchContactDetails = async () => {
+      try {
+        const response = await fetch(`/api/contacts/${contactId}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setContact(null);
+          } else {
+            throw new Error('Failed to fetch contact details');
+          }
+          return;
+        }
+        
+        const data = await response.json();
+        setContact(data.contact);
+        setNotesInput(data.contact.notes || "");
+        
+        // Fetch related contact names if relationships exist
+        if (data.contact.relationships && data.contact.relationships.length > 0) {
+          fetchRelatedContactNames(data.contact.relationships);
+        }
+      } catch (error) {
+        console.error('Error fetching contact details:', error);
+        toast({ 
+          title: "Error", 
+          description: "Failed to load contact details", 
+          variant: "destructive" 
+        });
+      }
+    };
+
+    fetchContactDetails();
+    
     const tabFromQuery = searchParams.get('tab');
     if (tabFromQuery) {
       setActiveTab(tabFromQuery);
     } else {
       setActiveTab("overview"); 
     }
-  }, [contactId, searchParams]);
+  }, [contactId, searchParams, toast]);
 
 
   const handleSaveNotes = async () => {
     if (!contact) return;
     setIsSavingNotes(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const newUpdatedAt = new Date();
-    const updatedContactData = { ...contact, notes: notesInput, updatedAt: newUpdatedAt };
-    setContact(updatedContactData);
-    
-    const contactIndex = mockContacts.findIndex(c => c.id === contactId);
-    if (contactIndex !== -1) {
-        mockContacts[contactIndex] = { ...mockContacts[contactIndex], notes: notesInput, updatedAt: newUpdatedAt };
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: notesInput }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update notes');
+      }
+      
+      const data = await response.json();
+      setContact(data.contact);
+      
+      toast({ title: "Notes Saved", description: "Your notes have been updated." });
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to save notes", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingNotes(false);
+      setIsNotesDialogOpen(false);
     }
-
-    toast({ title: "Notes Saved", description: "Your notes have been updated." });
-    setIsSavingNotes(false);
-    setIsNotesDialogOpen(false);
   };
 
   const handleSaveNotableEvent = async () => {
@@ -125,29 +168,45 @@ export default function ContactDetailPage() {
         return;
     }
     setIsSavingEvent(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const newEvent: NotableEvent = {
+    
+    try {
+      const newEvent: NotableEvent = {
         id: `event-${Date.now()}`,
         title: eventFormValues.title,
         date: formatDateForStorage(eventFormValues.date),
         description: eventFormValues.description || undefined,
-    };
-    const newUpdatedAt = new Date();
-    const updatedNotableEvents = [...(contact.notableEvents || []), newEvent];
-    
-    setContact(prev => prev ? ({ ...prev, notableEvents: updatedNotableEvents, updatedAt: newUpdatedAt }) : null);
-    
-    const contactIndex = mockContacts.findIndex(c => c.id === contactId);
-    if (contactIndex !== -1) {
-        mockContacts[contactIndex].notableEvents = updatedNotableEvents;
-        mockContacts[contactIndex].updatedAt = newUpdatedAt;
+      };
+      
+      const updatedNotableEvents = [...(contact.notableEvents || []), newEvent];
+      
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notableEvents: updatedNotableEvents }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to add event');
+      }
+      
+      const data = await response.json();
+      setContact(data.contact);
+      
+      toast({ title: "Event Added", description: `${newEvent.title} has been added to notable events.`});
+      setEventFormValues({ title: '', date: null, description: '' }); // Reset form
+    } catch (error) {
+      console.error('Error adding event:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to add event", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingEvent(false);
+      setIsEventDialogOpen(false);
     }
-
-    toast({ title: "Event Added", description: `${newEvent.title} has been added to notable events.`});
-    setIsSavingEvent(false);
-    setIsEventDialogOpen(false);
-    setEventFormValues({ title: '', date: null, description: '' }); // Reset form
   };
 
   const handlePhotoUploadClick = () => {
@@ -162,17 +221,21 @@ export default function ContactDetailPage() {
     setIsUploadingPhoto(true);
     try {
       const photoDataUrl = await readFileAsDataURL(file);
-      const newUpdatedAt = new Date();
       
-      // Update local state
-      setContact(prev => prev ? ({ ...prev, photoURL: photoDataUrl, updatedAt: newUpdatedAt }) : null);
-
-      // Update mockContacts array
-      const contactIndex = mockContacts.findIndex(c => c.id === contactId);
-      if (contactIndex !== -1) {
-        mockContacts[contactIndex].photoURL = photoDataUrl;
-        mockContacts[contactIndex].updatedAt = newUpdatedAt;
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ photoURL: photoDataUrl }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update profile photo');
       }
+      
+      const data = await response.json();
+      setContact(data.contact);
       
       toast({ title: "Profile Photo Updated", description: "The new photo has been uploaded." });
       setIsPhotoDialogOpen(false); // Close dialog on success
@@ -198,19 +261,22 @@ export default function ContactDetailPage() {
     setIsUploadingPhotosTogether(true);
     try {
         const photoDataUrl = await readFileAsDataURL(file);
-        const newUpdatedAt = new Date();
         const updatedPhotosTogether = [...(contact.photosTogether || []), photoDataUrl];
 
-        setContact(prev => prev ? ({ ...prev, photosTogether: updatedPhotosTogether, updatedAt: newUpdatedAt }) : null);
-
-        const contactIndex = mockContacts.findIndex(c => c.id === contactId);
-        if (contactIndex !== -1) {
-            if (!mockContacts[contactIndex].photosTogether) {
-                mockContacts[contactIndex].photosTogether = [];
-            }
-            mockContacts[contactIndex].photosTogether.push(photoDataUrl);
-            mockContacts[contactIndex].updatedAt = newUpdatedAt;
+        const response = await fetch(`/api/contacts/${contactId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ photosTogether: updatedPhotosTogether }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to add photo');
         }
+        
+        const data = await response.json();
+        setContact(data.contact);
 
         toast({ title: "Photo Added", description: "The photo has been added to 'Photos Together'." });
         setIsPhotosTogetherDialogOpen(false);
@@ -223,6 +289,32 @@ export default function ContactDetailPage() {
     }
   };
 
+  // Add a function to fetch related contact names
+  const fetchRelatedContactNames = async (relationships: { relatedContactId: string }[]) => {
+    if (!relationships || relationships.length === 0) return;
+    
+    const contactIds = relationships.map(rel => rel.relatedContactId);
+    const contactNames: Record<string, string> = {};
+    
+    await Promise.all(contactIds.map(async (id) => {
+      try {
+        const response = await fetch(`/api/contacts/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          contactNames[id] = data.contact.name;
+        }
+      } catch (error) {
+        console.error(`Error fetching contact ${id}:`, error);
+      }
+    }));
+    
+    setRelatedContacts(contactNames);
+  };
+
+  // Update the getRelatedContactName function
+  const getRelatedContactName = (relatedContactId: string) => {
+    return relatedContacts[relatedContactId] || "Unknown Contact";
+  };
 
   if (contact === undefined) {
     return (
@@ -245,12 +337,6 @@ export default function ContactDetailPage() {
       </div>
     );
   }
-
-  const getRelatedContactName = (relatedContactId: string) => {
-    const relatedContact = mockContacts.find(c => c.id === relatedContactId);
-    return relatedContact ? relatedContact.name : "Unknown Contact";
-  };
-  
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 p-2 sm:p-0">

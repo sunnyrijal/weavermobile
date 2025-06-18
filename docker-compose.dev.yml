@@ -14,7 +14,7 @@ services:
       - "9002:9002"  # Match the port in package.json
     environment:
       - NODE_ENV=development
-      - MONGODB_URI=mongodb://admin:password@mongodb:27017/contacts?authSource=admin
+      - MONGODB_URI=mongodb+srv://rijalboy94:kvPfojAOpzITixtP@studiocontacts.t1x8fae.mongodb.net/contacts
     command: npm install next react react-dom && npm run dev
     networks:
       - mongodb-network

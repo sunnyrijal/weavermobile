@@ -25,7 +25,7 @@ interface AuthProviderProps {
 }
 
 const MOCK_USER_PROFILE: UserProfile = {
-  uid: 'mock-user-123',
+  uid: 'user1', // Using 'user1' to match the ownerId in mock data
   email: 'dev@networknest.com',
   displayName: 'Dev User (No Login)',
   photoURL: 'https://picsum.photos/seed/devuser/200/200',

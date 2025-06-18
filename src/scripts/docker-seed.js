@@ -47,16 +47,43 @@ const mockContacts = [
   }
 ];
 
+// Maximum number of connection attempts
+const MAX_RETRIES = 5;
+const RETRY_INTERVAL = 3000; // 3 seconds
+
+async function connectWithRetry(uri, retries = MAX_RETRIES) {
+  try {
+    console.log(`Attempting to connect to MongoDB (attempt ${MAX_RETRIES - retries + 1}/${MAX_RETRIES})...`);
+    const client = new MongoClient(uri);
+    await client.connect();
+    console.log('Successfully connected to MongoDB!');
+    return client;
+  } catch (err) {
+    if (retries > 0) {
+      console.log(`Failed to connect. Retrying in ${RETRY_INTERVAL/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_INTERVAL));
+      return connectWithRetry(uri, retries - 1);
+    } else {
+      console.error('Max connection attempts reached. Could not connect to MongoDB.');
+      throw err;
+    }
+  }
+}
+
 async function seedDatabase() {
-  const client = new MongoClient(uri);
+  let client;
   
   try {
-    console.log('Connecting to MongoDB...');
-    await client.connect();
-    console.log('Connected to MongoDB server');
+    client = await connectWithRetry(uri);
     
     const db = client.db('contacts');
     const contactsCollection = db.collection('contacts');
+    
+    // Check if collection already has data
+    const count = await contactsCollection.countDocuments();
+    if (count > 0) {
+      console.log(`Collection already has ${count} documents. Clearing existing data...`);
+    }
     
     // Clear existing contacts
     console.log('Clearing existing contacts...');
@@ -67,11 +94,25 @@ async function seedDatabase() {
     const result = await contactsCollection.insertMany(mockContacts);
     
     console.log(`Successfully inserted ${result.insertedCount} contacts`);
+    
+    // Verify the data was inserted
+    const newCount = await contactsCollection.countDocuments();
+    console.log(`Collection now has ${newCount} documents.`);
+    
+    // List the inserted contacts
+    console.log('Inserted contacts:');
+    const contacts = await contactsCollection.find({}).toArray();
+    contacts.forEach(contact => {
+      console.log(`- ${contact.name} (${contact.id})`);
+    });
+    
   } catch (err) {
     console.error('Error seeding database:', err);
   } finally {
-    await client.close();
-    console.log('Connection closed');
+    if (client) {
+      await client.close();
+      console.log('Connection closed');
+    }
   }
 }
 

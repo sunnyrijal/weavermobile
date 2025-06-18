@@ -1,19 +1,7 @@
 import mongoose from 'mongoose';
 
-// Determine if we're running in Docker or locally
-const isDocker = process.env.DOCKER_ENV === 'true';
-
-// MongoDB connection string
-// In Docker, use the service name 'mongodb' as the hostname
-// Otherwise, use 'localhost' for local development
-const host = isDocker ? 'mongodb' : 'localhost';
-const MONGODB_URI = process.env.MONGODB_URI || `mongodb://admin:password@${host}:27017/contacts?authSource=admin`;
-
-// Connection options
-const options: mongoose.ConnectOptions = {
-  // These options are no longer needed in newer Mongoose versions
-  // but kept for compatibility
-};
+// External MongoDB connection string - using the provided MongoDB Atlas connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rijalboy94:kvPfojAOpzITixtP@studiocontacts.t1x8fae.mongodb.net/contacts';
 
 // Track connection status
 let isConnected = false;
@@ -28,13 +16,14 @@ export async function connectToDatabase() {
   }
 
   try {
-    console.log('Connecting to MongoDB...');
+    console.log('Connecting to MongoDB Atlas...');
+    // Hide sensitive information when logging
     console.log(`Using connection string: ${MONGODB_URI.replace(/\/\/([^:]+):[^@]+@/, '//***:***@')}`);
     
-    await mongoose.connect(MONGODB_URI, options);
+    await mongoose.connect(MONGODB_URI);
     
     isConnected = true;
-    console.log('Connected to MongoDB');
+    console.log('Connected to MongoDB Atlas');
     return mongoose;
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);

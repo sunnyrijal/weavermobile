@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Mic, MicOff, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mockContacts } from "@/lib/mockData";
+import { useContacts } from "@/hooks/useContacts";
 import { parseContactInfo } from "@/ai/flows/parse-contact-info-flow";
 import type { ParseContactInfoOutput } from "@/ai/flows/parse-contact-info-flow";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -29,6 +29,7 @@ export default function NewContactPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
+  const { addContact } = useContacts({ initialLoad: false });
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
@@ -66,15 +67,10 @@ export default function NewContactPage() {
       }
     }
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const newContactData = {
+    const contactData = {
       ...values,
       photoURL: photoUrlToStore, // Use processed photo URL
-      id: Date.now().toString(), 
       ownerId: currentUser.uid,
-      createdAt: new Date(),
-      updatedAt: new Date(),
       hometown: values.hometown || undefined,
       currentLocation: values.currentLocation || undefined,
       birthday: values.birthday ? formatDateForStorage(values.birthday) : undefined,
@@ -85,18 +81,32 @@ export default function NewContactPage() {
       photosTogether: [],
       relationships: [],
     };
+    
     // Remove photoFile from the data to be stored if it exists
-    delete (newContactData as any).photoFile;
+    delete (contactData as any).photoFile;
 
-
-    mockContacts.push(newContactData);
-
-    toast({
-      title: "Contact Added",
-      description: `${values.name} has been successfully added to your contacts.`,
-    });
-    setIsLoading(false);
-    router.push("/contacts"); 
+    try {
+      const newContact = await addContact(contactData);
+      
+      if (newContact) {
+        toast({
+          title: "Contact Added",
+          description: `${values.name} has been successfully added to your contacts.`,
+        });
+        router.push("/contacts");
+      } else {
+        throw new Error("Failed to add contact");
+      }
+    } catch (error) {
+      console.error("Error adding contact:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add contact. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVoiceInput = async () => {

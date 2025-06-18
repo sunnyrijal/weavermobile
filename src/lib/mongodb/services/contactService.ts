@@ -1,5 +1,13 @@
 import { connectToDatabase } from '../config';
 import Contact, { IContact } from '../models/Contact';
+import mongoose from 'mongoose';
+
+// Helper function to convert MongoDB document to plain object with id
+const convertDocumentToObject = (doc: IContact): any => {
+  const obj = doc.toObject();
+  obj.id = obj._id.toString();
+  return obj;
+};
 
 export class ContactService {
   /**
@@ -8,7 +16,10 @@ export class ContactService {
   static async createContact(contactData: Partial<IContact>): Promise<IContact> {
     await connectToDatabase();
     const contact = new Contact(contactData);
-    return await contact.save();
+    await contact.save();
+    
+    // Convert the MongoDB _id to id for the frontend
+    return convertDocumentToObject(contact);
   }
 
   /**
@@ -16,7 +27,10 @@ export class ContactService {
    */
   static async getContactsByOwnerId(ownerId: string): Promise<IContact[]> {
     await connectToDatabase();
-    return await Contact.find({ ownerId }).sort({ name: 1 });
+    const contacts = await Contact.find({ ownerId }).sort({ name: 1 });
+    
+    // Convert the MongoDB _id to id for the frontend
+    return contacts.map(contact => convertDocumentToObject(contact));
   }
 
   /**
@@ -24,7 +38,12 @@ export class ContactService {
    */
   static async getContactById(id: string): Promise<IContact | null> {
     await connectToDatabase();
-    return await Contact.findById(id);
+    const contact = await Contact.findById(id);
+    
+    if (!contact) return null;
+    
+    // Convert the MongoDB _id to id for the frontend
+    return convertDocumentToObject(contact);
   }
 
   /**
@@ -32,7 +51,12 @@ export class ContactService {
    */
   static async updateContact(id: string, contactData: Partial<IContact>): Promise<IContact | null> {
     await connectToDatabase();
-    return await Contact.findByIdAndUpdate(id, contactData, { new: true });
+    const contact = await Contact.findByIdAndUpdate(id, contactData, { new: true });
+    
+    if (!contact) return null;
+    
+    // Convert the MongoDB _id to id for the frontend
+    return convertDocumentToObject(contact);
   }
 
   /**
@@ -49,10 +73,13 @@ export class ContactService {
    */
   static async searchContacts(ownerId: string, searchTerm: string): Promise<IContact[]> {
     await connectToDatabase();
-    return await Contact.find({
+    const contacts = await Contact.find({
       ownerId,
       name: { $regex: searchTerm, $options: 'i' }
     }).sort({ name: 1 });
+    
+    // Convert the MongoDB _id to id for the frontend
+    return contacts.map(contact => convertDocumentToObject(contact));
   }
 
   /**
@@ -60,10 +87,13 @@ export class ContactService {
    */
   static async getContactsByTag(ownerId: string, tag: string): Promise<IContact[]> {
     await connectToDatabase();
-    return await Contact.find({
+    const contacts = await Contact.find({
       ownerId,
       tags: tag
     }).sort({ name: 1 });
+    
+    // Convert the MongoDB _id to id for the frontend
+    return contacts.map(contact => convertDocumentToObject(contact));
   }
 
   /**
@@ -71,10 +101,13 @@ export class ContactService {
    */
   static async getContactsByCategory(ownerId: string, category: string): Promise<IContact[]> {
     await connectToDatabase();
-    return await Contact.find({
+    const contacts = await Contact.find({
       ownerId,
       category
     }).sort({ name: 1 });
+    
+    // Convert the MongoDB _id to id for the frontend
+    return contacts.map(contact => convertDocumentToObject(contact));
   }
 
   /**
@@ -86,8 +119,16 @@ export class ContactService {
     // Clear existing contacts first (optional)
     await Contact.deleteMany({});
     
+    // Ensure each contact has an id property set to the same value as _id
+    const contactsWithId = contacts.map(contact => {
+      if (!contact.id) {
+        contact.id = new mongoose.Types.ObjectId().toString();
+      }
+      return contact;
+    });
+    
     // Insert all contacts
-    const result = await Contact.insertMany(contacts);
+    const result = await Contact.insertMany(contactsWithId);
     return result.length;
   }
 } 
