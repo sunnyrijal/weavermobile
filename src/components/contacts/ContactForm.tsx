@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { format as formatDateFn } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import React, { useEffect } from 'react'; 
+import { useNavigation } from "react-day-picker";
 
 export const contactFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -60,6 +61,45 @@ interface ContactFormProps {
   defaultValues?: Partial<ContactFormValues>;
   isEditMode?: boolean;
   isLoading?: boolean;
+}
+
+// Custom Caption for Calendar (minimal, just dropdowns side by side)
+function CalendarCaption({ displayMonth, className }) {
+  const { goToMonth } = useNavigation();
+
+  const months = Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i).toLocaleString(undefined, { month: "long" })
+  );
+  const years = [];
+  for (let y = 1900; y <= new Date().getFullYear(); y++) years.push(y);
+  return (
+    <div className={`flex items-center gap-2 justify-center mb-2 ${className || ""}`}>
+      <label className="sr-only" htmlFor="month-select">Month</label>
+      <select
+        id="month-select"
+        className="appearance-none border rounded-md px-3 py-2 pr-8 text-sm bg-white cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+        value={displayMonth.getMonth()}
+        onChange={e => goToMonth(new Date(displayMonth.getFullYear(), Number(e.target.value)))}
+        aria-label="Select month"
+      >
+        {months.map((month, idx) => (
+          <option key={month} value={idx}>{month}</option>
+        ))}
+      </select>
+      <label className="sr-only" htmlFor="year-select">Year</label>
+      <select
+        id="year-select"
+        className="appearance-none border rounded-md px-3 py-2 pr-8 text-sm bg-white cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+        value={displayMonth.getFullYear()}
+        onChange={e => goToMonth(new Date(Number(e.target.value), displayMonth.getMonth()))}
+        aria-label="Select year"
+      >
+        {years.map(year => (
+          <option key={year} value={year}>{year}</option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoading = false }: ContactFormProps) {
@@ -297,10 +337,16 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                                 mode="single"
                                 selected={field.value}
                                 onSelect={field.onChange}
+                                month={field.value ?? undefined}
                                 disabled={(date) =>
                                 date > new Date() || date < new Date("1900-01-01")
                                 }
                                 initialFocus
+                                fromYear={1900}
+                                toYear={new Date().getFullYear()}
+                                components={{
+                                  Caption: CalendarCaption
+                                }}
                             />
                             </PopoverContent>
                         </Popover>

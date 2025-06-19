@@ -22,6 +22,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { format as formatDateFnInternal } from "date-fns";
 import { cn } from "@/lib/utils";
 import ClientSideFormattedDate from "@/components/shared/ClientSideFormattedDate";
+import ContactRelationships from "@/components/contacts/ContactRelationships";
+import ContactSocialMediaFeed from "@/components/contacts/ContactSocialMediaFeed";
 
 
 const getInitials = (name: string) => {
@@ -623,6 +625,7 @@ export default function ContactDetailPage() {
                   )}
                 </CardContent>
               </Card>
+              <ContactSocialMediaFeed socialProfiles={contact.socialProfiles || {}} />
             </TabsContent>
             )}
 
@@ -634,23 +637,11 @@ export default function ContactDetailPage() {
                   <CardDescription className="text-xs sm:text-sm">How {contact.name} is connected to others in your network.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {contact.relationships && contact.relationships.length > 0 ? (
-                    <ul className="space-y-2 sm:space-y-3">
-                      {contact.relationships.map((rel, index) => (
-                        <li key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted/50 gap-1 sm:gap-0">
-                          <div className="text-xs sm:text-sm">
-                            <p className="font-medium">{getRelatedContactName(rel.relatedContactId)}</p>
-                            <p className="text-muted-foreground">{rel.customLabel || rel.type}</p>
-                          </div>
-                           <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto text-xs sm:text-sm h-7 sm:h-8">
-                            <Link href={`/contacts/${rel.relatedContactId}`}>View Contact</Link>
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-muted-foreground text-xs sm:text-sm">No relationships defined for {contact.name}.</p>
-                  )}
+                  <ContactRelationships
+                    relationships={contact.relationships}
+                    relatedContacts={Object.fromEntries(Object.entries(relatedContacts).map(([id, name]) => [{ id, name }]))}
+                    contactName={contact.name}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>

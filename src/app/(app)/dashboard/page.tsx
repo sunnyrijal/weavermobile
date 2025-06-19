@@ -210,6 +210,8 @@ export default function DashboardPage() {
   
   const upcomingEvents = useMemo(() => getUpcomingEvents(contacts), [contacts]);
 
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+
 
   useEffect(() => {
     return () => {
@@ -307,11 +309,11 @@ export default function DashboardPage() {
       return;
     }
     setIsLoadingAiAnswer(true);
+    setAiAnswer(null);
     try {
       const enrichedContactsForAI = enrichContactsForAI(contacts, contacts);
-
       const result: AnswerContactQuestionOutput = await answerContactQuestion({ question, contacts: enrichedContactsForAI });
-      toast({ title: "AI Assistant:", description: result.answer, duration: 8000 });
+      setAiAnswer(result.answer);
       setAiQuestionText(''); 
     } catch (aiError: any) {
       console.error("AI answering error:", aiError);
@@ -321,7 +323,7 @@ export default function DashboardPage() {
       } else if (aiError.message) {
         description = aiError.message;
       }
-      toast({ title: "AI Error", description, variant: "destructive" });
+      setAiAnswer(description);
     } finally {
       setIsLoadingAiAnswer(false);
     }
@@ -564,6 +566,12 @@ export default function DashboardPage() {
               </AlertDescription>
             </Alert>
           )}
+          {aiAnswer && (
+            <div className="w-full max-w-md bg-accent/10 border border-accent rounded p-4 mt-2 text-base text-foreground shadow">
+              <span className="font-semibold text-primary">AI Answer:</span>
+              <div className="mt-1 whitespace-pre-line">{aiAnswer}</div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -676,66 +684,6 @@ export default function DashboardPage() {
         <div className="text-destructive mt-4 p-2 bg-destructive/10 rounded-md">
           Error loading contacts: {error}
         </div>
-      )}
-      
-      {!isLoading && !error && (
-        <>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-               <Button 
-                variant="outline" 
-                onClick={() => setShowAllContacts(prev => !prev)}
-                className="whitespace-nowrap w-full sm:w-auto"
-                disabled={searchTerm.trim() !== ''} 
-                >
-                {showAllContacts || searchTerm.trim() !== '' ? <><EyeOff className="mr-2 h-4 w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-4 w-4" /> Show All Contacts</>}
-              </Button>
-              <div className="flex items-center gap-2">
-                <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')} aria-label="List view">
-                    <List className="h-5 w-5" />
-                </Button>
-                <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')} aria-label="Grid view">
-                    <LayoutGrid className="h-5 w-5" />
-                </Button>
-                <Button variant={viewMode === 'tree' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('tree')} aria-label="Tree view" asChild>
-                    <Link href="/map"><Share2 className="h-5 w-5" /></Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-4">
-              {filterCategories.map(category => (
-                <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
-              ))}
-            </TabsList>
-
-            <TabsContent value={activeFilter}>
-               {viewMode === 'grid' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {displayedContacts.map(contact => <ContactCardItem key={contact.id} contact={contact} />)}
-                </div>
-              )}
-              {viewMode === 'list' && (
-                <Card className="shadow-md">
-                  <CardContent className="p-0">
-                    <ul className="divide-y divide-border">
-                      {displayedContacts.map(contact => <ContactListItem key={contact.id} contact={contact} />)}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-              {displayedContacts.length === 0 && (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Users className="mx-auto h-12 w-12 mb-4" />
-                  <p className="text-lg font-medium">No contacts found.</p>
-                  <p>{(showAllContacts || searchTerm.trim() !== '') ? "Try adjusting your search or filters, or add new contacts." : "Clear filters or 'Show All Contacts' to see more."}</p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </>
       )}
 
     </div>
