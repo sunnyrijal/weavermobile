@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import ClientSideFormattedDate from "@/components/shared/ClientSideFormattedDate";
 import ContactRelationships from "@/components/contacts/ContactRelationships";
 import ContactSocialMediaFeed from "@/components/contacts/ContactSocialMediaFeed";
+import { ContactMemories } from '@/components/contacts/ContactMemories';
 
 
 const getInitials = (name: string) => {
@@ -497,12 +498,13 @@ export default function ContactDetailPage() {
         
         <CardContent className="pt-24 sm:pt-28 md:pt-20"> {/* Adjusted pt for stacked avatar */}
            <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="overview">
-            <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
+            <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="relationships">Relationships</TabsTrigger>
               <TabsTrigger value="photos">Photos Together</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="events">Notable Events</TabsTrigger>
+              <TabsTrigger value="memories">Memories</TabsTrigger>
             </TabsList>
 
             {activeTab === "overview" && (
@@ -883,6 +885,12 @@ export default function ContactDetailPage() {
                 </CardFooter>
               </Card>
             </TabsContent>
+            )}
+
+            {activeTab === "memories" && (
+              <TabsContent value="memories">
+                <ContactMemories contactId={contactId} />
+              </TabsContent>
             )}
           </Tabs>
         </CardContent>

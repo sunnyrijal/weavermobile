@@ -44,32 +44,41 @@ const processVoiceInputPrompt = ai.definePrompt({
   prompt: `You are an intelligent assistant for NetworkNest, a personal relationship management app.
 Your task is to analyze the following memory transcript.
 1. Provide a concise summary of the memory.
-2. Extract key entities from the transcript.
+2. Extract key entities from the transcript with as much detail as possible.
 
 Transcript:
 "{{{transcript}}}"
 
-For entity extraction, identify:
-- People: Names of individuals.
-- Organizations: Names of companies, schools, etc.
-- Relationships: Phrases describing relationships (e.g., "John's brother", "Mary, wife of Peter").
+For entity extraction, identify with great detail:
+- People: Full names of individuals including first and last names when available.
+- Organizations: Names of companies, schools, universities, etc. Be specific with full names.
+- Relationships: Detailed phrases describing relationships (e.g., "John's brother", "Mary, wife of Peter", "roommate in college").
 - Dates: Specific or relative dates. Format specific dates as YYYY-MM-DD if possible.
-- Locations: Geographical places, addresses, or significant named locations (e.g., building names, room numbers).
-- KeyEvents: Significant happenings, life events, or activities (e.g., "had a daughter", "went to the game", "transferred to Mankato").
+- Locations: Geographical places, addresses, or significant named locations. Include cities, states, countries when mentioned.
+- KeyEvents: Significant happenings, life events, or activities with as much detail as possible.
+
+Try to extract as much information as possible about each person mentioned, including:
+- Their full name
+- Their age if mentioned
+- Their occupation or major if mentioned
+- Their relationships to other people mentioned
+- Where they live or are from
+- Where they work or go to school
+- Any other significant details
 
 Example:
-Transcript: "I met Jadon's brother Jimmy yesterday. Jimmy's wife Katie just had a daughter. We all went to the game at the stadium last week. Jadon transferred to Mankato State after living in Pittman 216 during his freshman year at Main University. We first met at BNKS."
+Transcript: "My roommate in freshman year of college was Jadon Kittelson, age 22. Comp Sci major, girlfriend Nickki Plukett, mom: Debbie Kittelson (also Gustavus Alumni), dad (Dave Kittleson), brother (Jimmy kittelson) Home: faribault, Minnesota. Currently goes to Mankato University"
 
 Expected Output (example format):
 {
-  "summary": "User recounts meeting Jadon's brother Jimmy, whose wife Katie had a daughter. They attended a game. Mentions Jadon's transfer to Mankato State, prior residence at Pittman 216 at Main University, and meeting at BNKS.",
+  "summary": "The memory describes Jadon Kittelson, the user's college roommate. Jadon is 22, studies Computer Science, has a girlfriend named Nickki Plukett, and family including mom Debbie, dad Dave, and brother Jimmy. He's from Faribault, Minnesota and attends Mankato University.",
   "extractedEntities": {
-    "people": ["Jadon", "Jimmy", "Katie"],
-    "organizations": ["Mankato State", "Main University", "BNKS"],
-    "relationships": ["Jadon's brother Jimmy", "Jimmy's wife Katie"],
-    "dates": ["yesterday", "last week"],
-    "locations": ["stadium", "Pittman 216"],
-    "keyEvents": ["Katie just had a daughter", "went to the game", "Jadon transferred to Mankato State", "living in Pittman 216", "met at BNKS"]
+    "people": ["Jadon Kittelson", "Nickki Plukett", "Debbie Kittelson", "Dave Kittleson", "Jimmy Kittelson"],
+    "organizations": ["Gustavus", "Mankato University"],
+    "relationships": ["roommate in freshman year of college", "girlfriend Nickki Plukett", "mom: Debbie Kittelson", "dad: Dave Kittleson", "brother: Jimmy Kittelson"],
+    "dates": [],
+    "locations": ["Faribault, Minnesota"],
+    "keyEvents": ["Comp Sci major", "Currently goes to Mankato University"]
   }
 }
 

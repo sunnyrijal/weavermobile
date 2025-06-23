@@ -28,7 +28,8 @@
     "db:seed:atlas": "node seed-atlas.js",
     "db:seed:direct": "docker exec contacts-mongodb mongosh -f /seed-mongo.js",
     "db:import-mock": "node src/scripts/import-mock-data.js",
-    "db:add-test": "node src/scripts/add-test-contact.js"
+    "db:add-test": "node src/scripts/add-test-contact.js",
+    "test-memory": "ts-node -r tsconfig-paths/register src/scripts/test-memory-connection.ts"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -58,6 +59,7 @@
     "@tanstack/react-query": "^5.66.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
     "firebase": "^11.7.0",

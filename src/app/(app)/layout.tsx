@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { GlobalSearchInput } from '@/components/layout/GlobalSearchInput';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; 
-import { VoiceMemoryInputModal } from '@/components/memory/VoiceMemoryInputModal'; // Added
+import { VoiceMemoryInputModal } from '@/components/memory/VoiceMemoryInputModal';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { ThemeSwitcher } from '@/components/layout/ThemeSwitcher';
 
