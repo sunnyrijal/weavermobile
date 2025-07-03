@@ -7,12 +7,20 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const ownerId = searchParams.get('ownerId');
+    const name = searchParams.get('name');
     
     if (!ownerId) {
       return NextResponse.json({ error: 'ownerId is required' }, { status: 400 });
     }
 
-    const contacts = await ContactService.getContactsByOwnerId(ownerId);
+    let contacts = [];
+    
+    if (name) {
+      contacts = await ContactService.searchContacts(ownerId, name);
+    } else {
+      contacts = await ContactService.getContactsByOwnerId(ownerId);
+    }
+    
     return NextResponse.json({ contacts });
   } catch (error) {
     console.error('Error fetching contacts:', error);
@@ -25,8 +33,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    if (!body.ownerId || !body.name) {
-      return NextResponse.json({ error: 'ownerId and name are required' }, { status: 400 });
+    if (!body.ownerId) {
+      return NextResponse.json({ error: 'ownerId is required' }, { status: 400 });
+    }
+    
+    if (!body.name) {
+      return NextResponse.json({ error: 'name is required' }, { status: 400 });
     }
 
     const contact = await ContactService.createContact(body);

@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
@@ -13,53 +12,57 @@ import { useSearchParams } from 'next/navigation';
 import { useContacts } from '@/hooks/useContacts';
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
-  <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-    <CardHeader className="p-0">
-      <Image 
-        src={contact.photoURL || `https://picsum.photos/seed/${contact.id}/400/250`} 
-        alt={contact.name}
-        width={400}
-        height={250}
-        className="object-cover w-full h-40"
-        data-ai-hint="person portrait"
-      />
-    </CardHeader>
-    <CardContent className="p-4">
-      <CardTitle className="text-lg mb-1">{contact.name}</CardTitle>
-      <CardDescription className="text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
-      {contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.occupation}{contact.company ? ` at ${contact.company}` : ''}</p>}
-      {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.college}</p>}
-      {contact.currentLocation && <p className="text-xs text-muted-foreground truncate">{contact.currentLocation}</p>}
-      {!contact.currentLocation && contact.hometown && <p className="text-xs text-muted-foreground truncate">From: {contact.hometown}</p>}
-    </CardContent>
-    <CardFooter className="p-4 pt-0">
-      <Button variant="outline" size="sm" asChild>
-        <Link href={`/contacts/${contact.id}`}>View Details</Link>
-      </Button>
-    </CardFooter>
-  </Card>
+  <Link href={`/contacts/${contact.id}`} className="block">
+    <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardHeader className="p-0">
+        <Image 
+          src={contact.photoURL || `https://picsum.photos/seed/${contact.id}/400/250`} 
+          alt={contact.name}
+          width={400}
+          height={250}
+          className="object-cover w-full h-40"
+          data-ai-hint="person portrait"
+        />
+      </CardHeader>
+      <CardContent className="p-4">
+        <CardTitle className="text-lg mb-1">{contact.name}</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
+        {contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.occupation}{contact.company ? ` at ${contact.company}` : ''}</p>}
+        {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.college}</p>}
+        {contact.currentLocation && <p className="text-xs text-muted-foreground truncate">{contact.currentLocation}</p>}
+        {!contact.currentLocation && contact.hometown && <p className="text-xs text-muted-foreground truncate">From: {contact.hometown}</p>}
+      </CardContent>
+      <CardFooter className="p-4 pt-0">
+        <Button variant="outline" size="sm" className="w-full">
+          View Details
+        </Button>
+      </CardFooter>
+    </Card>
+  </Link>
 );
 
 const ContactListItem = ({ contact }: { contact: Contact }) => (
- <li className="flex items-center justify-between py-3 px-4 hover:bg-muted/50 rounded-lg transition-colors duration-150">
-    <div className="flex items-center gap-3">
-      <Image 
-        src={contact.photoURL || `https://picsum.photos/seed/${contact.id}/40/40`} 
-        alt={contact.name}
-        width={40}
-        height={40}
-        className="rounded-full object-cover"
-        data-ai-hint="person avatar"
-      />
-      <div>
-        <p className="font-medium">{contact.name}</p>
-        <p className="text-sm text-muted-foreground">{contact.occupation || contact.college || contact.category || 'N/A'}</p>
+  <Link href={`/contacts/${contact.id}`} className="block">
+    <li className="flex items-center justify-between py-3 px-4 hover:bg-muted/50 rounded-lg transition-colors duration-150">
+      <div className="flex items-center gap-3">
+        <Image 
+          src={contact.photoURL || `https://picsum.photos/seed/${contact.id}/40/40`} 
+          alt={contact.name}
+          width={40}
+          height={40}
+          className="rounded-full object-cover"
+          data-ai-hint="person avatar"
+        />
+        <div>
+          <p className="font-medium">{contact.name}</p>
+          <p className="text-sm text-muted-foreground">{contact.occupation || contact.college || contact.category || 'N/A'}</p>
+        </div>
       </div>
-    </div>
-    <Button variant="ghost" size="sm" asChild>
-      <Link href={`/contacts/${contact.id}`}>View</Link>
-    </Button>
-  </li>
+      <Button variant="ghost" size="sm">
+        View
+      </Button>
+    </li>
+  </Link>
 );
 
 export default function ContactsPage() {

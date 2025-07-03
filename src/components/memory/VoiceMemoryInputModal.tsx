@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mic, MicOff, Loader2, Save, XCircle, Brain } from "lucide-react";
+import { Mic, MicOff, Loader2, Save, XCircle, Brain, AlertCircle, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { processVoiceInput } from '@/ai/flows/process-voice-input-flow';
 import type { ProcessVoiceInputOutput } from '@/ai/flows/process-voice-input-flow';
@@ -18,6 +18,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { findPotentialContactMatches } from "@/lib/utils";
+import { v4 as uuidv4 } from 'uuid';
+import { useContacts } from '@/hooks/useContacts';
 
 interface VoiceMemoryInputModalProps {
   isOpen: boolean;
@@ -28,6 +31,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const { createMemory } = useMemories();
+  const { addContact, updateContact } = useContacts({ initialLoad: false });
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -44,6 +48,9 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
   const [newContactName, setNewContactName] = useState('');
   const [isCreatingContact, setIsCreatingContact] = useState(false);
   const contactsFetchedRef = useRef(false);
+  const [suggestedContactMatches, setSuggestedContactMatches] = useState<Array<{id: string, name: string, similarity: number}>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [newPeopleToCreate, setNewPeopleToCreate] = useState<string[]>([]);
 
   const resetState = useCallback(() => {
     setTranscript('');
@@ -57,6 +64,19 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     setSelectedContactIds([]);
     setNewContactName('');
     setIsCreatingContact(false);
+    setSuggestedContactMatches([]);
+    setShowSuggestions(false);
+    setNewPeopleToCreate([]);
+    
+    // Make sure to stop speech recognition if active
+    if (speechRecognitionRef.current) {
+      try { 
+        speechRecognitionRef.current.stop(); 
+      } catch(e) {
+        /* Ignore errors, already stopped */
+      }
+      speechRecognitionRef.current = null;
+    }
   }, []);
 
   // Fetch contacts only once when modal opens
@@ -148,186 +168,70 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     }
   };
 
-  const suggestContactsFromEntities = useCallback(() => {
-    if (!aiResponse?.extractedEntities?.people || !aiResponse.extractedEntities.people.length) {
+  const findContactMatches = useCallback((peopleNames: string[]) => {
+    if (!peopleNames?.length || !contacts?.length) {
+      setSuggestedContactMatches([]);
       return;
     }
-    
-    // For each person mentioned in the memory, check if they exist in contacts
-    const peopleNames = aiResponse.extractedEntities.people;
-    const existingContactsByName = new Map(contacts.map(contact => [contact.name.toLowerCase(), contact]));
-    
-    // Extract relationships between people
-    const relationships = aiResponse.extractedEntities.relationships || [];
-    
-    // Extract locations that might be hometowns or current locations
-    const locations = aiResponse.extractedEntities.locations || [];
-    
-    // Extract organizations that might be companies or colleges
-    const organizations = aiResponse.extractedEntities.organizations || [];
-    
-    // Filter out people who are already contacts
-    const newPeopleNames = peopleNames.filter(
-      personName => !existingContactsByName.has(personName.toLowerCase())
-    );
-    
-    // If there are new people, suggest creating contacts for them
-    if (newPeopleNames.length > 0) {
-      // For the first new person, try to extract more details from the memory
-      const firstPersonName = newPeopleNames[0];
-      const transcript = aiResponse?.summary || transcript || manualMemoryText;
-      
-      // Create a more detailed contact suggestion
-      const newContactSuggestion = {
-        name: firstPersonName,
-        ownerId: currentUser?.uid || '',
-      };
-      
-      // Look for relationships in the transcript
-      relationships.forEach(rel => {
-        if (rel.toLowerCase().includes(firstPersonName.toLowerCase())) {
-          // This relationship involves the first person
-          newContactSuggestion.ownerRelationshipLabel = rel;
-        }
-      });
-      
-      // Look for locations in the transcript
-      if (locations.length > 0) {
-        newContactSuggestion.hometown = locations[0];
-      }
-      
-      // Look for organizations in the transcript
-      if (organizations.length > 0) {
-        // Check if it might be a college/university
-        const orgLower = organizations[0].toLowerCase();
-        if (orgLower.includes('university') || orgLower.includes('college')) {
-          newContactSuggestion.college = organizations[0];
-        } else {
-          newContactSuggestion.company = organizations[0];
-        }
-      }
-      
-      toast({
-        title: "New Person Detected",
-        description: `Would you like to create a contact for: ${firstPersonName}?`,
-        action: (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              handleCreateNewContact(newContactSuggestion);
-            }}
-          >
-            Create
-          </Button>
-        ),
-      });
-    }
-    
-    // Select existing contacts that were mentioned
-    const mentionedContactIds = peopleNames
-      .map(name => {
-        const contact = existingContactsByName.get(name.toLowerCase());
-        return contact?.id;
-      })
-      .filter(Boolean) as string[];
-    
-    if (mentionedContactIds.length > 0) {
-      setSelectedContactIds(prev => {
-        const newIds = [...prev];
-        mentionedContactIds.forEach(id => {
-          if (!newIds.includes(id)) {
-            newIds.push(id);
-          }
-        });
-        return newIds;
-      });
-    }
-  }, [aiResponse, contacts, toast, currentUser?.uid, transcript, manualMemoryText]);
 
-  // Add a function to handle creating a new contact with more details
-  const handleCreateNewContact = async (contactData: any) => {
-    if (!currentUser) return;
+    const allMatches: Array<{id: string, name: string, similarity: number}> = [];
     
-    setIsCreatingContact(true);
+    // For each person extracted from the memory
+    peopleNames.forEach(person => {
+      // Find potential matches in contacts
+      const matches = findPotentialContactMatches(person, contacts, 0.65); // Lower threshold for better recall
+      
+      // Only add unique matches
+      matches.forEach(match => {
+        if (!allMatches.some(existingMatch => existingMatch.id === match.id)) {
+          allMatches.push(match);
+        }
+      });
+    });
+    
+    setSuggestedContactMatches(allMatches);
+    setShowSuggestions(allMatches.length > 0);
+  }, [contacts]);
+
+  const identifyNewPeopleContacts = useCallback((peopleNames: string[]) => {
+    if (!peopleNames?.length || !contacts?.length) return;
+    
+    // Find people who don't have matching contacts
+    const unmatchedPeople = peopleNames.filter(personName => {
+      // Check if this person has no match above threshold
+      const matches = findPotentialContactMatches(personName, contacts, 0.6);
+      return matches.length === 0;
+    });
+    
+    setNewPeopleToCreate(unmatchedPeople);
+  }, [contacts]);
+
+  const processTranscript = useCallback(async () => {
+    if (!transcript.trim()) return;
+
+    setIsProcessingAi(true);
+    setProcessedInputType(isListening || transcript !== manualMemoryText ? 'voice' : 'text');
+
     try {
-      const response = await fetch('/api/contacts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(contactData),
-      });
+      const result = await processVoiceInput({ transcript });
+      setAiResponse(result);
       
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // Update local contacts state
-      setContacts(prevContacts => [...prevContacts, data.contact]);
-      
-      toast({ 
-        title: 'Contact Created',
-        description: `${contactData.name} has been added to your contacts.`
-      });
-      
-      // Add the new contact to selected contacts
-      if (data.contact.id) {
-        setSelectedContactIds(prev => [...prev, data.contact.id]);
+      // Find potential contact matches based on extracted people
+      if (result.extractedEntities?.people?.length) {
+        findContactMatches(result.extractedEntities.people);
+        identifyNewPeopleContacts(result.extractedEntities.people);
       }
     } catch (error) {
-      console.error('Error creating contact:', error);
-      toast({ 
-        title: 'Error',
-        description: 'Failed to create contact',
+      console.error('Error processing input:', error);
+      toast({
+        title: 'Processing Error',
+        description: 'Failed to process your input.',
         variant: 'destructive'
       });
     } finally {
-      setIsCreatingContact(false);
-    }
-  };
-
-  // Add a ref to track if suggestions have been processed
-  const suggestionsProcessedRef = useRef(false);
-
-  // Fix the useEffect that processes suggestions
-  useEffect(() => {
-    // Only process suggestions once per AI response
-    if (aiResponse && !suggestionsProcessedRef.current) {
-      suggestContactsFromEntities();
-      suggestionsProcessedRef.current = true;
-    }
-  }, [aiResponse, suggestContactsFromEntities]);
-
-  // Reset the suggestions processed ref when AI response changes
-  useEffect(() => {
-    if (!aiResponse) {
-      suggestionsProcessedRef.current = false;
-    }
-  }, [aiResponse]);
-
-  const handleProcessTranscript = async (textToProcess: string, inputType: 'voice' | 'text') => {
-    if (!textToProcess.trim()) {
-      toast({ title: "Empty Transcript", description: "Nothing to process.", variant: "destructive"});
-      return;
-    }
-    setIsProcessingAi(true);
-    setAiResponse(null); 
-    setProcessedInputType(inputType);
-    toast({ title: `Processing ${inputType} input...`, description: "AI is analyzing your memory." });
-    try {
-      const result = await processVoiceInput({ transcript: textToProcess });
-      setAiResponse(result);
-      toast({ title: "AI Processing Complete", description: "Review summary and entities." });
-    } catch (error) {
-      console.error("AI processing error:", error);
-      toast({ title: "AI Error", description: (error as Error).message || "Could not process memory.", variant: "destructive" });
-    } finally {
       setIsProcessingAi(false);
     }
-  };
+  }, [transcript, toast, findContactMatches, identifyNewPeopleContacts, isListening, manualMemoryText]);
 
   const handleVoiceInput = async () => {
     if (isListening) {
@@ -372,70 +276,213 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
           return newTranscript + (interimTranscript ? ` ${interimTranscript}` : '');
         });
       };
-      
+
       recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error, event.message);
-        let errorMessage = `Speech recognition error: ${event.error}.`;
-        if (event.message) errorMessage += ` Details: ${event.message}`;
-        if (event.error === 'no-speech') errorMessage = "No speech detected. Please try again.";
-        else if (event.error === 'audio-capture') errorMessage = "Microphone problem.";
-        else if (event.error === 'not-allowed') {
-            errorMessage = "Microphone access denied. Please enable it in your browser settings.";
-            setMicrophonePermissionError(errorMessage);
-        } else if (event.error === 'network') {
-            errorMessage = "Network error during speech recognition. Please check your internet connection.";
+        if (event.error === 'not-allowed') {
+          setMicrophonePermissionError("You denied microphone access. Please enable it in your browser settings and try again.");
         } else {
-            errorMessage = `An unknown error occurred with speech recognition: ${event.error}.`;
+          console.error('Speech recognition error:', event.error);
+          toast({ 
+            title: 'Recognition Error',
+            description: `Error: ${event.error}. Please try again.`,
+            variant: 'destructive'
+          });
         }
-        toast({ title: "Voice Input Error", description: errorMessage, variant: "destructive" });
-        setIsListening(false);
-      };
-
-      recognition.onstart = () => {
-        setTranscript(''); 
-        finalTranscriptForProcessing = ''; // Reset for new recording
-        setAiResponse(null); 
-        setIsListening(true);
-        toast({ title: "Listening...", description: "Please speak your memory." });
-      };
-
-      recognition.onend = () => {
         setIsListening(false);
         if (speechRecognitionRef.current) {
           try { speechRecognitionRef.current.stop(); } catch(e) {/* Already stopped */}
         }
         speechRecognitionRef.current = null;
-        // Use the transcript state which should now be final
-        setTranscript(currentTranscriptState => {
-            if (currentTranscriptState.trim()) {
-                handleProcessTranscript(currentTranscriptState.trim(), 'voice');
-            }
-            return currentTranscriptState;
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        
+        if (speechRecognitionRef.current) {
+          try { speechRecognitionRef.current.stop(); } catch(e) {/* Already stopped */}
+        }
+        speechRecognitionRef.current = null;
+        
+        // Process the transcript when recording stops
+        setTranscript(currentTranscript => {
+          if (currentTranscript.trim()) {
+            // Call processTranscript after the state has been updated
+            setTimeout(() => processTranscript(), 0);
+          }
+          return currentTranscript;
         });
       };
+
       recognition.start();
-    } catch (err) {
-      console.error("Error accessing microphone", err);
-      let description = "Could not access microphone.";
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        description = "Microphone access denied. Please enable it in browser settings.";
-        setMicrophonePermissionError(description);
-      } else if (err.name === "NotFoundError") {
-        description = "No microphone found. Please ensure a microphone is connected and enabled.";
-        setMicrophonePermissionError(description);
-      }
-      toast({ title: "Microphone Error", description, variant: "destructive" });
-      setIsListening(false);
+      setIsListening(true);
+    } catch (error) {
+      console.error('Error initializing speech recognition:', error);
+      toast({
+        title: 'Recognition Error',
+        description: error instanceof Error ? error.message : 'Failed to initialize speech recognition',
+        variant: 'destructive'
+      });
+      setMicrophonePermissionError(
+        error instanceof Error ? error.message : 'Failed to access your microphone'
+      );
     }
   };
   
   const handleProcessManualText = () => {
-      if (manualMemoryText.trim()){
-          setTranscript(manualMemoryText); 
-          handleProcessTranscript(manualMemoryText.trim(), 'text');
-      } else {
-          toast({title: "Empty Text", description: "Please write down a memory to process.", variant: "destructive"});
+    if (!manualMemoryText.trim()) {
+      toast({ 
+        title: 'Empty Input', 
+        description: 'Please enter some text to process.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    // Set the transcript from manual text and then process
+    setTranscript(manualMemoryText);
+    // Wait for state update to complete
+    setTimeout(() => processTranscript(), 0);
+  };
+
+  const createContactFromMemory = async (personName: string) => {
+    if (!currentUser || !aiResponse) return;
+    
+    try {
+      // Extract additional information about this person
+      const entities = aiResponse.extractedEntities;
+      let college = '';
+      let company = '';
+      let location = '';
+      let hometown = '';
+      let relationships = [];
+      
+      // Check for organizations that might be colleges or companies
+      if (entities?.organizations?.length) {
+        // Try to identify educational institutions
+        const educationalTerms = ['university', 'college', 'school', 'institute', 'academy'];
+        const educationalOrg = entities.organizations.find(org => 
+          educationalTerms.some(term => org.toLowerCase().includes(term))
+        );
+        if (educationalOrg) college = educationalOrg;
+        
+        // Remaining organizations might be companies
+        if (!educationalOrg && entities.organizations.length > 0) {
+          company = entities.organizations[0];
+        }
       }
+      
+      // Check for locations
+      if (entities?.locations?.length) {
+        // Use the first location as current location, second as hometown if available
+        location = entities.locations[0];
+        if (entities.locations.length > 1) {
+          hometown = entities.locations[1];
+        }
+      }
+      
+      // Try to determine relationships for this person
+      if (entities?.relationships?.length) {
+        // Look for relationships mentioning this person
+        for (const rel of entities.relationships) {
+          if (rel.toLowerCase().includes(personName.toLowerCase())) {
+            // This relationship involves this person
+            relationships.push(rel);
+          }
+        }
+      }
+      
+      // Create new contact with extracted information
+      const newContact = await addContact({
+        name: personName,
+        ownerId: currentUser.uid,
+        college,
+        company,
+        currentLocation: location,
+        hometown,
+        tags: entities?.keyEvents?.map(event => event.substring(0, 30)) || [],
+        notes: aiResponse.summary,
+        notableEvents: entities?.keyEvents?.map(event => ({
+          id: uuidv4(),
+          title: event.substring(0, 50),
+          date: new Date().toISOString().split('T')[0],
+          description: event
+        })) || [],
+      });
+      
+      if (newContact?.id) {
+        // Add the new contact to selected contacts
+        setSelectedContactIds(prev => [...prev, newContact.id]);
+        // Update contacts list
+        setContacts(prev => [...prev, newContact]);
+        // Remove from new people list
+        setNewPeopleToCreate(prev => prev.filter(name => name !== personName));
+        
+        toast({
+          title: 'Contact Created',
+          description: `${personName} has been added to your contacts.`
+        });
+      }
+    } catch (error) {
+      console.error('Error creating contact:', error);
+      toast({
+        title: 'Error',
+        description: `Failed to create contact for ${personName}`,
+        variant: 'destructive'
+      });
+    }
+  };
+  
+  const updateContactsWithEvents = async () => {
+    if (!selectedContactIds.length || !aiResponse?.extractedEntities) return;
+    
+    const entities = aiResponse.extractedEntities;
+    if (!entities.keyEvents?.length) return;
+    
+    // For each selected contact, add events from the memory
+    for (const contactId of selectedContactIds) {
+      try {
+        const contactToUpdate = contacts.find(c => c.id === contactId);
+        if (!contactToUpdate) continue;
+        
+        // Create notable events from key events
+        const notableEvents = entities.keyEvents.map(event => ({
+          id: uuidv4(),
+          title: event.substring(0, 50),
+          date: new Date().toISOString().split('T')[0],
+          description: event
+        }));
+        
+        // Get existing events to avoid duplicates
+        const existingEvents = contactToUpdate.notableEvents || [];
+        
+        // Merge events, avoiding duplicates
+        const mergedEvents = [
+          ...existingEvents,
+          ...notableEvents.filter(newEvent => 
+            !existingEvents.some(existing => 
+              existing.description === newEvent.description
+            )
+          )
+        ];
+        
+        // Update the contact with new events
+        await updateContact(contactId, {
+          notableEvents: mergedEvents,
+        });
+        
+        console.log(`Updated contact ${contactToUpdate.name} with ${notableEvents.length} events`);
+      } catch (error) {
+        console.error(`Error updating contact ${contactId} with events:`, error);
+      }
+    }
+  };
+  
+  const handleCreateAllNewContacts = async () => {
+    if (!newPeopleToCreate.length) return;
+    
+    for (const personName of newPeopleToCreate) {
+      await createContactFromMemory(personName);
+    }
   };
 
   const handleSaveMemory = async () => {
@@ -443,6 +490,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       toast({title: "Not Logged In", description: "Please log in to save memories.", variant: "destructive"});
       return;
     }
+    
     // Check if there is content to save, either from AI processing or raw input
     const contentToSave = aiResponse?.summary || transcript || manualMemoryText;
     if (!contentToSave || !contentToSave.trim()) {
@@ -457,7 +505,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       const memoryToSave: Partial<Memory> = {
         ownerId: currentUser.uid,
         timestamp: new Date(),
-        inputType: processedInputType || (manualMemoryText && !transcript ? 'text' : 'voice'), // Refined logic for inputType
+        inputType: processedInputType || (manualMemoryText && !transcript ? 'text' : 'voice'), 
         transcript: transcript || manualMemoryText, 
         summary: aiResponse?.summary || transcript || manualMemoryText,
         entities: aiResponse?.extractedEntities,
@@ -471,11 +519,11 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
         throw new Error("Failed to save memory");
       }
 
-      // 2. If there are multiple contacts selected, create relationships between them
-      if (selectedContactIds.length > 1) {
-        await createContactRelationships(selectedContactIds);
+      // 2. Update contacts with events from memory
+      if (selectedContactIds.length > 0 && aiResponse?.extractedEntities?.keyEvents?.length > 0) {
+        await updateContactsWithEvents();
       }
-
+      
       toast({ title: "Memory Saved", description: "Your memory has been saved successfully." });
       onOpenChange(false);
     } catch (error) {
@@ -483,219 +531,6 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       toast({ title: "Save Error", description: "Failed to save memory to database.", variant: "destructive" });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  // Add a function to create relationships between contacts
-  const createContactRelationships = async (contactIds: string[]) => {
-    if (contactIds.length <= 1) return;
-
-    // Get relationship information from AI response
-    const relationshipInfo = new Map<string, Map<string, string>>();
-    
-    // Extract relationship information from AI response if available
-    if (aiResponse?.extractedEntities?.relationships) {
-      const peopleNames = aiResponse.extractedEntities.people || [];
-      const relationships = aiResponse.extractedEntities.relationships || [];
-      
-      // Create a map of lowercase names to original case names
-      const nameMap = new Map<string, string>();
-      peopleNames.forEach(name => {
-        nameMap.set(name.toLowerCase(), name);
-      });
-      
-      // Process each relationship string to extract relationship types
-      relationships.forEach(rel => {
-        // Common patterns like "mom: Debbie Kittelson", "girlfriend Nickki Plukett"
-        const parentPattern = /(mom|mother|dad|father|parent):\s*([^,]+)/i;
-        const siblingPattern = /(brother|sister|sibling):\s*([^,]+)/i;
-        const partnerPattern = /(girlfriend|boyfriend|wife|husband|partner|spouse)[\s:]?\s*([^,]+)/i;
-        
-        let match;
-        let relationType = "";
-        let name1 = "";
-        let name2 = "";
-        
-        if (match = rel.match(parentPattern)) {
-          relationType = "Parent";
-          name2 = match[2].trim(); // Parent name
-          
-          // Find who this person is parent to
-          for (const personName of peopleNames) {
-            if (!rel.toLowerCase().includes(personName.toLowerCase())) {
-              name1 = personName;
-              break;
-            }
-          }
-        } 
-        else if (match = rel.match(siblingPattern)) {
-          relationType = "Sibling";
-          name2 = match[2].trim(); // Sibling name
-          
-          // Find who this person is sibling to
-          for (const personName of peopleNames) {
-            if (!rel.toLowerCase().includes(personName.toLowerCase())) {
-              name1 = personName;
-              break;
-            }
-          }
-        }
-        else if (match = rel.match(partnerPattern)) {
-          relationType = "Partner";
-          name2 = match[2].trim(); // Partner name
-          
-          // Find who this person is partner to
-          for (const personName of peopleNames) {
-            if (!rel.toLowerCase().includes(personName.toLowerCase())) {
-              name1 = personName;
-              break;
-            }
-          }
-        }
-        
-        // Store the relationship info if we found a valid relationship
-        if (relationType && name1 && name2) {
-          if (!relationshipInfo.has(name1.toLowerCase())) {
-            relationshipInfo.set(name1.toLowerCase(), new Map<string, string>());
-          }
-          relationshipInfo.get(name1.toLowerCase())?.set(name2.toLowerCase(), relationType);
-          
-          // Also store the reverse relationship
-          if (!relationshipInfo.has(name2.toLowerCase())) {
-            relationshipInfo.set(name2.toLowerCase(), new Map<string, string>());
-          }
-          relationshipInfo.get(name2.toLowerCase())?.set(name1.toLowerCase(), relationType);
-        }
-      });
-    }
-
-    // Create a map of contact IDs to names
-    const contactIdToName = new Map<string, string>();
-    const contactNameToId = new Map<string, string>();
-    
-    // Fetch all contacts to get their names
-    for (const contactId of contactIds) {
-      const contactResponse = await fetch(`/api/contacts/${contactId}`);
-      if (!contactResponse.ok) continue;
-      const contactData = await contactResponse.json();
-      const contact = contactData.contact;
-      
-      contactIdToName.set(contactId, contact.name);
-      contactNameToId.set(contact.name.toLowerCase(), contactId);
-    }
-
-    // For each pair of contacts, create a relationship if it doesn't exist
-    for (let i = 0; i < contactIds.length; i++) {
-      for (let j = i + 1; j < contactIds.length; j++) {
-        const contact1Id = contactIds[i];
-        const contact2Id = contactIds[j];
-        
-        // Get the first contact
-        const contact1Response = await fetch(`/api/contacts/${contact1Id}`);
-        if (!contact1Response.ok) continue;
-        const contact1Data = await contact1Response.json();
-        const contact1 = contact1Data.contact;
-        
-        // Check if relationship already exists
-        const existingRelationship = contact1.relationships?.find(
-          (rel: any) => rel.relatedContactId === contact2Id
-        );
-        
-        if (!existingRelationship) {
-          // Try to determine the relationship type from AI analysis
-          let relationType = "connected";
-          let customLabel = "";
-          
-          const contact1Name = contactIdToName.get(contact1Id)?.toLowerCase() || "";
-          const contact2Name = contactIdToName.get(contact2Id)?.toLowerCase() || "";
-          
-          if (contact1Name && contact2Name) {
-            // Check if we have relationship info for these contacts
-            const relationshipType = relationshipInfo.get(contact1Name)?.get(contact2Name);
-            if (relationshipType) {
-              relationType = relationshipType;
-              
-              // If it's a parent relationship, determine if it's mother or father
-              if (relationType === "Parent") {
-                // Check if we can determine if it's mother or father from the relationship text
-                const relationships = aiResponse?.extractedEntities?.relationships || [];
-                for (const rel of relationships) {
-                  if (rel.toLowerCase().includes(contact2Name)) {
-                    if (rel.toLowerCase().includes("mom") || rel.toLowerCase().includes("mother")) {
-                      customLabel = "Mother";
-                      break;
-                    } else if (rel.toLowerCase().includes("dad") || rel.toLowerCase().includes("father")) {
-                      customLabel = "Father";
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-          }
-          
-          // Create a new relationship
-          const updatedRelationships = [
-            ...(contact1.relationships || []),
-            {
-              relatedContactId: contact2Id,
-              type: relationType,
-              customLabel: customLabel
-            }
-          ];
-          
-          // Update the contact with the new relationship
-          await fetch(`/api/contacts/${contact1Id}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ relationships: updatedRelationships }),
-          });
-          
-          // Also create the reverse relationship
-          const contact2Response = await fetch(`/api/contacts/${contact2Id}`);
-          if (contact2Response.ok) {
-            const contact2Data = await contact2Response.json();
-            const contact2 = contact2Data.contact;
-            
-            // Determine the reverse relationship type
-            let reverseType = relationType;
-            let reverseCustomLabel = "";
-            
-            if (relationType === "Parent") {
-              reverseType = "Child";
-            } else if (relationType === "Child") {
-              reverseType = "Parent";
-            }
-            
-            // Check if reverse relationship already exists
-            const existingReverseRelationship = contact2.relationships?.find(
-              (rel: any) => rel.relatedContactId === contact1Id
-            );
-            
-            if (!existingReverseRelationship) {
-              const updatedReverseRelationships = [
-                ...(contact2.relationships || []),
-                {
-                  relatedContactId: contact1Id,
-                  type: reverseType,
-                  customLabel: reverseCustomLabel
-                }
-              ];
-              
-              // Update the second contact with the new relationship
-              await fetch(`/api/contacts/${contact2Id}`, {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ relationships: updatedReverseRelationships }),
-              });
-            }
-          }
-        }
-      }
     }
   };
 
@@ -751,6 +586,89 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       }
     };
   }, [isOpen, resetState]);
+
+  // Add a component to show suggested contacts
+  const SuggestedContacts = () => {
+    if (!suggestedContactMatches.length || !showSuggestions) return null;
+    
+    return (
+      <div className="mt-3 border p-3 rounded-md bg-muted/30">
+        <div className="flex justify-between items-center mb-2">
+          <h4 className="font-medium text-sm flex items-center">
+            <AlertCircle className="h-4 w-4 mr-1 text-amber-500" />
+            Suggested Contacts
+          </h4>
+          <Button variant="ghost" size="sm" onClick={() => setShowSuggestions(false)}>
+            Hide
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-2">
+          We found these potential matching contacts based on names mentioned in your memory:
+        </p>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {suggestedContactMatches.map((match) => {
+            const isSelected = selectedContactIds.includes(match.id);
+            return (
+              <Badge 
+                key={match.id} 
+                variant={isSelected ? "default" : "outline"}
+                className={cn(
+                  "cursor-pointer hover:bg-accent transition-colors px-3 py-1",
+                  isSelected && "bg-primary"
+                )}
+                onClick={() => toggleContactSelection(match.id)}
+              >
+                {match.name}
+                {isSelected ? (
+                  <Check className="ml-1 h-3 w-3" />
+                ) : null}
+              </Badge>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Add a component to show new contacts to create
+  const NewContactsSection = () => {
+    if (!newPeopleToCreate.length) return null;
+    
+    return (
+      <div className="mt-3 border p-3 rounded-md bg-amber-50/50 dark:bg-amber-950/20">
+        <div className="flex justify-between items-center mb-2">
+          <h4 className="font-medium text-sm flex items-center">
+            <UserPlus className="h-4 w-4 mr-1 text-amber-500" />
+            New People Detected
+          </h4>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleCreateAllNewContacts}
+            disabled={isSaving || newPeopleToCreate.length === 0}
+          >
+            Create All
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-2">
+          These people were mentioned but don't match existing contacts:
+        </p>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {newPeopleToCreate.map((personName) => (
+            <Badge 
+              key={personName} 
+              variant="outline"
+              className="cursor-pointer hover:bg-accent transition-colors px-3 py-1 border-amber-200 dark:border-amber-800"
+              onClick={() => createContactFromMemory(personName)}
+            >
+              {personName}
+              <UserPlus className="ml-1 h-3 w-3" />
+            </Badge>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -809,22 +727,33 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
           {isProcessingAi && !aiResponse && <div className="text-center p-4"><Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" /> <p className="text-sm text-muted-foreground">AI is processing...</p></div>}
 
           {aiResponse && (
-            <div className="space-y-3 p-3 border-2 border-primary/50 rounded-md shadow-sm">
-              <h3 className="font-semibold text-md text-primary">AI Summary &amp; Insights:</h3>
-              <div className="space-y-1">
-                <p className="font-medium text-sm">Summary:</p>
-                <p className="text-xs bg-accent/10 p-2 rounded">{aiResponse.summary}</p>
-              </div>
-              {aiResponse.extractedEntities && Object.entries(aiResponse.extractedEntities).map(([key, value]) => (
-                Array.isArray(value) && value.length > 0 && (
-                  <div key={key} className="space-y-0.5">
-                    <p className="font-medium text-xs capitalize text-muted-foreground">{key.replace(/([A-Z])/g, ' $1').trim()}:</p>
-                    <ul className="list-disc list-inside pl-2 text-xs">
-                      {value.map((item, idx) => <li key={idx}>{item}</li>)}
-                    </ul>
+            <div className="space-y-2">
+              <h3 className="font-medium text-sm">AI Summary:</h3>
+              <p className="text-sm p-3 border rounded-md bg-muted/50">{aiResponse.summary}</p>
+              
+              {/* Show the suggested contacts component */}
+              <SuggestedContacts />
+              
+              {/* Show the new contacts component */}
+              <NewContactsSection />
+              
+              {aiResponse.extractedEntities && Object.values(aiResponse.extractedEntities).some(arr => arr && arr.length > 0) && (
+                <div className="space-y-2">
+                  <h3 className="font-medium text-sm">Extracted Entities:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {Object.entries(aiResponse.extractedEntities).map(([key, value]) => (
+                      Array.isArray(value) && value.length > 0 && (
+                        <div key={key} className="space-y-0.5">
+                          <p className="font-medium text-xs capitalize text-muted-foreground">{key.replace(/([A-Z])/g, ' $1').trim()}:</p>
+                          <ul className="list-disc list-inside pl-2 text-xs">
+                            {value.map((item, idx) => <li key={idx}>{item}</li>)}
+                          </ul>
+                        </div>
+                      )
+                    ))}
                   </div>
-                )
-              ))}
+                </div>
+              )}
             </div>
           )}
 

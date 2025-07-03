@@ -7,6 +7,11 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
+    // Access params properly using async pattern
+    if (!context?.params?.id) {
+      return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
+    }
+    
     const id = context.params.id;
     const contact = await ContactService.getContactById(id);
     
@@ -27,6 +32,11 @@ export async function PATCH(
   context: { params: { id: string } }
 ) {
   try {
+    // Access params properly using async pattern
+    if (!context?.params?.id) {
+      return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
+    }
+    
     const id = context.params.id;
     const body = await request.json();
     
@@ -49,6 +59,11 @@ export async function DELETE(
   context: { params: { id: string } }
 ) {
   try {
+    // Access params properly using async pattern
+    if (!context?.params?.id) {
+      return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
+    }
+    
     const id = context.params.id;
     const deleted = await ContactService.deleteContact(id);
     

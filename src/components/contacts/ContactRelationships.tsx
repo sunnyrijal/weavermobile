@@ -6,6 +6,7 @@ import { Users, PawPrint, Pencil, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import RelationshipForm, { RelationshipType } from "./RelationshipForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useContacts } from "@/hooks/useContacts";
 
 interface Relationship {
   relatedContactId?: string;
@@ -45,15 +46,98 @@ const RELATIONSHIP_COLORS: Record<string, string> = {
 export default function ContactRelationships({ relationships, relatedContacts, contactName, editMode = false, contactsList = [], onChange }: ContactRelationshipsProps) {
   const [showForm, setShowForm] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const { createBidirectionalRelationship } = useContacts({ initialLoad: false });
 
-  const handleAdd = (data: any) => {
+  const handleAdd = async (data: any) => {
     setShowForm(false);
+
+    // Handle bidirectional relationship if requested
+    if (data.bidirectional && data.relatedContactId && onChange) {
+      try {
+        // If the contactId isn't available directly (common in the edit page scenario)
+        // we need to find it from the parent component's context
+        // The assumption is that we're editing a specific contact's relationships
+        const contactResponse = await fetch(`/api/contacts?name=${encodeURIComponent(contactName)}`);
+        if (contactResponse.ok) {
+          const contactData = await contactResponse.json();
+          if (contactData.contacts && contactData.contacts.length > 0) {
+            const contactId = contactData.contacts[0].id;
+            
+            // Create the bidirectional relationship
+            await createBidirectionalRelationship(
+              contactId, 
+              data.relatedContactId, 
+              data.type, 
+              data.customLabel
+            );
+            
+            // Fetch updated relationships for this contact
+            const updatedContactResponse = await fetch(`/api/contacts/${contactId}`);
+            if (updatedContactResponse.ok) {
+              const updatedContact = await updatedContactResponse.json();
+              if (onChange && updatedContact.contact.relationships) {
+                onChange(updatedContact.contact.relationships);
+                return; // We've already updated with the latest relationships
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error creating bidirectional relationship:", error);
+      }
+    }
+    
+    // If bidirectional failed or wasn't requested, fall back to normal behavior
     if (onChange) onChange([...(relationships || []), data]);
   };
-  const handleEdit = (idx: number, data: any) => {
+
+  const handleEdit = async (idx: number, data: any) => {
     setEditIdx(null);
+    
+    if (data.bidirectional && data.relatedContactId && onChange) {
+      // Handle bidirectional updates similar to handleAdd
+      // First, get the current relationship to compare with the new one
+      const currentRel = relationships[idx];
+      
+      // Only proceed if the relationship changed
+      if (currentRel.relatedContactId !== data.relatedContactId || 
+          currentRel.type !== data.type) {
+        try {
+          // Same logic as handleAdd to find the contactId
+          const contactResponse = await fetch(`/api/contacts?name=${encodeURIComponent(contactName)}`);
+          if (contactResponse.ok) {
+            const contactData = await contactResponse.json();
+            if (contactData.contacts && contactData.contacts.length > 0) {
+              const contactId = contactData.contacts[0].id;
+              
+              await createBidirectionalRelationship(
+                contactId, 
+                data.relatedContactId, 
+                data.type, 
+                data.customLabel
+              );
+              
+              // Fetch updated relationships
+              const updatedContactResponse = await fetch(`/api/contacts/${contactId}`);
+              if (updatedContactResponse.ok) {
+                const updatedContact = await updatedContactResponse.json();
+                if (onChange && updatedContact.contact.relationships) {
+                  onChange(updatedContact.contact.relationships);
+                  return;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error updating bidirectional relationship:", error);
+        }
+      }
+    }
+    
+    // Fall back to normal behavior
     if (onChange) onChange(relationships.map((r, i) => (i === idx ? data : r)));
   };
+
   const handleRemove = (idx: number) => {
     if (onChange) onChange(relationships.filter((_, i) => i !== idx));
   };
@@ -112,13 +196,17 @@ export default function ContactRelationships({ relationships, relatedContacts, c
                   )}
                 </Avatar>
                 <div>
-                  <div className="font-medium text-sm">{related?.name || rel.name || "Unknown Contact"}</div>
+                  <div className="font-medium text-sm">
+                    {related?.name || 
+                     rel.name || 
+                     (rel.customLabel ? `${rel.customLabel}` : (rel.type === "Pet" ? "Pet" : "Unknown contact"))}
+                  </div>
                   <Badge className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${RELATIONSHIP_COLORS[relType] || RELATIONSHIP_COLORS.Other}`}>{relType}</Badge>
                   {rel.notes && <div className="text-xs text-muted-foreground mt-1">{rel.notes}</div>}
                 </div>
               </div>
               <div className="flex gap-2 items-center mt-2 sm:mt-0">
-                {related && (
+                {related?.id && (
                   <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto text-xs sm:text-sm h-7 sm:h-8">
                     <Link href={`/contacts/${related.id}`}>View Profile</Link>
                   </Button>

@@ -537,13 +537,14 @@ export default function DashboardPage() {
                 />
                 <Button
                     variant="default"
-                    size="icon"
+                    size="default"
                     onClick={handleTextQuestionSubmit}
                     disabled={isLoadingAiAnswer || isListeningToQuestion || !aiQuestionText.trim()}
                     title="Ask AI"
-                    className="w-full sm:w-auto"
+                    className="w-full sm:w-auto px-6"
                 >
-                    {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Send className="h-5 w-5 mr-2" />}
+                    Ask
                 </Button>
             </div>
             <Button
