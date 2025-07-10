@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Share2, ZoomIn, ZoomOut, Download, Users, Link as LinkIcon, UsersRound, UserSquare2, Group, Heart, Briefcase, PawPrint, Home as HomeIcon, Brain, UserCog, ChevronsLeftRight, Loader2 } from "lucide-react"; 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useContacts } from '@/hooks/useContacts';
 import type { Contact } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Node {
   id: string;
@@ -143,7 +144,7 @@ const getBadgeText = (
 };
 
 
-const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContactForMap }: { contact: Contact; onButtonClick: (contactId: string) => void; centralContactForMap?: Contact }) => {
+const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContactForMap, isMobile }: { contact: Contact; onButtonClick: (contactId: string) => void; centralContactForMap?: Contact; isMobile?: boolean }) => {
   const getInitials = (name: string) => {
     if (!name) return "NN";
     const names = name.split(' ');
@@ -210,54 +211,42 @@ const RelationshipMapCard = React.memo(({ contact, onButtonClick, centralContact
   };
 
   return (
-    <div 
-      className="bg-card text-card-foreground rounded-lg shadow-lg p-5 flex flex-col items-center justify-between border border-border overflow-hidden"
-      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+    <div
+      className={cn(
+        "bg-card text-card-foreground rounded-lg shadow-lg flex flex-col items-center justify-between border border-border overflow-hidden",
+        isMobile ? "p-2" : "p-5"
+      )}
+      style={{ width: isMobile ? MOBILE_CARD_WIDTH : CARD_WIDTH, height: isMobile ? MOBILE_CARD_HEIGHT : CARD_HEIGHT }}
     >
-      <p 
-        className="font-semibold text-xl text-center w-full leading-tight pt-1" 
+      <p
+        className={cn(
+          "font-semibold text-center w-full leading-tight pt-1",
+          isMobile ? "text-base" : "text-xl"
+        )}
         title={displayName}
       >
         {displayName}
-      </p> 
+      </p>
       {badgeText && (
-        <Badge 
-            variant="outline"
-            style={getBadgeStyle()}
-            className="mt-3 text-base truncate max-w-[calc(100%-1rem)] px-4 py-1.5 font-semibold" 
+        <Badge
+          variant="outline"
+          style={getBadgeStyle()}
+          className={cn(
+            "truncate max-w-[calc(100%-1rem)] font-semibold",
+            isMobile ? "mt-2 text-xs px-2 py-1" : "mt-3 text-base px-4 py-1.5"
+          )}
         >
-            {badgeText}
+          {badgeText}
         </Badge>
       )}
-      <p 
-        className="text-base text-muted-foreground mt-3 text-center w-full leading-tight" 
-        title={secondaryInfo || 'N/A'}
-      > 
-        {secondaryInfo || 'N/A'}
-      </p>
-      {locationInfo && (
-        <p className="text-base text-muted-foreground mt-2 text-center w-full leading-tight" title={locationInfo}>
-          <span className="opacity-70">📍</span> {locationInfo}
-        </p>
-      )}
-      {collegeInfo && (
-        <p className="text-base text-muted-foreground mt-2 text-center w-full leading-tight" title={collegeInfo}>
-          <span className="opacity-70">🎓</span> {collegeInfo}
-        </p>
-      )}
-      {companyInfo && !secondaryInfo.includes(companyInfo) && (
-        <p className="text-base text-muted-foreground mt-2 text-center w-full leading-tight" title={companyInfo}>
-          <span className="opacity-70">💼</span> {companyInfo}
-        </p>
-      )}
-      
-      {/* Replace button with direct link */}
-      <a 
+      <a
         href={`/contacts/${contact.id}`}
-        className="mt-6 w-full text-base h-12 py-2 px-6 flex items-center justify-center bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-md transition-colors"
+        className={cn(
+          "w-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-md transition-colors",
+          isMobile ? "mt-3 text-xs h-8 py-1 px-2" : "mt-6 text-base h-12 py-2 px-6"
+        )}
         onClick={(e) => {
           e.stopPropagation();
-          // Let the default href navigation handle it
         }}
       >
         View Profile
@@ -275,11 +264,17 @@ interface RelationshipMapPlaceholderProps {
   currentViewBoxOrigin: { x: number; y: number };
   onViewBoxOriginChange: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
   contacts: Contact[];
+  isMobile: boolean;
 }
 
-const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({ centralContactId, viewBox, scale, currentViewBoxOrigin, onViewBoxOriginChange, contacts }) => {
+const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({ centralContactId, viewBox, scale, currentViewBoxOrigin, onViewBoxOriginChange, contacts, isMobile }) => {
   const router = useRouter();
   const { toast } = useToast();
+  
+  // Move all useRef hooks to the top, before any conditional logic
+  const svgRef = useRef<SVGSVGElement>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const viewBoxOriginAtTouchStart = useRef<{ x: number; y: number } | null>(null);
   
   // Find central contact
   const centralContact = useMemo(() => contacts.find(c => isSameId(c.id, centralContactId)), [centralContactId, contacts]);
@@ -419,12 +414,38 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const svgRef = useRef<SVGSVGElement>(null);
 
   const [isPanning, setIsPanning] = useState(false);
   const [panStartCoords, setPanStartCoords] = useState<{ clientX: number, clientY: number } | null>(null);
-  const [viewBoxOriginAtPanStart, setViewBoxOriginAtPanStart] = useState<{ x: number, y: number } | null>(null);
+  const [viewBoxOriginAtPanStart, setViewBoxOriginAtPanStart] = useState<{ x: number; y: number } | null>(null);
 
+  // Use mobile card sizes if isMobile
+  const cardWidth = isMobile ? MOBILE_CARD_WIDTH : CARD_WIDTH;
+  const cardHeight = isMobile ? MOBILE_CARD_HEIGHT : CARD_HEIGHT;
+  const labelWidth = isMobile ? MOBILE_LABEL_WIDTH : LABEL_WIDTH;
+  const labelHeight = isMobile ? MOBILE_LABEL_HEIGHT : LABEL_HEIGHT;
+
+  // Touch support for panning
+  const handleTouchStart = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (e.touches.length === 1) {
+      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      viewBoxOriginAtTouchStart.current = { ...currentViewBoxOrigin };
+    }
+  };
+  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (touchStart.current && viewBoxOriginAtTouchStart.current && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - touchStart.current.x;
+      const dy = e.touches[0].clientY - touchStart.current.y;
+      onViewBoxOriginChange({
+        x: viewBoxOriginAtTouchStart.current.x - dx / scale,
+        y: viewBoxOriginAtTouchStart.current.y - dy / scale,
+      });
+    }
+  };
+  const handleTouchEnd = () => {
+    touchStart.current = null;
+    viewBoxOriginAtTouchStart.current = null;
+  };
 
   const handleNodeMouseDown = useCallback((e: React.MouseEvent<SVGForeignObjectElement, MouseEvent>, nodeId: string) => {
     setDraggingNode(nodeId);
@@ -502,25 +523,27 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 
   if (!centralContact || !centralNodeDetails) return <p>Central contact or its details not found.</p>;
 
-
   return (
-    <svg 
+    <svg
       id="relationship-map-svg"
       ref={svgRef}
-      width="100%" 
-      height="100%" 
+      width="100%"
+      height="100%"
       className={cn(
         "border rounded-lg bg-muted/20 shadow-inner",
-        isPanning ? "cursor-grabbing" : "cursor-grab" 
+        isPanning ? "cursor-grabbing" : "cursor-grab"
       )}
       onMouseDown={handleBackgroundMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp} 
+      onMouseLeave={handleMouseUp}
       viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
-      style={{ position: "relative" }}
+      style={{ position: "relative", touchAction: "none" }}
       pointerEvents="visiblePainted"
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
     >
       <defs>
         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto" fill="hsl(var(--border))">
@@ -597,20 +620,20 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 
       {/* Group Labels */}
       {currentGroupLabels.map(label => (
-        <g key={label.text.replace(/\s+/g, '-') + label.cx + label.cy} transform={`translate(${label.cx - LABEL_WIDTH/2}, ${label.cy - LABEL_HEIGHT/2})`}>
+        <g key={label.text.replace(/\s+/g, '-') + label.cx + label.cy} transform={`translate(${label.cx - labelWidth/2}, ${label.cy - labelHeight/2})`}>
             <rect 
                 x="0"
                 y="0"
-                width={LABEL_WIDTH} 
-                height={LABEL_HEIGHT} 
-                rx="10" 
+                width={labelWidth} 
+                height={labelHeight} 
+                rx={isMobile ? 6 : 10}
                 fill="hsl(var(--accent))" 
             />
             <text 
-                x={LABEL_WIDTH/2} 
-                y={LABEL_HEIGHT/2 + 6} 
+                x={labelWidth/2} 
+                y={labelHeight/2 + (isMobile ? 4 : 6)} 
                 fontFamily="sans-serif" 
-                fontSize="16px" 
+                fontSize={isMobile ? "11px" : "16px"} 
                 fill="hsl(var(--accent-foreground))" 
                 textAnchor="middle"
                 fontWeight="bold"
@@ -626,8 +649,8 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
           key={node.id}
           x={node.x} 
           y={node.y} 
-          width={CARD_WIDTH} 
-          height={CARD_HEIGHT}
+          width={cardWidth} 
+          height={cardHeight}
           onMouseDown={(e) => {
             // Only initiate dragging if not clicking on the link
             if ((e.target as HTMLElement).tagName !== 'A') {
@@ -644,6 +667,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
               contact={node.contact} 
               onButtonClick={handleViewProfileClick} 
               centralContactForMap={centralContact}
+              isMobile={isMobile}
             />
           </div>
         </foreignObject>
@@ -653,7 +677,7 @@ const RelationshipMapPlaceholder: React.FC<RelationshipMapPlaceholderProps> = ({
 };
 
 
-export default function RelationshipMapPage() {
+function RelationshipMapContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -712,6 +736,12 @@ export default function RelationshipMapPage() {
     }
   }, [searchParams, mapContacts, defaultMapContactId, selectedCentralContactId]);
 
+  // On mount, if no selectedCentralContactId, set to first contact
+  useEffect(() => {
+    if (!selectedCentralContactId && mapContacts.length > 0) {
+      setSelectedCentralContactId(mapContacts[0].id);
+    }
+  }, [selectedCentralContactId, mapContacts]);
 
   const [scale, setScale] = useState(1);
   const [viewBoxOrigin, setViewBoxOrigin] = useState({ x: 0, y: 0 });
@@ -800,6 +830,8 @@ export default function RelationshipMapPage() {
     setScale(1);
   };
 
+  const isMobile = useIsMobile();
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -836,122 +868,97 @@ export default function RelationshipMapPage() {
   }
 
   return (
-    <div className="space-y-2 sm:space-y-4 md:space-y-6 h-full flex flex-col p-1 sm:p-0">
-      <Card className="shadow-md bg-card flex-shrink-0">
-        <CardHeader className="p-3 sm:p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+    <div className={cn(
+      "flex flex-col h-[100dvh] w-full max-w-full overflow-x-auto bg-background",
+      isMobile ? "p-0 space-y-1" : "space-y-2 sm:space-y-4 md:space-y-6 p-1 sm:p-0"
+    )}>
+      <Card className={cn(
+        "shadow-md bg-card flex-shrink-0",
+        isMobile ? "rounded-none border-b" : ""
+      )}>
+        <CardHeader className={cn(
+          isMobile ? "p-2" : "p-3 sm:p-4 md:p-6"
+        )}>
+          <div className={cn(
+            "flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2",
+            isMobile ? "gap-1" : ""
+          )}>
             <div>
-              <CardTitle className="text-lg sm:text-xl md:text-2xl flex items-center gap-2 text-foreground">
-                <Brain className="text-primary h-5 w-5 sm:h-6 sm:w-6" /> Interactive Relationship Map
+              <CardTitle className={cn(
+                "flex items-center gap-2 text-foreground",
+                isMobile ? "text-base" : "text-lg sm:text-xl md:text-2xl"
+              )}>
+                <Brain className={cn("text-primary", isMobile ? "h-4 w-4" : "h-5 w-5 sm:h-6 sm:w-6")} /> Interactive Relationship Map
               </CardTitle>
-              <CardDescription className="text-xs sm:text-sm text-muted-foreground">
+              <CardDescription className={isMobile ? "text-[10px]" : "text-xs sm:text-sm text-muted-foreground"}>
                 Visualizing connections for: <span className="font-semibold text-primary">{centralContactName}</span>
               </CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0 items-stretch sm:items-center w-full sm:w-auto">
-                <Select value={selectedCentralContactId} onValueChange={handleSelectChange}>
-                    <SelectTrigger className="w-full sm:w-[180px] md:w-[200px] h-9 sm:h-10 text-xs sm:text-sm">
-                        <SelectValue placeholder="Select Central Contact" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {mapContacts.map(contact => (
-                            <SelectItem key={contact.id} value={contact.id} className="text-xs sm:text-sm">
-                               <div className="flex items-center gap-2">
-                                 <UserCog className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground"/> {contact.name}
-                               </div>
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <div className="flex gap-1 sm:gap-2 w-full sm:w-auto justify-between sm:justify-start">
-                    <Button variant="outline" size="icon" title="Zoom In" onClick={() => handleZoom('in')} className="h-9 w-9 sm:h-10 sm:w-10"><ZoomIn className="h-4 w-4 sm:h-5 sm:w-5"/></Button>
-                    <Button variant="outline" size="icon" title="Zoom Out" onClick={() => handleZoom('out')} className="h-9 w-9 sm:h-10 sm:w-10"><ZoomOut className="h-4 w-4 sm:h-5 sm:w-5"/></Button>
-                    <Button variant="outline" size="icon" title="Download SVG" onClick={handleDownloadSVG} className="h-9 w-9 sm:h-10 sm:w-10"><Download className="h-4 w-4 sm:h-5 sm:w-5"/></Button>
-                </div>
+            <div className={cn(
+              "flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0 items-stretch sm:items-center w-full sm:w-auto",
+              isMobile ? "gap-1" : ""
+            )}>
+              <Select value={selectedCentralContactId} onValueChange={handleSelectChange}>
+                <SelectTrigger className={cn(
+                  "w-full h-8 text-xs",
+                  isMobile ? "rounded-md" : "sm:w-[180px] md:w-[200px] h-9 sm:h-10 text-xs sm:text-sm"
+                )}>
+                  <SelectValue placeholder="Select Central Contact" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mapContacts.map(contact => (
+                    <SelectItem key={contact.id} value={contact.id} className="text-xs">
+                      <div className="flex items-center gap-2">
+                        <UserCog className="h-3 w-3 text-muted-foreground" /> {contact.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className={cn(
+                "flex gap-1 w-full justify-between",
+                isMobile ? "sticky bottom-0 left-0 bg-card z-10 p-1" : "sm:gap-2 w-full sm:w-auto justify-between sm:justify-start"
+              )}>
+                <Button variant="outline" size="icon" title="Zoom In" onClick={() => handleZoom('in')} className={isMobile ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10"}><ZoomIn className={isMobile ? "h-3 w-3" : "h-4 w-4 sm:h-5 sm:w-5"}/></Button>
+                <Button variant="outline" size="icon" title="Zoom Out" onClick={() => handleZoom('out')} className={isMobile ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10"}><ZoomOut className={isMobile ? "h-3 w-3" : "h-4 w-4 sm:h-5 sm:w-5"}/></Button>
+                <Button variant="outline" size="icon" title="Download SVG" onClick={handleDownloadSVG} className={isMobile ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10"}><Download className={isMobile ? "h-3 w-3" : "h-4 w-4 sm:h-5 sm:w-5"}/></Button>
+              </div>
             </div>
           </div>
         </CardHeader>
       </Card>
-      
-      <div className="flex-grow shadow-md overflow-hidden bg-card rounded-lg border border-border">
-          <CardContent className="p-1 sm:p-2 md:p-4 h-full"> 
-              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-2 text-center sm:text-left px-1 sm:px-0">
-                Hover for info. Drag cards to move. Drag background to pan.
-              </p>
-              <div className="h-[calc(100%-20px)] sm:h-[calc(100%-25px)] w-full"> 
-                  <RelationshipMapPlaceholder 
-                    centralContactId={selectedCentralContactId}
-                    viewBox={currentViewBoxString} 
-                    scale={scale}
-                    currentViewBoxOrigin={viewBoxOrigin}
-                    onViewBoxOriginChange={setViewBoxOrigin}
-                    contacts={contacts}
-                  />
-              </div>
-          </CardContent>
-      </div>
-
-      <Card className="shadow-md bg-card flex-shrink-0">
-        <CardHeader className="p-3 sm:p-4 md:p-6">
-            <CardTitle className="text-base sm:text-lg text-foreground">Map Legend & Interactions</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-3 sm:gap-4 text-xs sm:text-sm p-3 sm:p-4 md:p-6 pt-0">
-            <div className="space-y-2 sm:space-y-3">
-                <p className="font-medium mb-1 text-foreground">Relationship Types:</p>
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-2">
-                        <Badge style={{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }} className="h-5">Central</Badge>
-                        <span className="text-muted-foreground">You</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge style={{ backgroundColor: 'hsl(var(--success))', color: 'white' }} className="h-5">Parent</Badge>
-                        <span className="text-muted-foreground">Mother/Father</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge style={{ backgroundColor: 'hsl(var(--info))', color: 'white' }} className="h-5">Sibling</Badge>
-                        <span className="text-muted-foreground">Brother/Sister</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge style={{ backgroundColor: 'hsl(var(--destructive))', color: 'white' }} className="h-5">Partner</Badge>
-                        <span className="text-muted-foreground">Spouse/Partner</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge style={{ backgroundColor: 'hsl(var(--warning))', color: 'black' }} className="h-5">Child</Badge>
-                        <span className="text-muted-foreground">Son/Daughter</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }} className="h-5">Pet</Badge>
-                        <span className="text-muted-foreground">Pet/Animal</span>
-                    </div>
-                </div>
-                
-                <div className="flex flex-col gap-2 mt-2">
-                    <p className="font-medium text-foreground">Node Types:</p>
-                    <div className="flex items-center gap-2">
-                        <div className="w-14 h-10 bg-card border border-border rounded-md shadow-sm flex flex-col items-center justify-center">
-                            <div className="text-[8px] font-medium">Name</div>
-                            <div className="bg-muted text-[7px] px-1 rounded-sm mt-0.5">Role</div>
-                        </div>
-                        <span className="text-muted-foreground">Contact Card</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="px-2 py-1 rounded-md bg-accent text-accent-foreground text-[10px] font-semibold shadow-sm">Group Label</div>
-                        <span className="text-muted-foreground">Relationship Group</span>
-                    </div>
-                </div>
-            </div>
-            <div className="md:ml-auto space-y-1 sm:space-y-2 mt-3 md:mt-0">
-                <p className="font-medium mb-1 text-foreground">Interactions:</p>
-                <ul className="list-disc list-inside text-muted-foreground space-y-0.5 sm:space-y-1">
-                    <li>Drag cards to reposition.</li>
-                    <li>Drag background to pan map.</li>
-                    <li>Hover on cards for detailed info.</li>
-                    <li>Click "View Profile" for full details.</li>
-                    <li>Use Zoom & Download buttons.</li>
-                </ul>
-            </div>
+      <div className={cn(
+        "flex-grow overflow-x-auto bg-card border border-border",
+        isMobile ? "rounded-none" : "shadow-md rounded-lg"
+      )}>
+        <CardContent className={isMobile ? "p-1" : "p-1 sm:p-2 md:p-4 h-full"}>
+          <p className={isMobile ? "text-[9px] mb-1 text-center" : "text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-2 text-center sm:text-left px-1 sm:px-0"}>
+            Hover for info. Drag cards to move. Drag background to pan.
+          </p>
+          <div className={cn(
+            "w-full",
+            isMobile ? "h-[calc(100dvh-140px)] min-h-[300px] max-h-[calc(100dvh-140px)]" : "h-[calc(100%-20px)] sm:h-[calc(100%-25px)]"
+          )}>
+            <RelationshipMapPlaceholder 
+              centralContactId={selectedCentralContactId}
+              viewBox={currentViewBoxString} 
+              scale={scale}
+              currentViewBoxOrigin={viewBoxOrigin}
+              onViewBoxOriginChange={setViewBoxOrigin}
+              contacts={contacts}
+              isMobile={isMobile}
+            />
+          </div>
         </CardContent>
-      </Card>
+      </div>
     </div>
+  );
+}
+
+export default function RelationshipMapPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RelationshipMapContent />
+    </Suspense>
   );
 }
