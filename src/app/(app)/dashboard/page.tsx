@@ -15,30 +15,31 @@ import type { AnswerContactQuestionInput, AnswerContactQuestionOutput, PromptCon
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate';
 import { useContacts } from '@/hooks/useContacts';
+import ContactMergeModal from '@/components/contacts/ContactMergeModal';
 
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
-  <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+  <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 h-full flex flex-col">
     <CardHeader className="p-0">
       <Image 
         src={contact.photoURL || `https://picsum.photos/seed/${contact.id}/400/250`} 
         alt={contact.name}
         width={400}
         height={250}
-        className="object-cover w-full h-40"
+        className="object-cover w-full h-32 sm:h-40"
         data-ai-hint="person portrait"
       />
     </CardHeader>
-    <CardContent className="p-4">
-      <CardTitle className="text-lg mb-1">{contact.name}</CardTitle>
-      <CardDescription className="text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
+    <CardContent className="p-3 sm:p-4 flex-1">
+      <CardTitle className="text-base sm:text-lg mb-1 line-clamp-1">{contact.name}</CardTitle>
+      <CardDescription className="text-xs sm:text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
       {contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.occupation}{contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) ? ` at ${contact.company}` : ''}</p>}
       {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.college}</p>}
       {contact.currentLocation && <p className="text-xs text-muted-foreground truncate">{contact.currentLocation}</p>}
       {!contact.currentLocation && contact.hometown && <p className="text-xs text-muted-foreground truncate">From: {contact.hometown}</p>}
     </CardContent>
-    <CardFooter className="p-4 pt-0">
-      <Button variant="outline" size="sm" asChild>
+    <CardFooter className="p-3 sm:p-4 pt-0 mt-auto">
+      <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm" asChild>
         <Link href={`/contacts/${contact.id}`}>View Details</Link>
       </Button>
     </CardFooter>
@@ -191,7 +192,17 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<ContactViewMode>('grid');
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const { toast } = useToast();
-  const { contacts, isLoading, error } = useContacts();
+  const {
+    contacts,
+    isLoading,
+    error,
+    fetchContacts,
+    duplicateGroups,
+    showMergeModal,
+    setShowMergeModal,
+    activeMergeGroup,
+    setActiveMergeGroup,
+  } = useContacts();
 
   const [isListeningToVoiceSearch, setIsListeningToVoiceSearch] = useState(false);
   const speechRecognitionSearchRef = useRef<SpeechRecognition | null>(null);
@@ -311,6 +322,7 @@ export default function DashboardPage() {
     setIsLoadingAiAnswer(true);
     setAiAnswer(null);
     try {
+      console.log('AI contacts:', contacts.length, contacts.map(c => c.name));
       const enrichedContactsForAI = enrichContactsForAI(contacts, contacts);
       const result: AnswerContactQuestionOutput = await answerContactQuestion({ question, contacts: enrichedContactsForAI });
       setAiAnswer(result.answer);
@@ -448,246 +460,282 @@ export default function DashboardPage() {
   const filterCategories = ["All", "Family", "Friend", "Colleague", "Professional", "Partner"];
   const closeConnectionsCount = contacts.filter(c => c.category === 'Family' || c.category === 'Partner').length;
 
+  // Handle confirm merge
+  const handleConfirmMerge = async (merged) => {
+    if (!activeMergeGroup) return;
+    try {
+      await fetch('/api/contacts/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mergedContact: merged,
+          duplicateIds: activeMergeGroup.duplicates.map((c) => c.id || c._id),
+        }),
+      });
+      setShowMergeModal(false);
+      setActiveMergeGroup(null);
+      await fetchContacts();
+    } catch (e) {
+      // Optionally show error toast
+    }
+  };
+
+  // Handle cancel
+  const handleCancelMerge = () => {
+    setShowMergeModal(false);
+    setActiveMergeGroup(null);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="shadow-md">
-            <CardHeader>
-            <CardTitle className="text-2xl">Welcome to NetworkNest!</CardTitle>
-            <CardDescription>Manage and visualize your connections.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-                <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                    <UsersRound className="h-6 w-6 text-primary mx-auto md:mx-0 mb-1"/>
-                    <p className="text-xs text-muted-foreground">Total Contacts</p>
-                    <p className="text-2xl font-bold">{contacts.length}</p>
-                </div>
-                <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                    <Heart className="h-6 w-6 text-accent mx-auto md:mx-0 mb-1"/>
-                    <p className="text-xs text-muted-foreground">Close Connections</p>
-                    <p className="text-2xl font-bold">{closeConnectionsCount}</p>
-                </div>
-            </CardContent>
-            <CardFooter className="flex flex-col sm:flex-row gap-2">
-                <Button variant="default" asChild className="w-full sm:w-auto">
-                    <Link href="/contacts/new"><PlusCircle className="mr-2 h-4 w-4" /> Add Contact</Link>
-                </Button>
-                <Button variant="outline" asChild className="w-full sm:w-auto">
-                    <Link href="/import"><UploadCloud className="mr-2 h-4 w-4" /> Import Contacts</Link>
-                </Button>
-            </CardFooter>
-        </Card>
-
-        <Card className="shadow-md">
-            <CardHeader>
-                <CardTitle className="text-xl flex items-center gap-2"><CalendarDays className="text-primary"/> Upcoming Events</CardTitle>
-                <CardDescription>Stay on top of important dates in your network.</CardDescription>
-            </CardHeader>
-            <CardContent className="max-h-60 overflow-y-auto pr-2">
-                {upcomingEvents.length > 0 ? (
-                    <ul className="space-y-3">
-                        {upcomingEvents.map(event => (
-                            <li key={event.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-                                <div className="flex items-center gap-3">
-                                    <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
-                                    <div>
-                                        <p className="font-medium text-sm">{event.title}</p>
-                                        <ClientSideFormattedDate date={event.date} format="MMMM do" className="text-xs text-muted-foreground" />
-                                        <span className="text-xs text-muted-foreground">
-                                            {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
-                                        </span>
-                                    </div>
-                                </div>
-                                {event.contactId && (
-                                    <Button variant="ghost" size="sm" asChild>
-                                      <Link href={`/contacts/${event.contactId}?tab=events`}>View</Link>
-                                    </Button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="text-muted-foreground text-sm">No upcoming events in the next 30 days.</p>
-                )}
-            </CardContent>
-            <CardFooter>
-                <p className="text-xs text-muted-foreground">Showing events within the next 30 days.</p>
-            </CardFooter>
-        </Card>
-      </div>
-
-
-      <Card className="shadow-md">
-        <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2"><Sparkles className="text-primary"/> Ask AI About Your Network</CardTitle>
-            <CardDescription>Use voice or text to ask questions like "When is Sam's birthday?" or "Who is Chandra's partner?".</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
-          <div className="w-full max-w-md space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2">
-                <Input 
-                    type="text"
-                    placeholder="Type your question here..."
-                    value={aiQuestionText}
-                    onChange={(e) => setAiQuestionText(e.target.value)}
-                    onKeyDown={handleAiQuestionKeyDown}
-                    disabled={isLoadingAiAnswer || isListeningToQuestion}
-                    className="flex-grow"
-                />
-                <Button
-                    variant="default"
-                    size="default"
-                    onClick={handleTextQuestionSubmit}
-                    disabled={isLoadingAiAnswer || isListeningToQuestion || !aiQuestionText.trim()}
-                    title="Ask AI"
-                    className="w-full sm:w-auto px-6"
-                >
-                    {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Send className="h-5 w-5 mr-2" />}
-                    Ask
-                </Button>
-            </div>
-            <Button
-                variant="outline"
-                onClick={handleVoiceQuestionClick}
-                disabled={isListeningToQuestion || isLoadingAiAnswer}
-                className="w-full text-base py-3"
-            >
-                {isListeningToQuestion ? <MicOff className="mr-2 h-5 w-5 text-destructive" /> : <Mic className="mr-2 h-5 w-5" />}
-                {isListeningToQuestion ? "Listening..." : isLoadingAiAnswer ? "Processing..." : "Or Ask by Voice"}
-                {isLoadingAiAnswer && isListeningToQuestion && <Loader2 className="ml-2 h-5 w-5 animate-spin" />}
-            </Button>
-          </div>
-          {microphonePermissionError && (
-            <Alert variant="destructive" className="w-full max-w-md">
-              <MicOff className="h-4 w-4" />
-              <AlertTitle>Microphone Access Denied</AlertTitle>
-              <AlertDescription>
-                {microphonePermissionError} Please enable microphone permissions in your browser settings.
-              </AlertDescription>
-            </Alert>
-          )}
-          {aiAnswer && (
-            <div className="w-full max-w-md bg-accent/10 border border-accent rounded p-4 mt-2 text-base text-foreground shadow">
-              <span className="font-semibold text-primary">AI Answer:</span>
-              <div className="mt-1 whitespace-pre-line">{aiAnswer}</div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative flex-grow w-full md:w-auto">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input 
-            type="search" 
-            placeholder="Search contacts, tags, company..." 
-            className="pl-10 pr-10 py-2.5 text-base md:text-sm w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Button variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8" onClick={handleVoiceSearchClick} title="Search with voice">
-            {isListeningToVoiceSearch ? <MicOff className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
-          </Button>
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-           <Button 
-            variant="outline" 
-            onClick={() => setShowAllContacts(prev => !prev)}
-            className="whitespace-nowrap w-full sm:w-auto"
-            disabled={searchTerm.trim() !== ''} 
-            >
-            {showAllContacts || searchTerm.trim() !== '' ? <><EyeOff className="mr-2 h-4 w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-4 w-4" /> Show All Contacts</>}
-          </Button>
-          <div className="flex items-center gap-2">
-            <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')} aria-label="List view">
-                <List className="h-5 w-5" />
-            </Button>
-            <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')} aria-label="Grid view">
-                <LayoutGrid className="h-5 w-5" />
-            </Button>
-            <Button variant={viewMode === 'tree' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('tree')} aria-label="Tree view" asChild>
-                <Link href="/map"><Share2 className="h-5 w-5" /></Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-      
-      <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 mb-4">
-          {filterCategories.map(category => (
-            <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value={activeFilter}>
-           {viewMode === 'grid' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {displayedContacts.map(contact => <ContactCardItem key={contact.id} contact={contact} />)}
-            </div>
-          )}
-          {viewMode === 'list' && (
-            <Card className="shadow-md">
-              <CardContent className="p-0">
-                <ul className="divide-y divide-border">
-                  {displayedContacts.map(contact => <ContactListItem key={contact.id} contact={contact} />)}
-                </ul>
+    <>
+      {/* Merge Modal for Duplicates */}
+      {activeMergeGroup && (
+        <ContactMergeModal
+          open={showMergeModal}
+          onClose={handleCancelMerge}
+          duplicates={activeMergeGroup.duplicates}
+          proposedMerge={activeMergeGroup.proposedMerge}
+          onConfirm={handleConfirmMerge}
+        />
+      )}
+      <div className="space-y-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card className="shadow-md">
+              <CardHeader>
+              <CardTitle className="text-2xl">Welcome to NetworkNest!</CardTitle>
+              <CardDescription>Manage and visualize your connections.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                  <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                      <UsersRound className="h-6 w-6 text-primary mx-auto md:mx-0 mb-1"/>
+                      <p className="text-xs text-muted-foreground">Total Contacts</p>
+                      <p className="text-2xl font-bold">{contacts.length}</p>
+                  </div>
+                  <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                      <Heart className="h-6 w-6 text-accent mx-auto md:mx-0 mb-1"/>
+                      <p className="text-xs text-muted-foreground">Close Connections</p>
+                      <p className="text-2xl font-bold">{closeConnectionsCount}</p>
+                  </div>
               </CardContent>
-            </Card>
-          )}
-          {displayedContacts.length === 0 && (
-            <div className="text-center py-10 text-muted-foreground">
-              <Users className="mx-auto h-12 w-12 mb-4" />
-              <p className="text-lg font-medium">No contacts found.</p>
-              <p>{(showAllContacts || searchTerm.trim() !== '') ? "Try adjusting your search or filters, or add new contacts." : "Clear filters or 'Show All Contacts' to see more."}</p>
+              <CardFooter className="flex flex-col sm:flex-row gap-2">
+                  <Button variant="default" asChild className="w-full sm:w-auto">
+                      <Link href="/contacts/new"><PlusCircle className="mr-2 h-4 w-4" /> Add Contact</Link>
+                  </Button>
+                  <Button variant="outline" asChild className="w-full sm:w-auto">
+                      <Link href="/import"><UploadCloud className="mr-2 h-4 w-4" /> Import Contacts</Link>
+                  </Button>
+              </CardFooter>
+          </Card>
+
+          <Card className="shadow-md">
+              <CardHeader>
+                  <CardTitle className="text-xl flex items-center gap-2"><CalendarDays className="text-primary"/> Upcoming Events</CardTitle>
+                  <CardDescription>Stay on top of important dates in your network.</CardDescription>
+              </CardHeader>
+              <CardContent className="max-h-60 overflow-y-auto pr-2">
+                  {upcomingEvents.length > 0 ? (
+                      <ul className="space-y-3">
+                          {upcomingEvents.map(event => (
+                              <li key={event.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                                  <div className="flex items-center gap-3">
+                                      <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
+                                      <div>
+                                          <p className="font-medium text-sm">{event.title}</p>
+                                          <ClientSideFormattedDate date={event.date} format="MMMM do" className="text-xs text-muted-foreground" />
+                                          <span className="text-xs text-muted-foreground">
+                                              {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
+                                          </span>
+                                      </div>
+                                  </div>
+                                  {event.contactId && (
+                                      <Button variant="ghost" size="sm" asChild>
+                                        <Link href={`/contacts/${event.contactId}?tab=events`}>View</Link>
+                                      </Button>
+                                  )}
+                              </li>
+                          ))}
+                      </ul>
+                  ) : (
+                      <p className="text-muted-foreground text-sm">No upcoming events in the next 30 days.</p>
+                  )}
+              </CardContent>
+              <CardFooter>
+                  <p className="text-xs text-muted-foreground">Showing events within the next 30 days.</p>
+              </CardFooter>
+          </Card>
+        </div>
+
+
+        <Card className="shadow-md">
+          <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2"><Sparkles className="text-primary"/> Ask AI About Your Network</CardTitle>
+              <CardDescription>Use voice or text to ask questions like "When is Sam's birthday?" or "Who is Chandra's partner?".</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-4">
+            <div className="w-full max-w-md space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                  <Input 
+                      type="text"
+                      placeholder="Type your question here..."
+                      value={aiQuestionText}
+                      onChange={(e) => setAiQuestionText(e.target.value)}
+                      onKeyDown={handleAiQuestionKeyDown}
+                      disabled={isLoadingAiAnswer || isListeningToQuestion}
+                      className="flex-grow"
+                  />
+                  <Button
+                      variant="default"
+                      size="icon"
+                      onClick={handleTextQuestionSubmit}
+                      disabled={isLoadingAiAnswer || isListeningToQuestion || !aiQuestionText.trim()}
+                      title="Ask AI"
+                      className="w-full sm:w-auto"
+                  >
+                      {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                  </Button>
+              </div>
+              <Button
+                  variant="outline"
+                  onClick={handleVoiceQuestionClick}
+                  disabled={isListeningToQuestion || isLoadingAiAnswer}
+                  className="w-full text-base py-3"
+              >
+                  {isListeningToQuestion ? <MicOff className="mr-2 h-5 w-5 text-destructive" /> : <Mic className="mr-2 h-5 w-5" />}
+                  {isListeningToQuestion ? "Listening..." : isLoadingAiAnswer ? "Processing..." : "Or Ask by Voice"}
+                  {isLoadingAiAnswer && isListeningToQuestion && <Loader2 className="ml-2 h-5 w-5 animate-spin" />}
+              </Button>
             </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            {microphonePermissionError && (
+              <Alert variant="destructive" className="w-full max-w-md">
+                <MicOff className="h-4 w-4" />
+                <AlertTitle>Microphone Access Denied</AlertTitle>
+                <AlertDescription>
+                  {microphonePermissionError} Please enable microphone permissions in your browser settings.
+                </AlertDescription>
+              </Alert>
+            )}
+            {aiAnswer && (
+              <div className="w-full max-w-md bg-accent/10 border border-accent rounded p-4 mt-2 text-base text-foreground shadow">
+                <span className="font-semibold text-primary">AI Answer:</span>
+                <div className="mt-1 whitespace-pre-line">{aiAnswer}</div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Import Your Network</CardTitle>
-          <CardDescription>Connect your accounts to easily import contacts.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[
-            { name: "Phone", icon: Smartphone, color: "text-green-500" },
-            { name: "LinkedIn", icon: Linkedin, color: "text-blue-600" },
-            { name: "Instagram", icon: Instagram, color: "text-pink-500" },
-            { name: "Facebook", icon: Facebook, color: "text-blue-700" },
-            { name: "Twitter", icon: Twitter, color: "text-sky-500" },
-          ].map(source => (
-            <Button key={source.name} variant="outline" className="flex flex-col h-24 sm:h-28 items-center justify-center gap-2 hover:bg-accent/50" asChild>
-              <Link href={`/import?source=${source.name.toLowerCase()}`}>
-                <source.icon className={`h-8 w-8 ${source.color}`} />
-                <span>{source.name}</span>
-              </Link>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="relative flex-grow w-full">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+            <Input 
+              type="search" 
+              placeholder="Search contacts, tags, company..." 
+              className="pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 text-sm w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Button variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 sm:h-8 sm:w-8" onClick={handleVoiceSearchClick} title="Search with voice">
+              {isListeningToVoiceSearch ? <MicOff className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" /> : <Mic className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
             </Button>
-          ))}
-        </CardContent>
-        <CardFooter>
-            <Button asChild>
-                <Link href="/import">Go to Unified Import Page</Link>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+             <Button 
+              variant="outline" 
+              onClick={() => setShowAllContacts(prev => !prev)}
+              className="whitespace-nowrap w-full sm:w-auto text-xs sm:text-sm"
+              disabled={searchTerm.trim() !== ''} 
+              >
+              {showAllContacts || searchTerm.trim() !== '' ? <><EyeOff className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Show All Contacts</>}
             </Button>
-        </CardFooter>
-      </Card>
-
-      {isLoading && (
-        <div className="flex justify-center items-center mt-4">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <span className="ml-2">Loading contacts...</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => setViewMode('list')} aria-label="List view">
+                  <List className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => setViewMode('grid')} aria-label="Grid view">
+                  <LayoutGrid className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <Button variant={viewMode === 'tree' ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => setViewMode('tree')} aria-label="Tree view" asChild>
+                  <Link href="/map"><Share2 className="h-4 w-4 sm:h-5 sm:w-5" /></Link>
+              </Button>
+            </div>
+          </div>
         </div>
-      )}
-      
-      {error && (
-        <div className="text-destructive mt-4 p-2 bg-destructive/10 rounded-md">
-          Error loading contacts: {error}
-        </div>
-      )}
+        
+        <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-3 md:grid-cols-6 mb-4">
+            {filterCategories.map(category => (
+              <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+            ))}
+          </TabsList>
 
-    </div>
+          <TabsContent value={activeFilter}>
+             {viewMode === 'grid' && (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+                {displayedContacts.map(contact => <ContactCardItem key={contact.id} contact={contact} />)}
+              </div>
+            )}
+            {viewMode === 'list' && (
+              <Card className="shadow-md">
+                <CardContent className="p-0">
+                  <ul className="divide-y divide-border">
+                    {displayedContacts.map(contact => <ContactListItem key={contact.id} contact={contact} />)}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+            {displayedContacts.length === 0 && (
+              <div className="text-center py-10 text-muted-foreground">
+                <Users className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg font-medium">No contacts found.</p>
+                <p>{(showAllContacts || searchTerm.trim() !== '') ? "Try adjusting your search or filters, or add new contacts." : "Clear filters or 'Show All Contacts' to see more."}</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle>Import Your Network</CardTitle>
+            <CardDescription>Connect your accounts to easily import contacts.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              { name: "Phone", icon: Smartphone, color: "text-green-500" },
+              { name: "LinkedIn", icon: Linkedin, color: "text-blue-600" },
+              { name: "Instagram", icon: Instagram, color: "text-pink-500" },
+              { name: "Facebook", icon: Facebook, color: "text-blue-700" },
+              { name: "Twitter", icon: Twitter, color: "text-sky-500" },
+            ].map(source => (
+              <Button key={source.name} variant="outline" className="flex flex-col h-24 sm:h-28 items-center justify-center gap-2 hover:bg-accent/50" asChild>
+                <Link href={`/import?source=${source.name.toLowerCase()}`}>
+                  <source.icon className={`h-8 w-8 ${source.color}`} />
+                  <span>{source.name}</span>
+                </Link>
+              </Button>
+            ))}
+          </CardContent>
+          <CardFooter>
+              <Button asChild>
+                  <Link href="/import">Go to Unified Import Page</Link>
+              </Button>
+          </CardFooter>
+        </Card>
+
+        {isLoading && (
+          <div className="flex justify-center items-center mt-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="ml-2">Loading contacts...</span>
+          </div>
+        )}
+        
+        {error && (
+          <div className="text-destructive mt-4 p-2 bg-destructive/10 rounded-md">
+            Error loading contacts: {error}
+          </div>
+        )}
+
+      </div>
+    </>
   );
 }
 

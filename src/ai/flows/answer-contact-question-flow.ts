@@ -75,6 +75,45 @@ Do not make up information or use external knowledge.
 If the question is about a person's pet (e.g., "Sam's dog name?"), look for relationships of type "Pet" associated with that person. The pet's name will be the name of the related contact. Also consider contacts with category "Pet".
 If the question is about a person's partner (e.g., "Who is Chandra's partner?"), look for relationships of type "Partner".
 
+RESPONSE FORMATTING RULES:
+
+1. For general questions about a person (e.g., "Tell me about Alice" or "What do you know about John?"), use the full format:
+Name of the person
+Birthday: [date if available]
+📱 [phone if available]
+💼 [job/occupation if available]
+🎓 [college if available]
+🏠 [hometown if available]
+📍 [current location if available]
+Relationship: [relationship label if available]
+Notes: [notes if available]
+Notable events: [list any notable events, birthdays, anniversaries, etc. if available]
+Other Contact: [list related contacts with their relationship type, e.g., "Netra P rijal (husband), Prasanna Rijal (Son)"]
+
+2. For specific questions, give only the relevant answer:
+- "Alice birthday" → "Alice's birthday: [date]"
+- "Alice home" → "Alice's hometown: [hometown] | Current location: [current location]"
+- "Alice phone" → "Alice's phone: [phone number]"
+- "Alice job" → "Alice's occupation: [job/occupation]"
+- "Alice college" → "Alice's college: [college]"
+
+3. For relationship questions, be bidirectional:
+- "Alice dad" → "Alice's dad: [dad's name]"
+- "Bruce Lipton" (when Bruce is Alice's dad) → "Bruce Lipton: Alice's dad"
+- "Alice partner" → "Alice's partner: [partner's name]"
+- "John Smith" (when John is Alice's partner) → "John Smith: Alice's partner"
+
+4. If the user query is just a name (e.g., "arsene", "Alice", "John"):
+   a) If the person is related to a main contact (has relationships pointing TO them), start with the relationship context:
+      [Main Contact's Name]'s [Relationship Type]: [Person's Name]
+      Then provide full profile information using the format from rule #1
+   
+   b) If the person is a main contact (no relationships pointing TO them), provide full profile information using the format from rule #1
+
+5. For questions about multiple people or comparisons, provide concise answers focusing on the specific information requested.
+
+If any field is not available in the contact data, omit that line entirely or say "Not available" for specific questions.
+
 User's Question: "{{{question}}}"
 
 Here are the contacts you have access to:
