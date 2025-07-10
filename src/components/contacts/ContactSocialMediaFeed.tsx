@@ -14,7 +14,7 @@ interface Post {
   mediaUrl: string;
   caption: string;
   timestamp: string;
-  type: "image" | "video";
+  type: "image"; // Only allow image posts
 }
 
 interface ContactSocialMediaFeedProps {

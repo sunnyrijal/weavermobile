@@ -677,7 +677,7 @@ export default function ContactDetailPage() {
                                        <DialogHeader className="p-4 border-b">
                                           <DialogTitle>Photo with {contact.name}</DialogTitle>
                                         </DialogHeader>
-                                        <div className="relative w-full aspect-video">
+                                        <div className="relative w-full aspect-square">
                                           <Image
                                             src={photoUrl}
                                             alt={`Photo with ${contact.name} ${index + 1} - enlarged`}
