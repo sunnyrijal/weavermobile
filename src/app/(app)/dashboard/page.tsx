@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2, Send } from "lucide-react";
+import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2, Send, Brain, TrendingUp, Clock, MapPin, MessageSquare } from "lucide-react";
 import type { Contact, ContactViewMode, NotableEvent } from '@/lib/types';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -15,31 +15,61 @@ import type { AnswerContactQuestionInput, AnswerContactQuestionOutput, PromptCon
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate';
 import { useContacts } from '@/hooks/useContacts';
-import ContactMergeModal from '@/components/contacts/ContactMergeModal';
+import { ContactMergeModal } from '@/components/contacts/ContactMergeModal';
 
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
-  <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 h-full flex flex-col">
-    <CardHeader className="p-0">
-      <Image 
-        src={contact.photoURL || `https://picsum.photos/seed/${contact.id}/400/250`} 
-        alt={contact.name}
-        width={400}
-        height={250}
-        className="object-cover w-full h-32 sm:h-40"
-        data-ai-hint="person portrait"
-      />
+  <Card className="group overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col border-0 bg-gradient-to-br from-background to-muted/20">
+    <CardHeader className="p-0 relative">
+      <div className="relative">
+        <Image 
+          src={contact.photoURL || `https://picsum.photos/seed/${contact.id}/400/250`} 
+          alt={contact.name}
+          width={400}
+          height={250}
+          className="object-cover w-full h-32 sm:h-40 transition-transform duration-300 group-hover:scale-105"
+          data-ai-hint="person portrait"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+        <div className="absolute top-2 right-2">
+          <Badge variant="secondary" className="text-xs bg-background/80 backdrop-blur-sm">
+            {contact.category || 'Contact'}
+          </Badge>
+        </div>
+      </div>
     </CardHeader>
-    <CardContent className="p-3 sm:p-4 flex-1">
-      <CardTitle className="text-base sm:text-lg mb-1 line-clamp-1">{contact.name}</CardTitle>
-      <CardDescription className="text-xs sm:text-sm text-muted-foreground mb-2">{contact.category || 'N/A'}</CardDescription>
-      {contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.occupation}{contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) ? ` at ${contact.company}` : ''}</p>}
-      {contact.college && !contact.occupation && <p className="text-xs text-muted-foreground truncate">{contact.college}</p>}
-      {contact.currentLocation && <p className="text-xs text-muted-foreground truncate">{contact.currentLocation}</p>}
-      {!contact.currentLocation && contact.hometown && <p className="text-xs text-muted-foreground truncate">From: {contact.hometown}</p>}
+    <CardContent className="p-4 flex-1">
+      <CardTitle className="text-base sm:text-lg mb-2 line-clamp-1 font-semibold">{contact.name}</CardTitle>
+      
+      <div className="space-y-2">
+        {contact.occupation && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Briefcase className="h-3 w-3" />
+            <span className="truncate">{contact.occupation}{contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) ? ` at ${contact.company}` : ''}</span>
+          </div>
+        )}
+        {contact.college && !contact.occupation && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Users className="h-3 w-3" />
+            <span className="truncate">{contact.college}</span>
+          </div>
+        )}
+        {contact.currentLocation && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3" />
+            <span className="truncate">{contact.currentLocation}</span>
+          </div>
+        )}
+        {!contact.currentLocation && contact.hometown && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3" />
+            <span className="truncate">From: {contact.hometown}</span>
+          </div>
+        )}
+      </div>
     </CardContent>
-    <CardFooter className="p-3 sm:p-4 pt-0 mt-auto">
-      <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm" asChild>
+    <CardFooter className="p-4 pt-0 mt-auto">
+      <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm group-hover:bg-primary group-hover:text-primary-foreground transition-colors" asChild>
         <Link href={`/contacts/${contact.id}`}>View Details</Link>
       </Button>
     </CardFooter>
@@ -498,53 +528,181 @@ export default function DashboardPage() {
           onConfirm={handleConfirmMerge}
         />
       )}
+      
+      {/* Hero AI Section */}
       <div className="space-y-6">
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card className="shadow-md">
-              <CardHeader>
-              <CardTitle className="text-2xl">Welcome to NetworkNest!</CardTitle>
-              <CardDescription>Manage and visualize your connections.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                  <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                      <UsersRound className="h-6 w-6 text-primary mx-auto md:mx-0 mb-1"/>
-                      <p className="text-xs text-muted-foreground">Total Contacts</p>
-                      <p className="text-2xl font-bold">{contacts.length}</p>
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-accent/5">
+          <CardHeader className="text-center pb-4">
+            <div className="flex items-center justify-center mb-2">
+              <Brain className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Your AI Relationship Assistant</CardTitle>
+            <CardDescription className="text-base">
+              Ask anything about your network. Try "When is Sarah's birthday?" or "Who do I know in Seattle?"
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input 
+                type="text"
+                placeholder="Ask about your contacts..."
+                value={aiQuestionText}
+                onChange={(e) => setAiQuestionText(e.target.value)}
+                onKeyDown={handleAiQuestionKeyDown}
+                disabled={isLoadingAiAnswer || isListeningToQuestion}
+                className="pl-12 pr-20 py-4 text-lg border-2 focus:border-primary"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleVoiceQuestionClick}
+                  disabled={isListeningToQuestion || isLoadingAiAnswer}
+                  className="h-8 w-8"
+                >
+                  {isListeningToQuestion ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="default"
+                  size="icon"
+                  onClick={handleTextQuestionSubmit}
+                  disabled={isLoadingAiAnswer || isListeningToQuestion || !aiQuestionText.trim()}
+                  className="h-8 w-8"
+                >
+                  {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            
+            {/* Smart Suggestions */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {[
+                "When is Sarah's birthday?",
+                "Who do I know in Seattle?",
+                "Show me my close friends",
+                "Recent interactions"
+              ].map((suggestion, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAiQuestionText(suggestion)}
+                  className="text-xs"
+                >
+                  {suggestion}
+                </Button>
+              ))}
+            </div>
+            
+            {aiAnswer && (
+              <Card className="bg-background border-primary/20">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Brain className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm mb-2">AI Response:</p>
+                      <div className="text-sm whitespace-pre-line">{aiAnswer}</div>
+                    </div>
                   </div>
-                  <div className="text-center md:text-left p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                      <Heart className="h-6 w-6 text-accent mx-auto md:mx-0 mb-1"/>
-                      <p className="text-xs text-muted-foreground">Close Connections</p>
-                      <p className="text-2xl font-bold">{closeConnectionsCount}</p>
-                  </div>
-              </CardContent>
-              <CardFooter className="flex flex-col sm:flex-row gap-2">
-                  <Button variant="default" asChild className="w-full sm:w-auto">
-                      <Link href="/contacts/new"><PlusCircle className="mr-2 h-4 w-4" /> Add Contact</Link>
-                  </Button>
-                  <Button variant="outline" asChild className="w-full sm:w-auto">
-                      <Link href="/import"><UploadCloud className="mr-2 h-4 w-4" /> Import Contacts</Link>
-                  </Button>
-              </CardFooter>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
 
-          <Card className="shadow-md">
+        {/* Network Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="shadow-md hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <UsersRound className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{contacts.length}</p>
+                  <p className="text-sm text-muted-foreground">Total Contacts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-md hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-accent/10 rounded-lg">
+                  <Heart className="h-6 w-6 text-accent" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{closeConnectionsCount}</p>
+                  <p className="text-sm text-muted-foreground">Close Connections</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-md hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500/10 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{upcomingEvents.length}</p>
+                  <p className="text-sm text-muted-foreground">Upcoming Events</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-md hover:shadow-lg transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{contacts.filter(c => c.notes).length}</p>
+                  <p className="text-sm text-muted-foreground">With Notes</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+          {/* Upcoming Events Section */}
+          <Card className="shadow-lg">
               <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2"><CalendarDays className="text-primary"/> Upcoming Events</CardTitle>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <CalendarDays className="text-primary"/>
+                    Upcoming Events
+                  </CardTitle>
                   <CardDescription>Stay on top of important dates in your network.</CardDescription>
               </CardHeader>
-              <CardContent className="max-h-60 overflow-y-auto pr-2">
+              <CardContent>
                   {upcomingEvents.length > 0 ? (
-                      <ul className="space-y-3">
-                          {upcomingEvents.map(event => (
-                              <li key={event.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-                                  <div className="flex items-center gap-3">
-                                      <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
+                      <div className="space-y-3">
+                          {upcomingEvents.slice(0, 5).map(event => (
+                              <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                                  <div className="flex items-center gap-4">
+                                      <div className={`p-2 rounded-lg ${event.type === 'Birthday' ? 'bg-accent/10' : event.type === 'Anniversary' ? 'bg-pink-500/10' : 'bg-primary/10'}`}>
+                                          <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
+                                      </div>
                                       <div>
                                           <p className="font-medium text-sm">{event.title}</p>
-                                          <ClientSideFormattedDate date={event.date} format="MMMM do" className="text-xs text-muted-foreground" />
-                                          <span className="text-xs text-muted-foreground">
-                                              {event.daysRemaining === 0 ? " (Today!)" : ` (in ${event.daysRemaining} ${event.daysRemaining === 1 ? 'day' : 'days'})`}
-                                          </span>
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Clock className="h-3 w-3" />
+                                            <ClientSideFormattedDate date={event.date} format="MMMM do" />
+                                            <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                              event.daysRemaining === 0 
+                                                ? 'bg-red-100 text-red-700' 
+                                                : event.daysRemaining <= 3 
+                                                ? 'bg-orange-100 text-orange-700'
+                                                : 'bg-green-100 text-green-700'
+                                            }`}>
+                                              {event.daysRemaining === 0 ? "Today!" : `${event.daysRemaining} day${event.daysRemaining === 1 ? '' : 's'}`}
+                                            </span>
+                                          </div>
                                       </div>
                                   </div>
                                   {event.contactId && (
@@ -552,16 +710,26 @@ export default function DashboardPage() {
                                         <Link href={`/contacts/${event.contactId}?tab=events`}>View</Link>
                                       </Button>
                                   )}
-                              </li>
+                              </div>
                           ))}
-                      </ul>
+                          {upcomingEvents.length > 5 && (
+                              <div className="text-center pt-2">
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link href="/contacts">View All Events</Link>
+                                  </Button>
+                              </div>
+                          )}
+                      </div>
                   ) : (
-                      <p className="text-muted-foreground text-sm">No upcoming events in the next 30 days.</p>
+                      <div className="text-center py-8">
+                          <CalendarDays className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                          <p className="text-muted-foreground">No upcoming events in the next 30 days.</p>
+                          <Button variant="outline" size="sm" className="mt-3" asChild>
+                            <Link href="/contacts/new">Add Contact</Link>
+                          </Button>
+                      </div>
                   )}
               </CardContent>
-              <CardFooter>
-                  <p className="text-xs text-muted-foreground">Showing events within the next 30 days.</p>
-              </CardFooter>
           </Card>
         </div>
 
@@ -623,42 +791,103 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-          <div className="relative flex-grow w-full">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-            <Input 
-              type="search" 
-              placeholder="Search contacts, tags, company..." 
-              className="pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 text-sm w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Button variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 sm:h-8 sm:w-8" onClick={handleVoiceSearchClick} title="Search with voice">
-              {isListeningToVoiceSearch ? <MicOff className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" /> : <Mic className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />}
-            </Button>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-             <Button 
-              variant="outline" 
-              onClick={() => setShowAllContacts(prev => !prev)}
-              className="whitespace-nowrap w-full sm:w-auto text-xs sm:text-sm"
-              disabled={searchTerm.trim() !== ''} 
+        {/* Contact Browsing Section */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  Your Network
+                </CardTitle>
+                <CardDescription>
+                  Browse and manage your contacts with AI-powered insights
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/contacts/new">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Contact
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/import">
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Import
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                type="search" 
+                placeholder="Search contacts, tags, company..." 
+                className="pl-10 pr-12 py-3 text-sm w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" 
+                onClick={handleVoiceSearchClick} 
+                title="Search with voice"
               >
-              {showAllContacts || searchTerm.trim() !== '' ? <><EyeOff className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Show Main Contacts</> : <><Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Show All Contacts</>}
-            </Button>
-            <div className="flex items-center gap-1 sm:gap-2">
-              <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => setViewMode('list')} aria-label="List view">
-                  <List className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-              <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => setViewMode('grid')} aria-label="Grid view">
-                  <LayoutGrid className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-              <Button variant={viewMode === 'tree' ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => setViewMode('tree')} aria-label="Tree view" asChild>
-                  <Link href="/map"><Share2 className="h-4 w-4 sm:h-5 sm:w-5" /></Link>
+                {isListeningToVoiceSearch ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4 text-muted-foreground" />}
               </Button>
             </div>
-          </div>
-        </div>
+            
+            {/* View Controls */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={viewMode === 'grid' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setViewMode('grid')}
+                  className="h-8"
+                >
+                  <LayoutGrid className="mr-2 h-4 w-4" />
+                  Grid
+                </Button>
+                <Button 
+                  variant={viewMode === 'list' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setViewMode('list')}
+                  className="h-8"
+                >
+                  <List className="mr-2 h-4 w-4" />
+                  List
+                </Button>
+                <Button 
+                  variant={viewMode === 'tree' ? 'default' : 'outline'} 
+                  size="sm" 
+                  asChild
+                  className="h-8"
+                >
+                  <Link href="/map">
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Map
+                  </Link>
+                </Button>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAllContacts(prev => !prev)}
+                disabled={searchTerm.trim() !== ''} 
+                className="h-8"
+              >
+                {showAllContacts || searchTerm.trim() !== '' ? <><EyeOff className="mr-2 h-4 w-4" /> Main</> : <><Eye className="mr-2 h-4 w-4" /> All</>}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
         
         <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
           <TabsList className="grid w-full grid-cols-3 sm:grid-cols-3 md:grid-cols-6 mb-4">
@@ -693,31 +922,49 @@ export default function DashboardPage() {
         </Tabs>
 
 
-        <Card className="shadow-md">
+        {/* Import Section */}
+        <Card className="shadow-lg bg-gradient-to-br from-muted/20 to-background">
           <CardHeader>
-            <CardTitle>Import Your Network</CardTitle>
-            <CardDescription>Connect your accounts to easily import contacts.</CardDescription>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <UploadCloud className="h-5 w-5 text-primary" />
+              Import Your Network
+            </CardTitle>
+            <CardDescription>
+              Connect your accounts to easily import contacts with AI-powered categorization
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[
-              { name: "Phone", icon: Smartphone, color: "text-green-500" },
-              { name: "LinkedIn", icon: Linkedin, color: "text-blue-600" },
-              { name: "Instagram", icon: Instagram, color: "text-pink-500" },
-              { name: "Facebook", icon: Facebook, color: "text-blue-700" },
-              { name: "Twitter", icon: Twitter, color: "text-sky-500" },
-            ].map(source => (
-              <Button key={source.name} variant="outline" className="flex flex-col h-24 sm:h-28 items-center justify-center gap-2 hover:bg-accent/50" asChild>
-                <Link href={`/import?source=${source.name.toLowerCase()}`}>
-                  <source.icon className={`h-8 w-8 ${source.color}`} />
-                  <span>{source.name}</span>
-                </Link>
-              </Button>
-            ))}
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { name: "Phone", icon: Smartphone, color: "text-green-500", bgColor: "bg-green-500/10" },
+                { name: "LinkedIn", icon: Linkedin, color: "text-blue-600", bgColor: "bg-blue-500/10" },
+                { name: "Instagram", icon: Instagram, color: "text-pink-500", bgColor: "bg-pink-500/10" },
+                { name: "Facebook", icon: Facebook, color: "text-blue-700", bgColor: "bg-blue-600/10" },
+                { name: "Twitter", icon: Twitter, color: "text-sky-500", bgColor: "bg-sky-500/10" },
+              ].map(source => (
+                <Button 
+                  key={source.name} 
+                  variant="outline" 
+                  className={`flex flex-col h-20 items-center justify-center gap-2 hover:shadow-md transition-all duration-200 border-0 bg-background/50 backdrop-blur-sm`} 
+                  asChild
+                >
+                  <Link href={`/import?source=${source.name.toLowerCase()}`}>
+                    <div className={`p-2 rounded-lg ${source.bgColor} mb-1`}>
+                      <source.icon className={`h-6 w-6 ${source.color}`} />
+                    </div>
+                    <span className="text-xs font-medium">{source.name}</span>
+                  </Link>
+                </Button>
+              ))}
+            </div>
           </CardContent>
           <CardFooter>
-              <Button asChild>
-                  <Link href="/import">Go to Unified Import Page</Link>
-              </Button>
+            <Button variant="default" className="w-full sm:w-auto" asChild>
+              <Link href="/import">
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Go to Import Page
+              </Link>
+            </Button>
           </CardFooter>
         </Card>
 
