@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2, Send, Brain, TrendingUp, Clock, MapPin, MessageSquare } from "lucide-react";
 import type { Contact, ContactViewMode, NotableEvent } from '@/lib/types';
 import Image from 'next/image';
@@ -16,7 +17,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate';
 import { useContacts } from '@/hooks/useContacts';
 import { ContactMergeModal } from '@/components/contacts/ContactMergeModal';
-
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
   <Card className="group overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col border-0 bg-gradient-to-br from-background to-muted/20">
@@ -188,6 +188,28 @@ const getUpcomingEvents = (contacts: Contact[]): DisplayEvent[] => {
 };
 
 const enrichContactsForAI = (contactsToEnrich: Contact[], allContacts: Contact[]): PromptContact[] => {
+  function extractNickname(name: string, notes?: string): string | null {
+    if (!notes) return null;
+    // Look for a nickname in the first sentence, e.g., "Coco is ..." or "She thinks she is a great cook."
+    // If the notes start with a word/phrase in quotes or after the name, treat as nickname
+    // e.g., "Coco is tall...", "Notes: Coco is ...", "She goes by Coco..."
+    // Try to find a word in the first sentence that is not the main name, and is capitalized
+    const firstSentence = notes.split(/[.!?]/)[0];
+    // 1. If the first word is not the main name, and is capitalized, treat as nickname
+    const words = firstSentence.trim().split(/\s+/);
+    if (words.length > 0 && words[0].length > 1 && words[0].toLowerCase() !== name.toLowerCase() && words[0][0] === words[0][0].toUpperCase()) {
+      return words[0];
+    }
+    // 2. Look for 'goes by <Nickname>' or 'nickname <Nickname>'
+    const match = firstSentence.match(/goes by ([A-Z][a-zA-Z]+)/i) || firstSentence.match(/nickname[:]? ([A-Z][a-zA-Z]+)/i);
+    if (match) return match[1];
+    // 3. Look for 'Name (Nickname)' in notes
+    const parenMatch = firstSentence.match(/([A-Z][a-zA-Z]+) \(([^)]+)\)/);
+    if (parenMatch && parenMatch[2] && parenMatch[2].toLowerCase() !== name.toLowerCase()) {
+      return parenMatch[2];
+    }
+    return null;
+  }
   return contactsToEnrich.map(contact => {
     const contactRelationships = contact.relationships?.map(rel => {
       const relatedContact = allContacts.find(c => c.id === rel.relatedContactId);
@@ -197,25 +219,67 @@ const enrichContactsForAI = (contactsToEnrich: Contact[], allContacts: Contact[]
         customLabel: rel.customLabel || undefined,
       };
     }) || [];
+    let displayName = contact.name;
+    const nickname = extractNickname(contact.name, contact.notes);
+    if (nickname && !displayName.includes(nickname)) {
+      displayName = `${contact.name} (${nickname})`;
+    }
     return {
-      name: contact.name,
-      email: contact.email || undefined,
-      phone: contact.phone || undefined,
-      occupation: contact.occupation || undefined,
-      company: contact.company || undefined,
-      college: contact.college || undefined,
-      category: contact.category || undefined,
-      hometown: contact.hometown || undefined,
-      currentLocation: contact.currentLocation || undefined,
-      birthday: contact.birthday || undefined,
-      ownerRelationshipLabel: contact.ownerRelationshipLabel || undefined,
-      notes: contact.notes || undefined,
-      tags: contact.tags || [],
+      id: contact.id,
+      name: displayName,
+      email: contact.email,
+      phone: contact.phone,
+      company: contact.company,
+      occupation: contact.occupation,
+      currentLocation: contact.currentLocation,
+      hometown: contact.hometown,
+      college: contact.college,
+      birthday: contact.birthday,
+      category: contact.category,
+      tags: contact.tags,
+      notes: contact.notes,
       relationships: contactRelationships,
+      ownerRelationshipLabel: contact.ownerRelationshipLabel || undefined,
     };
   });
 };
 
+function getRecentUpdates(contacts: Contact[]) {
+  // Mock: count recent social posts (from MOCK_POSTS in ContactSocialMediaFeed)
+  // In real app, would fetch from backend or social APIs
+  let updates: { contactId: string; platform: string; postId: string; timestamp: string }[] = [];
+  const MOCK_POSTS = {
+    instagram: [
+      { id: "ig1", timestamp: "2024-06-01T12:00:00Z" },
+      { id: "ig2", timestamp: "2024-05-28T09:30:00Z" },
+    ],
+    facebook: [
+      { id: "fb1", timestamp: "2024-05-20T18:45:00Z" },
+    ],
+    linkedin: [
+      { id: "li1", timestamp: "2024-05-15T08:00:00Z" },
+    ],
+  };
+  contacts.forEach(contact => {
+    if (!contact.socialProfiles) return;
+    Object.entries(contact.socialProfiles).forEach(([platform, url]) => {
+      if (MOCK_POSTS[platform]) {
+        MOCK_POSTS[platform].forEach(post => {
+          updates.push({ contactId: contact.id, platform, postId: post.id, timestamp: post.timestamp });
+        });
+      }
+    });
+  });
+  // Only show updates from last 30 days
+  const now = new Date();
+  updates = updates.filter(u => (now.getTime() - new Date(u.timestamp).getTime()) < 1000 * 60 * 60 * 24 * 30);
+  return updates;
+}
+
+function getContactsNearYou(contacts: Contact[], userCity = "Cincinnati") {
+  // In a real app, use geolocation or user profile; here, mock with 'Cincinnati'
+  return contacts.filter(c => c.currentLocation && c.currentLocation.toLowerCase().includes(userCity.toLowerCase()));
+}
 
 export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -243,16 +307,16 @@ export default function DashboardPage() {
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null);
   const speechRecognitionQuestionRef = useRef<SpeechRecognition | null>(null);
 
-
   const [showAllContacts, setShowAllContacts] = useState(false);
   const mainContactIds = useMemo(() => {
     return contacts.slice(0, 4).map(contact => contact.id);
   }, [contacts]);
   
   const upcomingEvents = useMemo(() => getUpcomingEvents(contacts), [contacts]);
+  const recentUpdates = useMemo(() => getRecentUpdates(contacts), [contacts]);
+  const contactsNearYou = useMemo(() => getContactsNearYou(contacts), [contacts]);
 
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
-
 
   useEffect(() => {
     return () => {
@@ -381,7 +445,6 @@ export default function DashboardPage() {
     }
   };
 
-
   const handleVoiceQuestionClick = async () => {
     if (typeof window === 'undefined') return;
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -462,7 +525,6 @@ export default function DashboardPage() {
     }
   };
 
-
   const displayedContacts = useMemo(() => {
     let contactsToDisplay = contacts;
     if (searchTerm.trim() === '' && !showAllContacts) {
@@ -486,19 +548,18 @@ export default function DashboardPage() {
     return contactsToDisplay;
   }, [searchTerm, showAllContacts, activeFilter, mainContactIds, contacts]);
 
-  
   const filterCategories = ["All", "Family", "Friend", "Colleague", "Professional", "Partner"];
   const closeConnectionsCount = contacts.filter(c => c.category === 'Family' || c.category === 'Partner').length;
 
   // Handle confirm merge
-  const handleConfirmMerge = async (merged) => {
+  const handleConfirmMerge = async () => {
     if (!activeMergeGroup) return;
     try {
       await fetch('/api/contacts/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          mergedContact: merged,
+          mergedContact: activeMergeGroup.proposedMerge,
           duplicateIds: activeMergeGroup.duplicates.map((c) => c.id || c._id),
         }),
       });
@@ -521,11 +582,10 @@ export default function DashboardPage() {
       {/* Merge Modal for Duplicates */}
       {activeMergeGroup && (
         <ContactMergeModal
-          open={showMergeModal}
-          onClose={handleCancelMerge}
+          isOpen={showMergeModal}
+          onOpenChange={handleCancelMerge}
           duplicates={activeMergeGroup.duplicates}
-          proposedMerge={activeMergeGroup.proposedMerge}
-          onConfirm={handleConfirmMerge}
+          onMergeComplete={handleConfirmMerge}
         />
       )}
       
@@ -587,7 +647,10 @@ export default function DashboardPage() {
                   key={index}
                   variant="outline"
                   size="sm"
-                  onClick={() => setAiQuestionText(suggestion)}
+                  onClick={() => {
+                    setAiQuestionText(suggestion);
+                    processAiQuestion(suggestion); // Immediately trigger answer
+                  }}
                   className="text-xs"
                 >
                   {suggestion}
@@ -613,179 +676,123 @@ export default function DashboardPage() {
 
         {/* Network Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="shadow-md hover:shadow-lg transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <UsersRound className="h-6 w-6 text-primary" />
+          <Link href="/contacts" className="block">
+            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <UsersRound className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{contacts.length}</p>
+                    <p className="text-sm text-muted-foreground">Total Contacts</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{contacts.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Contacts</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-md hover:shadow-lg transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-accent/10 rounded-lg">
-                  <Heart className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{closeConnectionsCount}</p>
-                  <p className="text-sm text-muted-foreground">Close Connections</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-md hover:shadow-lg transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{upcomingEvents.length}</p>
-                  <p className="text-sm text-muted-foreground">Upcoming Events</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-md hover:shadow-lg transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <MessageSquare className="h-6 w-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{contacts.filter(c => c.notes).length}</p>
-                  <p className="text-sm text-muted-foreground">With Notes</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-          {/* Upcoming Events Section */}
-          <Card className="shadow-lg">
-              <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <CalendarDays className="text-primary"/>
-                    Upcoming Events
-                  </CardTitle>
-                  <CardDescription>Stay on top of important dates in your network.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                  {upcomingEvents.length > 0 ? (
-                      <div className="space-y-3">
-                          {upcomingEvents.slice(0, 5).map(event => (
-                              <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                                  <div className="flex items-center gap-4">
-                                      <div className={`p-2 rounded-lg ${event.type === 'Birthday' ? 'bg-accent/10' : event.type === 'Anniversary' ? 'bg-pink-500/10' : 'bg-primary/10'}`}>
-                                          <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
-                                      </div>
-                                      <div>
-                                          <p className="font-medium text-sm">{event.title}</p>
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Clock className="h-3 w-3" />
-                                            <ClientSideFormattedDate date={event.date} format="MMMM do" />
-                                            <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                              event.daysRemaining === 0 
-                                                ? 'bg-red-100 text-red-700' 
-                                                : event.daysRemaining <= 3 
-                                                ? 'bg-orange-100 text-orange-700'
-                                                : 'bg-green-100 text-green-700'
-                                            }`}>
-                                              {event.daysRemaining === 0 ? "Today!" : `${event.daysRemaining} day${event.daysRemaining === 1 ? '' : 's'}`}
-                                            </span>
-                                          </div>
-                                      </div>
-                                  </div>
-                                  {event.contactId && (
-                                      <Button variant="ghost" size="sm" asChild>
-                                        <Link href={`/contacts/${event.contactId}?tab=events`}>View</Link>
-                                      </Button>
-                                  )}
-                              </div>
-                          ))}
-                          {upcomingEvents.length > 5 && (
-                              <div className="text-center pt-2">
-                                  <Button variant="outline" size="sm" asChild>
-                                    <Link href="/contacts">View All Events</Link>
-                                  </Button>
-                              </div>
-                          )}
-                      </div>
-                  ) : (
-                      <div className="text-center py-8">
-                          <CalendarDays className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                          <p className="text-muted-foreground">No upcoming events in the next 30 days.</p>
-                          <Button variant="outline" size="sm" className="mt-3" asChild>
-                            <Link href="/contacts/new">Add Contact</Link>
-                          </Button>
-                      </div>
-                  )}
               </CardContent>
-          </Card>
+            </Card>
+          </Link>
+          <Link href="/contacts?filter=close" className="block">
+            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-accent/10 rounded-lg">
+                    <Heart className="h-6 w-6 text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{closeConnectionsCount}</p>
+                    <p className="text-sm text-muted-foreground">Close Connections</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/updates" className="block">
+            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{recentUpdates.length}</p>
+                    <p className="text-sm text-muted-foreground">Updates</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/realmap" className="block">
+            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <MapPin className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{contactsNearYou.length}</p>
+                    <p className="text-sm text-muted-foreground">Near You</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
-
-        <Card className="shadow-md">
+        {/* Upcoming Events Section */}
+        <Card className="shadow-lg">
           <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2"><Sparkles className="text-primary"/> Ask AI About Your Network</CardTitle>
-              <CardDescription>Use voice or text to ask questions like "When is Sam's birthday?" or "Who is Chandra's partner?".</CardDescription>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <CalendarDays className="text-primary"/>
+              Upcoming Events
+            </CardTitle>
+            <CardDescription>Stay on top of important dates in your network.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            <div className="w-full max-w-md space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                  <Input 
-                      type="text"
-                      placeholder="Type your question here..."
-                      value={aiQuestionText}
-                      onChange={(e) => setAiQuestionText(e.target.value)}
-                      onKeyDown={handleAiQuestionKeyDown}
-                      disabled={isLoadingAiAnswer || isListeningToQuestion}
-                      className="flex-grow"
-                  />
-                  <Button
-                      variant="default"
-                      size="icon"
-                      onClick={handleTextQuestionSubmit}
-                      disabled={isLoadingAiAnswer || isListeningToQuestion || !aiQuestionText.trim()}
-                      title="Ask AI"
-                      className="w-full sm:w-auto"
-                  >
-                      {isLoadingAiAnswer && !isListeningToQuestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                  </Button>
+          <CardContent>
+            {upcomingEvents.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingEvents.slice(0, 5).map(event => (
+                  <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-lg ${event.type === 'Birthday' ? 'bg-accent/10' : event.type === 'Anniversary' ? 'bg-pink-500/10' : 'bg-primary/10'}`}>
+                        <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{event.title}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <ClientSideFormattedDate date={event.date} format="MMMM do" />
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${
+                            event.daysRemaining === 0 
+                              ? 'bg-red-100 text-red-700' 
+                              : event.daysRemaining <= 3 
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-green-100 text-green-700'
+                          }`}>
+                            {event.daysRemaining === 0 ? "Today!" : `${event.daysRemaining} day${event.daysRemaining === 1 ? '' : 's'}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {event.contactId && (
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/contacts/${event.contactId}?tab=events`}>View</Link>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {upcomingEvents.length > 5 && (
+                  <div className="text-center pt-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/contacts">View All Events</Link>
+                    </Button>
+                  </div>
+                )}
               </div>
-              <Button
-                  variant="outline"
-                  onClick={handleVoiceQuestionClick}
-                  disabled={isListeningToQuestion || isLoadingAiAnswer}
-                  className="w-full text-base py-3"
-              >
-                  {isListeningToQuestion ? <MicOff className="mr-2 h-5 w-5 text-destructive" /> : <Mic className="mr-2 h-5 w-5" />}
-                  {isListeningToQuestion ? "Listening..." : isLoadingAiAnswer ? "Processing..." : "Or Ask by Voice"}
-                  {isLoadingAiAnswer && isListeningToQuestion && <Loader2 className="ml-2 h-5 w-5 animate-spin" />}
-              </Button>
-            </div>
-            {microphonePermissionError && (
-              <Alert variant="destructive" className="w-full max-w-md">
-                <MicOff className="h-4 w-4" />
-                <AlertTitle>Microphone Access Denied</AlertTitle>
-                <AlertDescription>
-                  {microphonePermissionError} Please enable microphone permissions in your browser settings.
-                </AlertDescription>
-              </Alert>
-            )}
-            {aiAnswer && (
-              <div className="w-full max-w-md bg-accent/10 border border-accent rounded p-4 mt-2 text-base text-foreground shadow">
-                <span className="font-semibold text-primary">AI Answer:</span>
-                <div className="mt-1 whitespace-pre-line">{aiAnswer}</div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarDays className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg font-medium">No upcoming events</p>
+                <p>Add birthdays and notable events to your contacts to see them here.</p>
               </div>
             )}
           </CardContent>
@@ -897,7 +904,7 @@ export default function DashboardPage() {
           </TabsList>
 
           <TabsContent value={activeFilter}>
-             {viewMode === 'grid' && (
+            {viewMode === 'grid' && (
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
                 {displayedContacts.map(contact => <ContactCardItem key={contact.id} contact={contact} />)}
               </div>
@@ -920,7 +927,6 @@ export default function DashboardPage() {
             )}
           </TabsContent>
         </Tabs>
-
 
         {/* Import Section */}
         <Card className="shadow-lg bg-gradient-to-br from-muted/20 to-background">
@@ -984,9 +990,4 @@ export default function DashboardPage() {
       </div>
     </>
   );
-}
-
-
-
-
-
+} 

@@ -4,10 +4,11 @@ import { MemoryService } from '@/lib/mongodb/services/memoryService';
 // GET /api/memories/[id] - Get a memory by ID
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = context.params.id;
+    const params = await context.params;
+    const id = params.id;
     const memory = await MemoryService.getMemoryById(id);
     
     if (!memory) {
@@ -24,10 +25,11 @@ export async function GET(
 // PUT /api/memories/[id] - Update a memory
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = context.params.id;
+    const params = await context.params;
+    const id = params.id;
     const body = await request.json();
     
     const memory = await MemoryService.updateMemory(id, body);
@@ -46,10 +48,11 @@ export async function PUT(
 // DELETE /api/memories/[id] - Delete a memory
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = context.params.id;
+    const params = await context.params;
+    const id = params.id;
     const success = await MemoryService.deleteMemory(id);
     
     if (!success) {

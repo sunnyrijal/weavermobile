@@ -11,7 +11,7 @@ import type { ImportedContactPreview } from "@/lib/types";
 import { UploadCloud, Smartphone, Linkedin, Instagram, Facebook, Twitter, FileText, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 
 const importSources = [
   { id: "phone", name: "Phone Contacts", icon: Smartphone, color: "text-green-500" },
@@ -36,7 +36,7 @@ const fetchMockImportableContacts = async (source: string): Promise<ImportedCont
 };
 
 
-export default function ImportPage() {
+function ImportPageContent() {
   const searchParams = useSearchParams();
   const initialSource = searchParams.get('source');
   
@@ -220,6 +220,14 @@ export default function ImportPage() {
          </Card>
       )}
     </div>
+  );
+}
+
+export default function ImportPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ImportPageContent />
+    </Suspense>
   );
 }
 

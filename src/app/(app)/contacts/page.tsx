@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -63,7 +63,7 @@ const ContactListItem = ({ contact }: { contact: Contact }) => (
   </Link>
 );
 
-export default function ContactsPage() {
+function ContactsPageContent() {
   const searchParams = useSearchParams();
   const initialSearchQuery = searchParams.get('search') || '';
   
@@ -191,6 +191,14 @@ export default function ContactsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function ContactsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ContactsPageContent />
+    </Suspense>
   );
 }
 
