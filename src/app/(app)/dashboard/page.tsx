@@ -17,6 +17,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate';
 import { useContacts } from '@/hooks/useContacts';
 import { ContactMergeModal } from '@/components/contacts/ContactMergeModal';
+import { EventGiftSuggestionModal } from '@/components/contacts/EventGiftSuggestionModal';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 const ContactCardItem = ({ contact }: { contact: Contact }) => (
   <Card className="group overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col border-0 bg-gradient-to-br from-background to-muted/20">
@@ -318,6 +321,11 @@ export default function DashboardPage() {
 
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
 
+  // Event gift suggestion modal state
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<DisplayEvent | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
   useEffect(() => {
     return () => {
       if (speechRecognitionSearchRef.current) {
@@ -577,6 +585,29 @@ export default function DashboardPage() {
     setActiveMergeGroup(null);
   };
 
+  // Handle opening event gift suggestion modal
+  const handleOpenEventModal = (event: DisplayEvent) => {
+    console.log('Opening modal for event:', event);
+    const contact = contacts.find(c => c.id === event.contactId);
+    if (contact) {
+      console.log('Found contact:', contact.name);
+      setSelectedEvent(event);
+      setSelectedContact(contact);
+      setShowEventModal(true);
+    } else {
+      console.log('Contact not found for event:', event);
+    }
+  };
+
+  // Handle closing event modal
+  const handleCloseEventModal = () => {
+    setShowEventModal(false);
+    setSelectedEvent(null);
+    setSelectedContact(null);
+  };
+
+  const isMobile = useIsMobile();
+
   return (
     <>
       {/* Merge Modal for Duplicates */}
@@ -588,6 +619,14 @@ export default function DashboardPage() {
           onMergeComplete={handleConfirmMerge}
         />
       )}
+
+      {/* Event Gift Suggestion Modal */}
+      <EventGiftSuggestionModal
+        isOpen={showEventModal}
+        onClose={handleCloseEventModal}
+        event={selectedEvent}
+        contact={selectedContact}
+      />
       
       {/* Hero AI Section */}
       <div className="space-y-6">
@@ -675,64 +714,59 @@ export default function DashboardPage() {
         </Card>
 
         {/* Network Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div
+          className={
+            cn(
+              "grid gap-4 w-full",
+              isMobile ? "grid-cols-2" : "grid-cols-4"
+            )
+          }
+        >
           <Link href="/contacts" className="block">
-            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <UsersRound className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{contacts.length}</p>
-                    <p className="text-sm text-muted-foreground">Total Contacts</p>
-                  </div>
-                </div>
+            <Card className={cn(
+              "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
+              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+            )}>
+              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
+                <UsersRound className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{contacts.length}</p>
+                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Total Contacts</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/contacts?filter=close" className="block">
-            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-accent/10 rounded-lg">
-                    <Heart className="h-6 w-6 text-accent" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{closeConnectionsCount}</p>
-                    <p className="text-sm text-muted-foreground">Close Connections</p>
-                  </div>
-                </div>
+            <Card className={cn(
+              "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
+              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+            )}>
+              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
+                <Heart className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{closeConnectionsCount}</p>
+                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Close Connections</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/updates" className="block">
-            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-500/10 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{recentUpdates.length}</p>
-                    <p className="text-sm text-muted-foreground">Updates</p>
-                  </div>
-                </div>
+            <Card className={cn(
+              "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
+              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+            )}>
+              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
+                <TrendingUp className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{recentUpdates.length}</p>
+                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Updates</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/realmap" className="block">
-            <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/10 rounded-lg">
-                    <MapPin className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{contactsNearYou.length}</p>
-                    <p className="text-sm text-muted-foreground">Near You</p>
-                  </div>
-                </div>
+            <Card className={cn(
+              "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
+              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+            )}>
+              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
+                <MapPin className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{contactsNearYou.length}</p>
+                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Near You</p>
               </CardContent>
             </Card>
           </Link>
@@ -774,8 +808,12 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     {event.contactId && (
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/contacts/${event.contactId}?tab=events`}>View</Link>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleOpenEventModal(event)}
+                      >
+                        View
                       </Button>
                     )}
                   </div>
