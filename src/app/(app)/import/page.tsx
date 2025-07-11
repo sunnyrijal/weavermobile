@@ -35,6 +35,32 @@ const fetchMockImportableContacts = async (source: string): Promise<ImportedCont
   }));
 };
 
+function extractNotableFactsFromMessages(messages: string[]): string[] {
+  // Dummy AI extraction logic
+  const facts: string[] = [];
+  messages.forEach(msg => {
+    if (/happy birthday/i.test(msg)) facts.push('Birthday detected from messages');
+    if (/puppy|dog|cat|pet/i.test(msg)) facts.push('New pet mentioned');
+    if (/travel|trip|vacation|visited/i.test(msg)) facts.push('Travel event detected');
+    if (/baby|son|daughter|born|birth/i.test(msg)) facts.push('Family event (baby) mentioned');
+    if (/house|home|moved|bought a house/i.test(msg)) facts.push('New house or move detected');
+  });
+  return Array.from(new Set(facts));
+}
+
+// Dummy messages for each contact
+const dummyMessages: Record<string, string[]> = {
+  phone_contact_1: [
+    "Happy Birthday! Hope you have a great year ahead!",
+    "Did you get a new puppy? So cute!",
+    "Congrats on your new house!"
+  ],
+  phone_contact_2: [
+    "Let's plan a trip to Spain this summer!",
+    "Congrats on the baby!"
+  ],
+  // Add more as needed for demo
+};
 
 function ImportPageContent() {
   const searchParams = useSearchParams();
@@ -47,6 +73,7 @@ function ImportPageContent() {
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
+  const [allowMessageAnalysis, setAllowMessageAnalysis] = useState(false);
 
   const currentSourceDetails = useMemo(() => importSources.find(s => s.id === selectedSource), [selectedSource]);
 
@@ -132,6 +159,26 @@ function ImportPageContent() {
         )}
       </Card>
 
+      {/* Permission step for message analysis */}
+      {selectedSource && !isLoading && (
+        <Card className="shadow-md">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-medium">Message Analysis Permission</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center gap-4 py-6">
+            <div className="flex items-center gap-3">
+              <Checkbox id="allow-messages" checked={allowMessageAnalysis} onCheckedChange={setAllowMessageAnalysis} />
+              <Label htmlFor="allow-messages" className="text-base font-medium">
+                Allow WeaverCursor to analyze your messages for smarter contact insights <span className="text-muted-foreground text-sm">(e.g., birthdays, life events, notable facts)</span>?
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground text-center max-w-xl">
+              If enabled, WeaverCursor will use AI to scan your messages for important moments and facts about your contacts. No messages are stored—only relevant insights are extracted and linked to your contacts.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading && selectedSource && (
         <Card className="shadow-md">
           <CardContent className="p-6 text-center">
@@ -174,32 +221,43 @@ function ImportPageContent() {
             {isImporting && <Progress value={importProgress} className="w-full mb-4" />}
             
             <ul className="max-h-[400px] overflow-y-auto space-y-2 pr-2">
-              {importableContacts.map(contact => (
-                <li key={contact.sourceId} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <Checkbox 
-                        id={contact.sourceId} 
-                        checked={selectedContacts[contact.sourceId] || false}
-                        onCheckedChange={(checked) => setSelectedContacts(prev => ({ ...prev, [contact.sourceId]: Boolean(checked)}))}
-                    />
-                    <Label htmlFor={contact.sourceId} className="flex items-center gap-3 cursor-pointer">
-                        <Image 
-                            src={contact.photoURL || `https://picsum.photos/seed/${contact.sourceId}/40/40`} 
-                            alt={contact.name}
-                            width={40}
-                            height={40}
-                            className="rounded-full object-cover"
-                            data-ai-hint="person avatar"
-                        />
-                        <div>
-                            <p className="font-medium text-sm sm:text-base">{contact.name}</p>
-                            <p className="text-xs text-muted-foreground">{contact.email || contact.details}</p>
-                        </div>
-                    </Label>
-                  </div>
-                  {/* Future: Button for AI tag suggestions or conflict resolution indicator */}
-                </li>
-              ))}
+              {importableContacts.map(contact => {
+                let facts: string[] = [];
+                if (allowMessageAnalysis) {
+                  const messages = dummyMessages[contact.sourceId] || [];
+                  facts = extractNotableFactsFromMessages(messages);
+                }
+                return (
+                  <li key={contact.sourceId} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <Checkbox 
+                          id={contact.sourceId} 
+                          checked={selectedContacts[contact.sourceId] || false}
+                          onCheckedChange={(checked) => setSelectedContacts(prev => ({ ...prev, [contact.sourceId]: Boolean(checked)}))}
+                      />
+                      <Label htmlFor={contact.sourceId} className="flex items-center gap-3 cursor-pointer">
+                          <Image 
+                              src={contact.photoURL || `https://picsum.photos/seed/${contact.sourceId}/40/40`} 
+                              alt={contact.name}
+                              width={40}
+                              height={40}
+                              className="rounded-full object-cover"
+                              data-ai-hint="person avatar"
+                          />
+                          <div>
+                              <p className="font-medium text-sm sm:text-base">{contact.name}</p>
+                              <p className="text-xs text-muted-foreground">{contact.email || contact.details}</p>
+                              {allowMessageAnalysis && facts.length > 0 && (
+                                <ul className="mt-1 text-xs text-primary/80 list-disc list-inside">
+                                  {facts.map((fact, i) => <li key={i}>{fact}</li>)}
+                                </ul>
+                              )}
+                          </div>
+                      </Label>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </CardContent>
           <CardFooter className="border-t pt-4">
