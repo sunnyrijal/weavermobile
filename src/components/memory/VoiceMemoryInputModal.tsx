@@ -637,6 +637,44 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     setIsSaving(true);
 
     try {
+      // Try advanced NLP parsing first
+      let advancedResult = null;
+      try {
+        console.log('🚀 Attempting advanced NLP parsing...');
+        const advancedResponse = await fetch('/api/ai/parse-advanced-memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            memory: contentToSave,
+            ownerId: currentUser.uid
+          })
+        });
+
+        if (advancedResponse.ok) {
+          advancedResult = await advancedResponse.json();
+          console.log('✨ Advanced NLP Result:', advancedResult);
+          
+          // Show results to user
+          if (advancedResult.result.processedUpdates.length > 0) {
+            toast({ 
+              title: "Advanced Updates Applied!", 
+              description: `Updated ${advancedResult.result.processedUpdates.length} contact(s) with advanced NLP.`,
+              variant: "success"
+            });
+          }
+          
+          if (advancedResult.result.createdContacts.length > 0) {
+            toast({ 
+              title: "New Contacts Created!", 
+              description: `Created ${advancedResult.result.createdContacts.length} new contact(s).`,
+              variant: "success"
+            });
+          }
+        }
+      } catch (advancedError) {
+        console.log('⚠️ Advanced NLP failed, falling back to basic processing:', advancedError);
+      }
+
       // 1. If a contact is selected, apply memory-based update/correction (await all updates)
       if (selectedContactIds.length > 0 && aiResponse?.extractedEntities) {
         await Promise.all(selectedContactIds.map(async contactId => {
@@ -652,6 +690,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
           console.log('[DEBUG] contacts after fetchContacts:', contacts);
         }
       }
+      
       // 1. Save the memory first
       const memoryToSave: Partial<Memory> = {
         ownerId: currentUser.uid,
@@ -662,6 +701,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
         entities: aiResponse?.extractedEntities,
         linkedContactIds: selectedContactIds, 
         tags: [], 
+        advancedNlpResult: advancedResult?.result || null
       };
       
       const savedMemory = await createMemory(memoryToSave);

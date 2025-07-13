@@ -106,4 +106,5 @@ export interface Memory {
     label: 'positive' | 'negative' | 'neutral' | 'mixed';
   };
   photos?: string[]; // URLs to photos related to this memory (Firebase Storage)
+  advancedNlpResult?: any; // Advanced NLP parsing results from Gemini Pro
 }

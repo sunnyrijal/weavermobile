@@ -18,6 +18,7 @@ import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate
 import { useContacts } from '@/hooks/useContacts';
 import { ContactMergeModal } from '@/components/contacts/ContactMergeModal';
 import { EventGiftSuggestionModal } from '@/components/contacts/EventGiftSuggestionModal';
+import { AdvancedNlpTest } from '@/components/shared/AdvancedNlpTest';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
@@ -1024,6 +1025,22 @@ export default function DashboardPage() {
             Error loading contacts: {error}
           </div>
         )}
+
+        {/* Advanced NLP Test Section */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              Advanced NLP Test (Gemini Pro)
+            </CardTitle>
+            <CardDescription>
+              Test the advanced natural language processing capabilities for contact updates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AdvancedNlpTest />
+          </CardContent>
+        </Card>
 
       </div>
     </>
