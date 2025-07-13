@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mic, MicOff, Loader2, Save, XCircle, Brain, AlertCircle, UserPlus } from "lucide-react";
+import { Mic, MicOff, Loader2, Save, XCircle, Brain, AlertCircle, UserPlus, CalendarDays, Mail, Phone, Gift, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { processVoiceInput } from '@/ai/flows/process-voice-input-flow';
 import type { ProcessVoiceInputOutput } from '@/ai/flows/process-voice-input-flow';
@@ -25,6 +25,132 @@ import { useContacts } from '@/hooks/useContacts';
 interface VoiceMemoryInputModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+}
+
+// Helper: Apply memory-based corrections/updates to a contact
+async function applyMemoryUpdateToContact(memoryText: string, extractedEntities: ProcessVoiceInputOutput['extractedEntities'], contact: Contact, updateContact: (id: string, data: Partial<Contact>) => Promise<Contact>, toast: { title: string, description: string, variant: "default" | "destructive" | "info" | "success" }) {
+  console.log('[DEBUG] Attempting to update contact:', contact, extractedEntities);
+  const correctionPhrases = ["instead of", "actually", "correction", "now", "used to", "but", "previously"];
+  const isCorrection = correctionPhrases.some(phrase => memoryText.toLowerCase().includes(phrase));
+  let updateFields = {};
+
+  // Generalized entity update logic
+  // 1. Name
+  if (extractedEntities.people?.length) {
+    // If the memory says "X is actually Y instead of Z", try to update the name
+    // (This is a simplification; real NLP would be needed for full accuracy)
+    // For now, if the contact's name is in the people list and a correction is detected, update
+    const newName = extractedEntities.people.find(p => p !== contact.name);
+    if (isCorrection && newName && contact.name !== newName) {
+      updateFields.name = newName;
+      console.log('[DEBUG] Will update name:', contact.name, '->', newName);
+    }
+  }
+
+  // 2. Phone
+  if (extractedEntities.phone?.length) {
+    const newPhone = extractedEntities.phone[0];
+    if (contact.phone !== newPhone) {
+      updateFields.phone = newPhone;
+      console.log('[DEBUG] Will update phone:', contact.phone, '->', newPhone);
+    }
+  }
+
+  // 3. Email
+  if (extractedEntities.email?.length) {
+    const newEmail = extractedEntities.email[0];
+    if (contact.email !== newEmail) {
+      updateFields.email = newEmail;
+      console.log('[DEBUG] Will update email:', contact.email, '->', newEmail);
+    }
+  }
+
+  // 4. Occupation
+  if (extractedEntities.occupation?.length) {
+    const newOccupation = extractedEntities.occupation[0];
+    if (contact.occupation !== newOccupation) {
+      updateFields.occupation = newOccupation;
+      console.log('[DEBUG] Will update occupation:', contact.occupation, '->', newOccupation);
+    }
+  }
+
+  // 5. Company
+  if (extractedEntities.company?.length) {
+    const newCompany = extractedEntities.company[0];
+    if (contact.company !== newCompany) {
+      updateFields.company = newCompany;
+      console.log('[DEBUG] Will update company:', contact.company, '->', newCompany);
+    }
+  }
+
+  // 6. Location (currentLocation)
+  if (extractedEntities.locations?.length) {
+    const newLocation = extractedEntities.locations[0];
+    if (contact.currentLocation !== newLocation) {
+      updateFields.currentLocation = newLocation;
+      console.log('[DEBUG] Will update currentLocation:', contact.currentLocation, '->', newLocation);
+    }
+  }
+
+  // 7. Birthday (dates)
+  if (extractedEntities.dates?.length) {
+    const newDate = extractedEntities.dates[0];
+    if (contact.birthday !== newDate) {
+      updateFields.birthday = newDate;
+      console.log('[DEBUG] Will update birthday:', contact.birthday, '->', newDate);
+    }
+  }
+
+  // 8. Relationships (simplified: update relatedContactName if correction detected)
+  if (isCorrection && extractedEntities.relationships?.length && contact.relationships?.length) {
+    // Example: "X brother name is actually Y instead of Z"
+    // Try to find a relationship type in the extracted relationships and update the related contact name
+    extractedEntities.relationships.forEach(relStr => {
+      contact.relationships.forEach((rel, idx) => {
+        if (rel.type && relStr.toLowerCase().includes(rel.type.toLowerCase())) {
+          // Try to extract the new related contact name from the relStr
+          const match = relStr.match(/name is (.+?) instead of/i);
+          if (match && match[1]) {
+            // This is a simplification; in reality, you'd need more robust NLP
+            contact.relationships[idx].relatedContactName = match[1].trim();
+            console.log('[DEBUG] Will update relationship:', rel.type, '->', match[1].trim());
+            updateFields.relationships = contact.relationships;
+          }
+        }
+      });
+    });
+  }
+
+  // 9. Notes (append or correct as before)
+  if (isCorrection && extractedEntities.locations?.length) {
+    const newPlace = extractedEntities.locations[0];
+    if (contact.notes) {
+      const locationRegex = /(went to|traveled to|visited|moved to) ([A-Za-z ]+)/i;
+      const newNotes = contact.notes.replace(locationRegex, (match, verb, oldPlace) => {
+        return `${verb} ${newPlace}`;
+      });
+      if (newNotes !== contact.notes) {
+        updateFields.notes = newNotes;
+        console.log('[DEBUG] Will update notes (location):', contact.notes, '->', newNotes);
+      }
+    }
+  } else if (!isCorrection && extractedEntities.locations?.length) {
+    const newPlace = extractedEntities.locations[0];
+    if (contact.notes && !contact.notes.includes(newPlace)) {
+      updateFields.notes = (contact.notes + ` Went to ${newPlace}.`).trim();
+      console.log('[DEBUG] Will append to notes:', contact.notes, '->', updateFields.notes);
+    }
+  }
+
+  // Save the updated contact if changed
+  if (Object.keys(updateFields).length > 0) {
+    console.log('[DEBUG] Calling updateContact:', contact.id, updateFields);
+    const updateResult = await updateContact(contact.id, updateFields);
+    console.log('[DEBUG] updateContact response:', updateResult);
+    toast({ title: "Contact Updated", description: `Updated ${contact.name}'s profile based on your memory.` });
+  } else {
+    console.log('[DEBUG] No updateFields, skipping updateContact');
+  }
 }
 
 export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInputModalProps) {
@@ -51,6 +177,8 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
   const [suggestedContactMatches, setSuggestedContactMatches] = useState<Array<{id: string, name: string, similarity: number}>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [newPeopleToCreate, setNewPeopleToCreate] = useState<string[]>([]);
+  const [pendingContactUpdates, setPendingContactUpdates] = useState<Array<{contactId: string, contactName: string, field: string, value: string}>>([]);
+  const [updatingField, setUpdatingField] = useState<string | null>(null);
 
   const resetState = useCallback(() => {
     setTranscript('');
@@ -67,6 +195,8 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     setSuggestedContactMatches([]);
     setShowSuggestions(false);
     setNewPeopleToCreate([]);
+    setPendingContactUpdates([]);
+    setUpdatingField(null);
     
     // Make sure to stop speech recognition if active
     if (speechRecognitionRef.current) {
@@ -485,13 +615,19 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     }
   };
 
+  // Handler for clicking on the memory saved toast
+  const onMemoryClick = (memory) => {
+    // For now, just alert or log; replace with navigation/modal as needed
+    alert(`Memory ID: ${memory?.id || 'unknown'}\nSummary: ${memory?.summary || ''}`);
+    // Example: router.push(`/memories/${memory.id}`) or open modal
+  };
+
   const handleSaveMemory = async () => {
     if (!currentUser) {
       toast({title: "Not Logged In", description: "Please log in to save memories.", variant: "destructive"});
       return;
     }
     
-    // Check if there is content to save, either from AI processing or raw input
     const contentToSave = aiResponse?.summary || transcript || manualMemoryText;
     if (!contentToSave || !contentToSave.trim()) {
       toast({ title: "No Memory Captured", description: "Please record or type and process a memory first.", variant: "destructive"});
@@ -501,6 +637,21 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     setIsSaving(true);
 
     try {
+      // 1. If a contact is selected, apply memory-based update/correction (await all updates)
+      if (selectedContactIds.length > 0 && aiResponse?.extractedEntities) {
+        await Promise.all(selectedContactIds.map(async contactId => {
+          const contact = contacts.find(c => c.id === contactId);
+          if (contact) {
+            await applyMemoryUpdateToContact(contentToSave, aiResponse.extractedEntities, contact, updateContact, toast);
+          }
+        }));
+        // Re-fetch contacts after update to ensure UI and Ask AI are up to date
+        if (typeof fetchContacts === 'function') {
+          const refreshed = await fetchContacts();
+          console.log('[DEBUG] fetchContacts result:', refreshed);
+          console.log('[DEBUG] contacts after fetchContacts:', contacts);
+        }
+      }
       // 1. Save the memory first
       const memoryToSave: Partial<Memory> = {
         ownerId: currentUser.uid,
@@ -524,7 +675,20 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
         await updateContactsWithEvents();
       }
       
-      toast({ title: "Memory Saved", description: "Your memory has been saved successfully." });
+      toast({
+        title: "Memory Saved",
+        description: (
+          <span>
+            Your memory has been saved successfully.{' '}
+            <button
+              style={{ color: "#0070f3", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }}
+              onClick={() => onMemoryClick(savedMemory)}
+            >
+              View
+            </button>
+          </span>
+        )
+      });
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving memory:", error);
@@ -586,6 +750,38 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       }
     };
   }, [isOpen, resetState]);
+
+  // Detect updatable fields after AI processing
+  useEffect(() => {
+    if (!aiResponse || !selectedContactIds.length) {
+      setPendingContactUpdates([]);
+      return;
+    }
+    const updatableFields = [
+      { key: 'birthday', label: 'Birthday', icon: CalendarDays },
+      { key: 'anniversary', label: 'Anniversary', icon: Gift },
+      { key: 'email', label: 'Email', icon: Mail },
+      { key: 'phone', label: 'Phone', icon: Phone },
+      { key: 'address', label: 'Address', icon: MapPin },
+    ];
+    const updates: Array<{contactId: string, contactName: string, field: string, value: string}> = [];
+    for (const contactId of selectedContactIds) {
+      const contact = contacts.find(c => c.id === contactId);
+      if (!contact) continue;
+      for (const field of updatableFields) {
+        const value = aiResponse.extractedEntities?.[field.key]?.[0];
+        if (value && contact[field.key] !== value) {
+          updates.push({
+            contactId,
+            contactName: contact.name,
+            field: field.key,
+            value,
+          });
+        }
+      }
+    }
+    setPendingContactUpdates(updates);
+  }, [aiResponse, selectedContactIds, contacts]);
 
   // Add a component to show suggested contacts
   const SuggestedContacts = () => {
@@ -670,6 +866,55 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     );
   };
 
+  // UI for pending contact updates (multiple fields)
+  const fieldIcons = {
+    birthday: CalendarDays,
+    anniversary: Gift,
+    email: Mail,
+    phone: Phone,
+    address: MapPin,
+  };
+  const PendingContactUpdatePrompt = () => {
+    if (!pendingContactUpdates.length) return null;
+    return (
+      <div className="my-3 space-y-2">
+        {pendingContactUpdates.map((update, idx) => {
+          const Icon = fieldIcons[update.field] || AlertCircle;
+          return (
+            <div key={idx} className="p-3 border rounded-md bg-blue-50 dark:bg-blue-950/20 flex items-center gap-3">
+              <Icon className="h-5 w-5 text-blue-500" />
+              <div className="flex-1">
+                <div className="text-sm">
+                  Update <span className="font-semibold">{update.contactName}</span>'s {update.field} to <span className="font-semibold">{update.value}</span>?
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="default"
+                disabled={updatingField === `${update.contactId}-${update.field}`}
+                onClick={async () => {
+                  setUpdatingField(`${update.contactId}-${update.field}`);
+                  try {
+                    await updateContact(update.contactId, { [update.field]: update.value });
+                    toast({ title: "Contact Updated", description: `${update.contactName}'s ${update.field} updated to ${update.value}.` });
+                    setPendingContactUpdates(prev => prev.filter(u => !(u.contactId === update.contactId && u.field === update.field)));
+                  } catch (err) {
+                    toast({ title: "Update Failed", description: `Could not update contact.`, variant: "destructive" });
+                  } finally {
+                    setUpdatingField(null);
+                  }
+                }}
+              >
+                {updatingField === `${update.contactId}-${update.field}` ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                Confirm
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       onOpenChange(open);
@@ -730,10 +975,10 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
             <div className="space-y-2">
               <h3 className="font-medium text-sm">AI Summary:</h3>
               <p className="text-sm p-3 border rounded-md bg-muted/50">{aiResponse.summary}</p>
-              
+              {/* Show the update prompt if needed */}
+              <PendingContactUpdatePrompt />
               {/* Show the suggested contacts component */}
               <SuggestedContacts />
-              
               {/* Show the new contacts component */}
               <NewContactsSection />
               
@@ -766,7 +1011,6 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
                   role="combobox"
                   aria-expanded={contactSelectorOpen}
                   className="w-full justify-between"
-                  disabled={isLoadingContacts}
                 >
                   {isLoadingContacts ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -803,24 +1047,31 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
                     </div>
                   </CommandEmpty>
                   <CommandGroup className="max-h-60 overflow-y-auto">
-                    {contacts.map((contact) => (
-                      <CommandItem
-                        key={contact.id}
-                        value={contact.name}
-                        onSelect={() => {
-                          toggleContactSelection(contact.id);
-                          setContactSelectorOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            selectedContactIds.includes(contact.id) ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {contact.name}
-                      </CommandItem>
-                    ))}
+                    {contacts.map((contact) => {
+                      console.log('Rendering contact item:', contact);
+                      return (
+                        <CommandItem
+                          key={contact.id}
+                          value={contact.name}
+                          data-disabled={false}
+                          aria-disabled={false}
+                          style={{ border: '1px solid #e0e0e0', margin: '2px 0', cursor: 'pointer', background: '#ffeeba' }}
+                          onSelect={() => {
+                            console.log('Contact selected:', contact.id, contact.name);
+                            toggleContactSelection(contact.id);
+                            setContactSelectorOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedContactIds.includes(contact.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {contact.name}
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                   <div className="p-2 border-t">
                     <div className="flex items-center">

@@ -72,16 +72,24 @@ export function calculateStringSimilarity(str1: string, str2: string): number {
 /**
  * Find potential matches between a person name and a list of contacts
  * Returns an array of matching contact IDs with their similarity scores
+ * Now also matches against nicknames/notes for smarter matching (as in Ask AI)
  */
 export function findPotentialContactMatches(personName: string, contacts: any[], threshold = 0.7) {
   if (!personName || !contacts?.length) return [];
-  
+  const lowerPersonName = personName.toLowerCase();
   return contacts
-    .map(contact => ({
-      id: contact.id,
-      name: contact.name,
-      similarity: calculateStringSimilarity(personName, contact.name)
-    }))
+    .map(contact => {
+      let similarity = calculateStringSimilarity(personName, contact.name);
+      // Boost similarity if the personName is found in notes (nickname match)
+      if (contact.notes && contact.notes.toLowerCase().includes(lowerPersonName)) {
+        similarity = Math.max(similarity, 0.95); // treat as a strong match
+      }
+      return {
+        id: contact.id,
+        name: contact.name,
+        similarity
+      };
+    })
     .filter(match => match.similarity >= threshold)
     .sort((a, b) => b.similarity - a.similarity);
 }

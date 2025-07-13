@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Heart, ShoppingBag, Star, Clock, MessageSquare, X, Sparkles, TrendingUp } from "lucide-react";
+import { Gift, Heart, ShoppingBag, Star, Clock, MessageSquare, X, Sparkles, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from 'date-fns';
 import type { Contact } from '@/lib/types';
 
@@ -130,6 +130,8 @@ export function EventGiftSuggestionModal({ isOpen, onClose, event, contact }: Ev
   const [interactionSummary, setInteractionSummary] = useState<string>('');
   const [summaryExplanation, setSummaryExplanation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
+  const [showAllPastGifts, setShowAllPastGifts] = useState(false);
 
   useEffect(() => {
     if (isOpen && event && contact) {
@@ -147,6 +149,12 @@ export function EventGiftSuggestionModal({ isOpen, onClose, event, contact }: Ev
   }, [isOpen, event, contact]);
 
   if (!event || !contact) return null;
+
+  // Get initial items to show (first 2)
+  const initialSuggestions = giftSuggestions.slice(0, 2);
+  const initialPastGifts = pastGifts.slice(0, 2);
+  const hasMoreSuggestions = giftSuggestions.length > 2;
+  const hasMorePastGifts = pastGifts.length > 2;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -205,7 +213,7 @@ export function EventGiftSuggestionModal({ isOpen, onClose, event, contact }: Ev
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {giftSuggestions.map((item, index) => (
+                  {(showAllSuggestions ? giftSuggestions : initialSuggestions).map((item, index) => (
                     <div key={index} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
                       <Gift className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
@@ -218,6 +226,29 @@ export function EventGiftSuggestionModal({ isOpen, onClose, event, contact }: Ev
                       </Button>
                     </div>
                   ))}
+                  
+                  {hasMoreSuggestions && (
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAllSuggestions(!showAllSuggestions)}
+                        className="text-primary hover:text-primary/80"
+                      >
+                        {showAllSuggestions ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-1" />
+                            Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-1" />
+                            Click for More ({giftSuggestions.length - 2} more)
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -236,7 +267,7 @@ export function EventGiftSuggestionModal({ isOpen, onClose, event, contact }: Ev
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {pastGifts.map((gift) => (
+                {(showAllPastGifts ? pastGifts : initialPastGifts).map((gift) => (
                   <div key={gift.id} className="flex items-center justify-between p-3 rounded-lg border">
                     <div className="flex-1">
                       <p className="text-sm font-medium">{gift.gift}</p>
@@ -252,6 +283,29 @@ export function EventGiftSuggestionModal({ isOpen, onClose, event, contact }: Ev
                     </div>
                   </div>
                 ))}
+                
+                {hasMorePastGifts && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAllPastGifts(!showAllPastGifts)}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      {showAllPastGifts ? (
+                        <>
+                          <ChevronUp className="h-4 w-4 mr-1" />
+                          Show Less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4 mr-1" />
+                          Click for More ({pastGifts.length - 2} more)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
