@@ -21,6 +21,7 @@ const PromptContactSchema = z.object({
   occupation: z.string().optional(),
   company: z.string().optional(),
   college: z.string().optional(),
+  major: z.string().optional(),
   category: z.string().optional(),
   hometown: z.string().optional(),
   currentLocation: z.string().optional(),
@@ -28,11 +29,24 @@ const PromptContactSchema = z.object({
   ownerRelationshipLabel: z.string().optional(),
   notes: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  interests: z.array(z.string()).optional(),
   relationships: z.array(z.object({
     relatedContactName: z.string(),
     type: z.string(),
     customLabel: z.string().optional(),
   })).optional(),
+  // Basic information fields
+  height: z.string().optional(),
+  eyeColor: z.string().optional(),
+  hairColor: z.string().optional(),
+  bodyType: z.string().optional(),
+  dressingStyle: z.string().optional(),
+  skinTone: z.string().optional(),
+  ethnicity: z.string().optional(),
+  facialFeatures: z.string().optional(),
+  distinguishingFeatures: z.string().optional(),
+  voice: z.string().optional(),
+  accent: z.string().optional(),
 });
 export type PromptContact = z.infer<typeof PromptContactSchema>;
 
@@ -72,47 +86,105 @@ Answer the user's question based *only* on the information provided in the conta
 If the information is not in the contacts list, say "I don't have that information in the contacts provided."
 Do not make up information or use external knowledge.
 
+**CRITICAL: Always provide consistent, detailed responses. For location-based questions, always use the full profile format with proper line breaks. Never give short, inconsistent answers.**
+
 If the question is about a person's pet (e.g., "Sam's dog name?"), look for relationships of type "Pet" associated with that person. The pet's name will be the name of the related contact. Also consider contacts with category "Pet".
 If the question is about a person's partner (e.g., "Who is Chandra's partner?"), look for relationships of type "Partner".
+
+AGE CALCULATION: When asked about someone's age, calculate it from their birthday if available. The birthday format is YYYY-MM-DD. Calculate the current age and respond with "X years old" or "X year old" for single year. IMPORTANT: If you have a birthday, you MUST calculate the age. Do not say "I don't have that information" if you have a birthday field.
 
 RESPONSE FORMATTING RULES:
 
 1. For general questions about a person (e.g., "Tell me about Alice" or "What do you know about John?"), use the full format:
-Name of the person
-Birthday: [date if available]
-📱 [phone if available]
-💼 [job/occupation if available]
-🎓 [college if available]
-🏠 [hometown if available]
-📍 [current location if available]
-Relationship: [relationship label if available]
+Name: [person's name]
+Nickname: [nickname if available]
+Age: [calculated age from birthday if available]
+Birthday: [birthday if available]
+Job: [occupation if available]
+Hometown: [hometown if available]
+Current Location: [current location if available]
+Major: [major/field of study if available]
+Relationship: [user's relationship to this person if available]
 Notes: [notes if available]
-Notable events: [list any notable events, birthdays, anniversaries, etc. if available]
-Other Contact: [list related contacts with their relationship type, e.g., "Netra P rijal (husband), Prasanna Rijal (Son)"]
+Relationships: [list related contacts with their relationship type, e.g., "Nickki Plukett (Partner), Debbie Kittelson (Family), Dave Kittleson (Family), Jimmy Kittelson (Family)"]
 
 2. For specific questions, give only the relevant answer:
 - "Alice birthday" → "Alice's birthday: [date]"
+- "Alice age" → "Alice's age: [calculated age] years old" (calculate from birthday if available)
 - "Alice home" → "Alice's hometown: [hometown] | Current location: [current location]"
 - "Alice phone" → "Alice's phone: [phone number]"
 - "Alice job" → "Alice's occupation: [job/occupation]"
 - "Alice college" → "Alice's college: [college]"
+- "Alice major" → "Alice's major: [major/field of study]"
+- "Alice relationship" → "Alice's relationship: [user's relationship to Alice]"
+- "Alice height" or "how tall is Alice" → "Alice's height: [height]"
+- "Alice eye color" → "Alice's eye color: [eye color]"
+- "Alice hair color" → "Alice's hair color: [hair color]"
+- "Alice body type" → "Alice's body type: [body type]"
+- "Alice dressing style" → "Alice's dressing style: [dressing style]"
 
 3. For relationship questions, be bidirectional:
 - "Alice dad" → "Alice's dad: [dad's name]"
-- "Bruce Lipton" (when Bruce is Alice's dad) → "Bruce Lipton: Alice's dad"
+- "Bruce Lipton" (when Bruce is Alice's dad) → "Bruce Lipton is Alice's dad"
 - "Alice partner" → "Alice's partner: [partner's name]"
-- "John Smith" (when John is Alice's partner) → "John Smith: Alice's partner"
+- "John Smith" (when John is Alice's partner) → "John Smith is Alice's partner"
+- "who is Dave?" (when Dave is someone's father) → "Dave is [person]'s father"
+- For family relationships, group them: "Family: [list all family members]"
+- For partners, use: "Partner: [partner's name]"
 
 4. If the user query is just a name (e.g., "arsene", "Alice", "John"):
    a) If the person is related to a main contact (has relationships pointing TO them), start with the relationship context:
-      [Main Contact's Name]'s [Relationship Type]: [Person's Name]
+      [Person's Name] is [Main Contact's Name]'s [Relationship Type]
       Then provide full profile information using the format from rule #1
    
    b) If the person is a main contact (no relationships pointing TO them), provide full profile information using the format from rule #1
 
 5. For questions about multiple people or comparisons, provide concise answers focusing on the specific information requested.
 
-If any field is not available in the contact data, omit that line entirely or say "Not available" for specific questions.
+6. For location-based questions (e.g., "who do I know in Seattle?", "who lives in New York?"):
+   a) First, list the people in that location with a brief statement
+   b) Then provide detailed profiles for each person using the full format from rule #1
+   c) Use this exact format:
+      [Person's Name] is in [Location].
+      
+      [Person's Name]'s profile:
+      Name: [person's name]
+      Age: [calculated age from birthday if available]
+      Birthday: [birthday if available]
+      Job: [occupation if available]
+      Company: [company if available]
+      Hometown: [hometown if available]
+      Current Location: [current location if available]
+      Major: [major/field of study if available]
+      Relationship: [user's relationship to this person if available]
+      Notes: [notes if available]
+      Relationships: [list related contacts with their relationship type]
+
+**IMPORTANT FORMATTING RULES:**
+- Do NOT include "(Met)" or "(Processed)" in the name
+- Do NOT include "is User's Friend" or similar phrases
+- Do NOT include "Notable events" section - birthdays should be in the Birthday field
+- Always calculate and show age when birthday is available
+- Use the exact format specified above
+- Only include fields that are available
+- For age calculation, use the birthday format YYYY-MM-DD to calculate current age
+- For location questions, ALWAYS use the detailed profile format with line breaks
+- Be consistent - give the same detailed response every time for the same question
+- Example for "who do I know in Seattle?":
+  Ally is in Seattle.
+  
+  Ally's profile:
+  Name: Ally
+  Age: 22 years old
+  Birthday: 2001-08-01
+  Job: Software Engineer
+  Company: Tech Solutions Inc.
+  Hometown: Portland, OR
+  Current Location: Seattle, WA
+  Major: Arizona State University
+  Relationship: My college roommate
+  Notes: Ally likes to go on vacation, especially Kayaking and sailing. She wants to go running together sometime.
+  Relationships: None
 
 User's Question: "{{{question}}}"
 
@@ -120,26 +192,39 @@ Here are the contacts you have access to:
 {{#if contacts}}
   {{#each contacts}}
     Name: {{{this.name}}}
+    {{#if this.nickname}}Nickname: {{{this.nickname}}}{{/if}}
+    {{#if this.birthday}}Birthday: {{{this.birthday}}}{{/if}}
     {{#if this.email}}Email: {{{this.email}}}{{/if}}
     {{#if this.phone}}Phone: {{{this.phone}}}{{/if}}
     {{#if this.occupation}}Occupation: {{{this.occupation}}}{{/if}}
     {{#if this.company}}Company: {{{this.company}}}{{/if}}
     {{#if this.college}}College: {{{this.college}}}{{/if}}
+    {{#if this.major}}Major: {{{this.major}}}{{/if}}
     {{#if this.category}}Category: {{{this.category}}}{{/if}}
     {{#if this.hometown}}Hometown: {{{this.hometown}}}{{/if}}
     {{#if this.currentLocation}}Current Location: {{{this.currentLocation}}}{{/if}}
-    {{#if this.birthday}}Birthday: {{{this.birthday}}}{{/if}}
     {{#if this.ownerRelationshipLabel}}User's Relationship: {{{this.ownerRelationshipLabel}}}{{/if}}
     {{#if this.notes}}Notes: {{{this.notes}}}{{/if}}
-    {{#if this.tags.length}}
-        Tags: {{#each this.tags}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+    {{#if this.interests.length}}
+        Interests: {{#each this.interests}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
     {{/if}}
     {{#if this.relationships.length}}
         Relationships:
         {{#each this.relationships}}
-            - Related to: {{this.relatedContactName}} (Type: {{this.type}}{{#if this.customLabel}}, Label: {{this.customLabel}}{{/if}})
+            - {{this.relatedContactName}} ({{this.type}}{{#if this.customLabel}}: {{this.customLabel}}{{/if}})
         {{/each}}
     {{/if}}
+    {{#if this.height}}Height: {{{this.height}}}{{/if}}
+    {{#if this.eyeColor}}Eye Color: {{{this.eyeColor}}}{{/if}}
+    {{#if this.hairColor}}Hair Color: {{{this.hairColor}}}{{/if}}
+    {{#if this.bodyType}}Body Type: {{{this.bodyType}}}{{/if}}
+    {{#if this.dressingStyle}}Dressing Style: {{{this.dressingStyle}}}{{/if}}
+    {{#if this.skinTone}}Skin Tone: {{{this.skinTone}}}{{/if}}
+    {{#if this.ethnicity}}Ethnicity: {{{this.ethnicity}}}{{/if}}
+    {{#if this.facialFeatures}}Facial Features: {{{this.facialFeatures}}}{{/if}}
+    {{#if this.distinguishingFeatures}}Distinguishing Features: {{{this.distinguishingFeatures}}}{{/if}}
+    {{#if this.voice}}Voice: {{{this.voice}}}{{/if}}
+    {{#if this.accent}}Accent: {{{this.accent}}}{{/if}}
     ---
   {{/each}}
 {{else}}

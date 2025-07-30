@@ -13,6 +13,12 @@ export interface UserProfile {
   userPreferences?: {
     defaultView?: 'list' | 'grid' | 'tree';
   };
+  education?: {
+    college?: string;
+    university?: string;
+    major?: string;
+    graduationYear?: number;
+  };
 }
 
 export interface Relationship {
@@ -32,6 +38,7 @@ export interface Contact {
   id: string; // Firestore document ID
   ownerId: string; // User UID
   name: string;
+  nickname?: string; // Nickname for display (e.g., Coco)
   photoURL?: string; // URL to image in Firebase Storage
   birthday?: string; // YYYY-MM-DD
   hometown?: string; // e.g., "Kritipur, Nepal"
@@ -107,4 +114,14 @@ export interface Memory {
   };
   photos?: string[]; // URLs to photos related to this memory (Firebase Storage)
   advancedNlpResult?: any; // Advanced NLP parsing results from Gemini Pro
+}
+
+export interface JournalEntry {
+  id: string;
+  ownerId: string;
+  timestamp: Date | Timestamp;
+  summary: string;
+  originalContent: string;
+  linkedContactIds?: string[];
+  tags?: string[];
 }

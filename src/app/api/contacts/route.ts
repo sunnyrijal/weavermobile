@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ContactService } from '@/lib/mongodb/services/contactService';
+import { UserService } from '@/lib/mongodb/services/userService';
 import { mockContacts } from '@/lib/mockData';
 
 // GET /api/contacts - Get all contacts for a user
@@ -15,16 +16,23 @@ export async function GET(request: NextRequest) {
 
     let contacts = [];
     
-    if (name) {
-      contacts = await ContactService.searchContacts(ownerId, name);
-    } else {
-      contacts = await ContactService.getContactsByOwnerId(ownerId);
+    try {
+      if (name) {
+        contacts = await ContactService.searchContacts(ownerId, name);
+      } else {
+        contacts = await ContactService.getContactsByOwnerId(ownerId);
+      }
+    } catch (dbError) {
+      console.error('Database error, using fallback data:', dbError);
+      // Return empty array instead of error when database is unavailable
+      contacts = [];
     }
     
     return NextResponse.json({ contacts });
   } catch (error) {
     console.error('Error fetching contacts:', error);
-    return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 });
+    // Return empty array instead of error to prevent frontend crashes
+    return NextResponse.json({ contacts: [] });
   }
 }
 
@@ -32,20 +40,45 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Received contact data:', body);
     
     if (!body.ownerId) {
       return NextResponse.json({ error: 'ownerId is required' }, { status: 400 });
     }
     
-    if (!body.name) {
-      return NextResponse.json({ error: 'name is required' }, { status: 400 });
+    // Check contact limits
+    const contactLimitCheck = await UserService.canAddContact(body.ownerId);
+    if (!contactLimitCheck.canAdd) {
+      return NextResponse.json({ 
+        error: 'Contact limit reached', 
+        details: `You have reached your contact limit (${contactLimitCheck.limit}). Upgrade to Pro for more contacts.`,
+        upgradeRequired: true
+      }, { status: 403 });
+    }
+    
+    // Check if we have a name (either full name or separate name fields)
+    const hasName = body.name || (body.firstName && body.firstName.trim()) || (body.lastName && body.lastName.trim());
+    if (!hasName) {
+      return NextResponse.json({ error: 'Name is required (either full name or first/last name)' }, { status: 400 });
     }
 
     const contact = await ContactService.createContact(body);
-    return NextResponse.json({ contact }, { status: 201 });
+    console.log('Contact created successfully:', contact);
+    
+    // Update contact count
+    const contacts = await ContactService.getContactsByOwnerId(body.ownerId);
+    await UserService.updateContactCount(body.ownerId, contacts.length);
+    
+    return NextResponse.json({ 
+      contact, 
+      usage: {
+        remaining: contactLimitCheck.remaining - 1,
+        limit: contactLimitCheck.limit
+      }
+    }, { status: 201 });
   } catch (error) {
     console.error('Error creating contact:', error);
-    return NextResponse.json({ error: 'Failed to create contact' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create contact', details: error.message }, { status: 500 });
   }
 }
 

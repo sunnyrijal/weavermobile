@@ -10,6 +10,10 @@ import type { z } from 'zod';
 // The actual schema definition will be in ContactForm.tsx to keep it co-located.
 const placeholderContactFormSchema = z.object({
   name: z.string(),
+  firstName: z.string().optional(),
+  middleName: z.string().optional(),
+  lastName: z.string().optional(),
+  preferredName: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
   occupation: z.string().optional(),
@@ -23,6 +27,7 @@ const placeholderContactFormSchema = z.object({
   photoURL: z.string().optional(),
   photoFile: z.instanceof(File).optional().nullable(), // Added for file uploads
   tags: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export type ContactFormValues = z.infer<typeof placeholderContactFormSchema>;

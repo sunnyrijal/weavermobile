@@ -43,19 +43,41 @@ const processVoiceInputPrompt = ai.definePrompt({
   output: { schema: ProcessVoiceInputOutputSchema },
   prompt: `You are an intelligent assistant for NetworkNest, a personal relationship management app.
 Your task is to analyze the following memory transcript.
-1. Provide a concise summary of the memory.
+1. **MANDATORY**: Provide a concise summary of the memory.
 2. Extract key entities from the transcript with as much detail as possible.
 
 Transcript:
 "{{{transcript}}}"
 
+**CRITICAL REQUIREMENTS:**
+1. **SUMMARY IS MANDATORY**: You MUST include a "summary" field with a concise summary of the memory
+2. **NO DUPLICATES**: Remove all duplicate entries from relationships, people, and other arrays
+3. **CLEAN DATA**: Ensure all arrays contain unique values only
+
 For entity extraction, identify with great detail:
-- People: Full names of individuals including first and last names when available.
+- People: Full names of individuals including first and last names when available. **IMPORTANT**: When the same person is mentioned with both a nickname and full name, list only the full name to avoid duplicates.
 - Organizations: Names of companies, schools, universities, etc. Be specific with full names.
-- Relationships: Detailed phrases describing relationships (e.g., "John's brother", "Mary, wife of Peter", "roommate in college").
+- Relationships: Detailed phrases describing relationships (e.g., "John's brother", "Mary, wife of Peter", "roommate in college"). **REMOVE DUPLICATES**.
 - Dates: Specific or relative dates. Format specific dates as YYYY-MM-DD if possible.
 - Locations: Geographical places, addresses, or significant named locations. Include cities, states, countries when mentioned.
 - KeyEvents: Significant happenings, life events, or activities with as much detail as possible.
+
+**CRITICAL NAME RESOLUTION RULES:**
+- When the same person is mentioned with both a nickname and full name, list only the full name
+- Examples:
+  - "Jake" and "Jacob Lucas" → List only "Jacob Lucas"
+  - "Mike" and "Michael Smith" → List only "Michael Smith"
+  - "Sarah" and "Sarah Johnson" → List only "Sarah Johnson"
+- Do NOT create duplicate entries for the same person
+- Use the most complete/full name when available
+
+**DUPLICATE REMOVAL RULES:**
+- Remove all duplicate relationships from the relationships array
+- Remove all duplicate people from the people array
+- Remove all duplicate locations from the locations array
+- Remove all duplicate organizations from the organizations array
+- Remove all duplicate keyEvents from the keyEvents array
+- Remove all duplicate dates from the dates array
 
 Try to extract as much information as possible about each person mentioned, including:
 - Their full name
@@ -67,20 +89,25 @@ Try to extract as much information as possible about each person mentioned, incl
 - Any other significant details
 
 Example:
-Transcript: "My roommate in freshman year of college was Jadon Kittelson, age 22. Comp Sci major, girlfriend Nickki Plukett, mom: Debbie Kittelson (also Gustavus Alumni), dad (Dave Kittleson), brother (Jimmy kittelson) Home: faribault, Minnesota. Currently goes to Mankato University"
+Transcript: "I met Jake, my freshman year of college. Same dorm building (pittman), he is from Kansas, but now lives in Minneapolis. He took accounting and is CPA now. His full name Jacob Lucas. His girlfriend Sydney. brother Marty Lucas. Plays tennis. birthday feb 25. he is 23 yrs old."
 
 Expected Output (example format):
 {
-  "summary": "The memory describes Jadon Kittelson, the user's college roommate. Jadon is 22, studies Computer Science, has a girlfriend named Nickki Plukett, and family including mom Debbie, dad Dave, and brother Jimmy. He's from Faribault, Minnesota and attends Mankato University.",
+  "summary": "The memory describes meeting Jacob Lucas (nickname Jake) in freshman year of college. He's from Kansas but now lives in Minneapolis, works as a CPA after studying accounting. He has a girlfriend named Sydney and a brother named Marty Lucas. He plays tennis and his birthday is February 25th, age 23.",
   "extractedEntities": {
-    "people": ["Jadon Kittelson", "Nickki Plukett", "Debbie Kittelson", "Dave Kittleson", "Jimmy Kittelson"],
-    "organizations": ["Gustavus", "Mankato University"],
-    "relationships": ["roommate in freshman year of college", "girlfriend Nickki Plukett", "mom: Debbie Kittelson", "dad: Dave Kittleson", "brother: Jimmy Kittelson"],
-    "dates": [],
-    "locations": ["Faribault, Minnesota"],
-    "keyEvents": ["Comp Sci major", "Currently goes to Mankato University"]
+    "people": ["Jacob Lucas", "Sydney", "Marty Lucas"],
+    "organizations": ["college"],
+    "relationships": ["roommate in freshman year of college", "girlfriend Sydney", "brother Marty Lucas"],
+    "dates": ["2001-02-25"],
+    "locations": ["Kansas", "Minneapolis"],
+    "keyEvents": ["took accounting", "is CPA now", "plays tennis"]
   }
 }
+
+**MANDATORY OUTPUT FORMAT:**
+- You MUST include a "summary" field
+- You MUST remove all duplicates from all arrays
+- You MUST return valid JSON matching the schema exactly
 
 Provide the output as a JSON object matching the defined output schema.
 `,
@@ -97,6 +124,20 @@ const processVoiceInputFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to process voice input.");
     }
-    return output;
+
+    // Post-process to ensure clean data
+    const cleanedOutput = {
+      summary: output.summary || `Memory about: ${input.transcript.slice(0, 100)}...`,
+      extractedEntities: {
+        people: [...new Set(output.extractedEntities?.people || [])],
+        organizations: [...new Set(output.extractedEntities?.organizations || [])],
+        relationships: [...new Set(output.extractedEntities?.relationships || [])],
+        dates: [...new Set(output.extractedEntities?.dates || [])],
+        locations: [...new Set(output.extractedEntities?.locations || [])],
+        keyEvents: [...new Set(output.extractedEntities?.keyEvents || [])]
+      }
+    };
+
+    return cleanedOutput;
   }
 );

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { Edit3, Mail, UserCircle2 } from "lucide-react";
+import Link from 'next/link';
 
 export default function ProfilePage() {
   const { currentUser } = useAuth();
@@ -47,9 +48,16 @@ export default function ProfilePage() {
           </Avatar>
           <CardTitle className="text-3xl">{currentUser.displayName || "User Name"}</CardTitle>
           <CardDescription className="text-lg">{currentUser.email}</CardDescription>
-          <Button variant="outline" size="sm" className="mt-2">
+          <div className="flex flex-col items-center gap-2 mt-2">
+            <Button variant="outline" size="sm">
             <Edit3 className="mr-2 h-4 w-4" /> Edit Profile
           </Button>
+            <Link href="/journal">
+              <Button variant="secondary" size="sm" className="w-full mt-1">
+                View My Journal
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <Separator />
         <CardContent className="p-6 space-y-4">
@@ -68,6 +76,14 @@ export default function ProfilePage() {
            <div>
             <Label htmlFor="createdAt" className="text-xs text-muted-foreground">Account Created</Label>
             <Input id="createdAt" value={currentUser.createdAt ? new Date(currentUser.createdAt).toLocaleDateString() : 'N/A'} readOnly className="mt-1 text-base"/>
+          </div>
+          <div>
+            <Label htmlFor="college" className="text-xs text-muted-foreground">College/University</Label>
+            <Input id="college" value={currentUser.education?.college || currentUser.education?.university || "Not set"} readOnly className="mt-1 text-base"/>
+          </div>
+          <div>
+            <Label htmlFor="major" className="text-xs text-muted-foreground">Major/Field of Study</Label>
+            <Input id="major" value={currentUser.education?.major || "Not set"} readOnly className="mt-1 text-base"/>
           </div>
         </CardContent>
       </Card>

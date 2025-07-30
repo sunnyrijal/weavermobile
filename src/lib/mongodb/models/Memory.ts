@@ -1,5 +1,5 @@
 import { Schema, model, models, Document, Model } from 'mongoose';
-import { ExtractedEntities } from '@/ai/flows/process-voice-input-flow';
+import type { ExtractedEntities } from '@/ai/flows/process-voice-input-flow';
 
 // Define the Memory interface extending Document
 export interface IMemory extends Document {

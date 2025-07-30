@@ -67,8 +67,21 @@ export default function NewContactPage() {
       }
     }
 
+    // Combine name fields into full name
+    const nameParts = [
+      values.firstName,
+      values.middleName,
+      values.lastName
+    ].filter(Boolean);
+    
+    const fullName = nameParts.length > 0 ? nameParts.join(' ') : values.name;
+
+    // Handle relationships if they exist
+    const relationshipsData = (values as any).relationships || [];
+
     const contactData = {
       ...values,
+      name: fullName, // Use the combined full name
       photoURL: photoUrlToStore, // Use processed photo URL
       ownerId: currentUser.uid,
       hometown: values.hometown || undefined,
@@ -76,10 +89,11 @@ export default function NewContactPage() {
       birthday: values.birthday ? formatDateForStorage(values.birthday) : undefined,
       college: values.college || undefined,
       ownerRelationshipLabel: values.ownerRelationshipLabel || undefined,
+      notes: values.notes || undefined,
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
       socialProfiles: {},
       photosTogether: [],
-      relationships: [],
+      relationships: relationshipsData,
     };
     
     // Remove photoFile from the data to be stored if it exists
@@ -91,7 +105,7 @@ export default function NewContactPage() {
       if (newContact) {
         toast({
           title: "Contact Added",
-          description: `${values.name} has been successfully added to your contacts.`,
+          description: `${fullName} has been successfully added to your contacts.`,
         });
         router.push("/contacts");
       } else {

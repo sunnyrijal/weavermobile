@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud, UserSquare2, Trash2, AlertTriangle } from "lucide-react"; 
+import { ArrowLeft, Edit3, Mail, Phone, MapPin, Briefcase, Building, CalendarDays, Tags, Link2, Users, Camera, MessageSquare, Loader2, University, CalendarPlus, PartyPopper, UserCheck, Home, UploadCloud, UserSquare2, Trash2, AlertTriangle, Save, X } from "lucide-react"; 
 import React, { useState, useEffect, useRef } from 'react';
 import { format as formatDateFnInternal } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,8 @@ import ClientSideFormattedDate from "@/components/shared/ClientSideFormattedDate
 import ContactRelationships from "@/components/contacts/ContactRelationships";
 import ContactSocialMediaFeed from "@/components/contacts/ContactSocialMediaFeed";
 import { ContactMemories } from '@/components/contacts/ContactMemories';
+import { ContactDeleteModal } from '@/components/contacts/ContactDeleteModal';
+
 
 
 const getInitials = (name: string) => {
@@ -63,6 +65,42 @@ export default function ContactDetailPage() {
   const contactId = params.contactId as string;
   const searchParams = useSearchParams();
 
+  // Helper function to parse basic information from notes
+  const parseBasicInfoFromNotes = (notes: string) => {
+    const basicInfoMatch = notes.match(/\[BASIC INFO: (.+?)\]/);
+    if (!basicInfoMatch) return null;
+    
+    const basicInfoText = basicInfoMatch[1];
+    const info: any = {};
+    
+    // Parse each piece of information
+    const parts = basicInfoText.split(' | ');
+    parts.forEach(part => {
+      const [key, value] = part.split(': ');
+      if (key && value) {
+        switch (key.trim()) {
+          case 'Height':
+            info.height = value.trim();
+            break;
+          case 'Eye Color':
+            info.eyeColor = value.trim();
+            break;
+          case 'Hair Color':
+            info.hairColor = value.trim();
+            break;
+          case 'Body Type':
+            info.bodyType = value.trim();
+            break;
+          case 'Dressing Style':
+            info.dressingStyle = value.trim();
+            break;
+        }
+      }
+    });
+    
+    return Object.keys(info).length > 0 ? info : null;
+  };
+
   const [contact, setContact] = useState<Contact | undefined | null>(undefined);
   const [notesInput, setNotesInput] = useState('');
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
@@ -85,45 +123,91 @@ export default function ContactDetailPage() {
 
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [relatedContacts, setRelatedContacts] = useState<Record<string, string>>({});
+  const [relatedContacts, setRelatedContacts] = useState<Record<string, any>>({});
+  const [contactsList, setContactsList] = useState<{ id: string; name: string; category?: string }[]>([]);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
+  const [hiddenNotesInput, setHiddenNotesInput] = useState('');
+  const [isHiddenNotesDialogOpen, setIsHiddenNotesDialogOpen] = useState(false);
+  const [isSavingHiddenNotes, setIsSavingHiddenNotes] = useState(false);
+  const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState('');
+  const [isExtractingBasicInfo, setIsExtractingBasicInfo] = useState(false);
+  const [hiddenNotesUnlocked, setHiddenNotesUnlocked] = useState(false);
+  
+  // Inline editing states
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    nickname: '',
+    email: '',
+    phone: '',
+    hometown: '',
+    currentLocation: '',
+    birthday: '',
+    occupation: '',
+    company: '',
+    college: '',
+    category: '',
+    tags: [] as string[],
+    ownerRelationshipLabel: '',
+    height: '',
+    eyeColor: '',
+    hairColor: '',
+    skinTone: '',
+    ethnicity: '',
+    bodyType: '',
+    dressingStyle: '',
+    facialFeatures: '',
+    distinguishingFeatures: '',
+    voice: '',
+    accent: '',
+    notes: ''
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const highlight = searchParams.get('highlight');
+
+
+  const fetchContactDetails = async () => {
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setContact(null);
+        } else {
+          throw new Error('Failed to fetch contact details');
+        }
+        return;
+      }
+      
+      const data = await response.json();
+      setContact(data.contact);
+      setNotesInput(data.contact.notes || "");
+      setHiddenNotesInput(data.contact.hiddenNotes || "");
+      
+      // Fetch related contact names if relationships exist
+      if (data.contact.relationships && data.contact.relationships.length > 0) {
+        fetchRelatedContactNames(data.contact.relationships);
+      }
+    } catch (error) {
+      console.error('Error fetching contact details:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to load contact details", 
+        variant: "destructive" 
+      });
+    }
+  };
 
   useEffect(() => {
-    const fetchContactDetails = async () => {
-      try {
-        const response = await fetch(`/api/contacts/${contactId}`);
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            setContact(null);
-          } else {
-            throw new Error('Failed to fetch contact details');
-          }
-          return;
-        }
-        
-        const data = await response.json();
-        setContact(data.contact);
-        setNotesInput(data.contact.notes || "");
-        
-        // Fetch related contact names if relationships exist
-        if (data.contact.relationships && data.contact.relationships.length > 0) {
-          fetchRelatedContactNames(data.contact.relationships);
-        }
-      } catch (error) {
-        console.error('Error fetching contact details:', error);
-        toast({ 
-          title: "Error", 
-          description: "Failed to load contact details", 
-          variant: "destructive" 
-        });
-      }
-    };
-
     fetchContactDetails();
+    fetchContactsList();
     
     const tabFromQuery = searchParams.get('tab');
     if (tabFromQuery) {
@@ -295,26 +379,102 @@ export default function ContactDetailPage() {
     }
   };
 
+  const handleDeletePhoto = async (photoIndex: number) => {
+    if (!contact) return;
+    
+    try {
+      const updatedPhotosTogether = contact.photosTogether?.filter((_, index) => index !== photoIndex) || [];
+
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ photosTogether: updatedPhotosTogether }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete photo');
+      }
+      
+      const data = await response.json();
+      setContact(data.contact);
+
+      toast({ title: "Photo Deleted", description: "The photo has been removed from 'Photos Together'." });
+    } catch (error) {
+      console.error("Error deleting photo:", error);
+      toast({ title: "Delete Failed", description: "Could not delete the photo.", variant: "destructive" });
+    }
+  };
+
+  const handleSaveHiddenNotes = async () => {
+    if (!contact) return;
+    setIsSavingHiddenNotes(true);
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ hiddenNotes: hiddenNotesInput }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update hidden notes');
+      }
+      const data = await response.json();
+      setContact(data.contact);
+      toast({ title: "Hidden Notes Saved", description: "Your hidden notes have been updated." });
+    } catch (error) {
+      console.error('Error saving hidden notes:', error);
+      toast({ title: "Error", description: "Failed to save hidden notes", variant: "destructive" });
+    } finally {
+      setIsSavingHiddenNotes(false);
+      setIsHiddenNotesDialogOpen(false);
+    }
+  };
+
   // Add a function to fetch related contact names
   const fetchRelatedContactNames = async (relationships: { relatedContactId: string }[]) => {
     if (!relationships || relationships.length === 0) return;
     
     const contactIds = relationships.map(rel => rel.relatedContactId);
-    const contactNames: Record<string, string> = {};
+    const contactMap: Record<string, any> = {};
     
     await Promise.all(contactIds.map(async (id) => {
       try {
         const response = await fetch(`/api/contacts/${id}`);
         if (response.ok) {
           const data = await response.json();
-          contactNames[id] = data.contact.name;
+          contactMap[id] = {
+            id: data.contact.id,
+            name: data.contact.name,
+            photoURL: data.contact.photoURL,
+            category: data.contact.category,
+          };
         }
       } catch (error) {
         console.error(`Error fetching contact ${id}:`, error);
       }
     }));
     
-    setRelatedContacts(contactNames);
+    setRelatedContacts(contactMap);
+  };
+
+  const fetchContactsList = async () => {
+    try {
+      const response = await fetch('/api/contacts?ownerId=user1');
+      if (response.ok) {
+        const data = await response.json();
+        const contactsForRelationships = data.contacts.map((contact: any) => ({
+          id: contact._id || contact.id,
+          name: contact.name,
+          category: contact.category
+        }));
+        setContactsList(contactsForRelationships);
+      }
+    } catch (error) {
+      console.error('Error fetching contacts list:', error);
+    }
   };
 
   // Update the getRelatedContactName function
@@ -355,6 +515,199 @@ export default function ContactDetailPage() {
     }
   };
 
+  const handleOpenDeleteModal = () => {
+    setContactToDelete(contact);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleContactDeleted = () => {
+    router.push('/contacts');
+  };
+
+  const handleExtractBasicInfo = async () => {
+    if (!contact) return;
+    
+    setIsExtractingBasicInfo(true);
+    try {
+      const response = await fetch('/api/contacts/extract-basic-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactId: contact.id,
+          ownerId: contact.ownerId
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update the local contact state with the extracted information
+        setContact(prev => prev ? { ...prev, ...result.contact } : null);
+        
+        toast({
+          title: "Basic Information Extracted",
+          description: `Successfully extracted ${Object.keys(result.extractedFields).length} basic information fields from ${contact.name}'s notes.`
+        });
+      } else {
+        toast({
+          title: "No Basic Information Found",
+          description: "No basic information could be extracted from the notes.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error extracting basic information:', error);
+      toast({
+        title: "Error",
+        description: "Failed to extract basic information.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExtractingBasicInfo(false);
+    }
+  };
+
+  // Inline editing functions
+  const startEditing = (section: string) => {
+    if (!contact) return;
+    
+    setEditFormData({
+      name: contact.name || '',
+      nickname: contact.nickname || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      hometown: contact.hometown || '',
+      currentLocation: contact.currentLocation || '',
+      birthday: contact.birthday || '',
+      occupation: contact.occupation || '',
+      company: contact.company || '',
+      college: contact.college || '',
+      category: contact.category || '',
+      tags: contact.tags || [],
+      ownerRelationshipLabel: contact.ownerRelationshipLabel || '',
+      height: contact.height || '',
+      eyeColor: contact.eyeColor || '',
+      hairColor: contact.hairColor || '',
+      skinTone: contact.skinTone || '',
+      ethnicity: contact.ethnicity || '',
+      bodyType: contact.bodyType || '',
+      dressingStyle: contact.dressingStyle || '',
+      facialFeatures: contact.facialFeatures || '',
+      distinguishingFeatures: contact.distinguishingFeatures || '',
+      voice: contact.voice || '',
+      accent: contact.accent || '',
+      notes: contact.notes || ''
+    });
+    setEditingSection(section);
+  };
+
+  const cancelEditing = () => {
+    setEditingSection(null);
+    setEditFormData({
+      name: '',
+      nickname: '',
+      email: '',
+      phone: '',
+      hometown: '',
+      currentLocation: '',
+      birthday: '',
+      occupation: '',
+      company: '',
+      college: '',
+      category: '',
+      tags: [],
+      ownerRelationshipLabel: '',
+      height: '',
+      eyeColor: '',
+      hairColor: '',
+      skinTone: '',
+      ethnicity: '',
+      bodyType: '',
+      dressingStyle: '',
+      facialFeatures: '',
+      distinguishingFeatures: '',
+      voice: '',
+      accent: '',
+      notes: ''
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!contact || !editingSection) return;
+    
+    setIsSavingEdit(true);
+    try {
+      const updateData: any = {};
+      
+      // Map section to fields
+      switch (editingSection) {
+        case 'name':
+          updateData.name = editFormData.name;
+          updateData.nickname = editFormData.nickname;
+          break;
+        case 'contact':
+          updateData.email = editFormData.email;
+          updateData.phone = editFormData.phone;
+          updateData.hometown = editFormData.hometown;
+          updateData.currentLocation = editFormData.currentLocation;
+          updateData.birthday = editFormData.birthday;
+          break;
+        case 'professional':
+          updateData.occupation = editFormData.occupation;
+          updateData.company = editFormData.company;
+          updateData.college = editFormData.college;
+          break;
+        case 'basic':
+          updateData.height = editFormData.height;
+          updateData.eyeColor = editFormData.eyeColor;
+          updateData.hairColor = editFormData.hairColor;
+          updateData.skinTone = editFormData.skinTone;
+          updateData.ethnicity = editFormData.ethnicity;
+          updateData.bodyType = editFormData.bodyType;
+          updateData.dressingStyle = editFormData.dressingStyle;
+          updateData.facialFeatures = editFormData.facialFeatures;
+          updateData.distinguishingFeatures = editFormData.distinguishingFeatures;
+          updateData.voice = editFormData.voice;
+          updateData.accent = editFormData.accent;
+          break;
+        case 'tags':
+          updateData.category = editFormData.category;
+          updateData.tags = editFormData.tags;
+          updateData.ownerRelationshipLabel = editFormData.ownerRelationshipLabel;
+          break;
+        case 'notes':
+          updateData.notes = editFormData.notes;
+          break;
+      }
+      
+      const response = await fetch(`/api/contacts/${contact.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update contact');
+      }
+      
+      const data = await response.json();
+      setContact(data.contact);
+      setEditingSection(null);
+      toast({ title: "Updated", description: "Contact information has been updated." });
+    } catch (error) {
+      console.error('Error saving edit:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to save changes", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   if (contact === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -389,45 +742,26 @@ export default function ContactDetailPage() {
               <Edit3 className="mr-2 h-4 w-4" /> Edit Contact
             </Link>
           </Button>
-          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="destructive" className="w-full sm:w-auto">
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Delete Contact
-                </DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete {contact.name}? This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end mt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsDeleteDialogOpen(false)} 
-                  disabled={isDeleting}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={handleDeleteContact} 
-                  disabled={isDeleting}
-                  className="w-full sm:w-auto"
-                >
-                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                  {isDeleting ? "Deleting..." : "Delete Contact"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            variant="destructive" 
+            className="w-full sm:w-auto"
+            onClick={handleOpenDeleteModal}
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </Button>
         </div>
       </div>
+
+      {/* Contact Delete Modal */}
+      <ContactDeleteModal
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setContactToDelete(null);
+        }}
+        contact={contactToDelete}
+        onContactDeleted={handleContactDeleted}
+      />
 
       <Card className="shadow-xl overflow-hidden">
         <div className="relative h-32 sm:h-48 bg-muted">
@@ -476,6 +810,8 @@ export default function ContactDetailPage() {
                         onChange={handleFileChange} 
                         style={{ display: 'none' }} 
                         accept="image/*"
+                        aria-hidden="true" 
+                        tabIndex={-1}
                     />
                     <Button variant="outline" onClick={() => setIsPhotoDialogOpen(false)} disabled={isUploadingPhoto} className="w-full sm:w-auto">Cancel</Button>
                     <Button onClick={handlePhotoUploadClick} disabled={isUploadingPhoto} className="w-full sm:w-auto">
@@ -486,9 +822,50 @@ export default function ContactDetailPage() {
               </DialogContent>
             </Dialog>
             <div>
-              <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-card-foreground drop-shadow-sm">{contact.name}</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-white drop-shadow-lg bg-black/20 px-2 py-1 rounded">
+                  {editingSection === 'name' ? (
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        value={editFormData.name}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Full Name"
+                        className="text-xl sm:text-2xl md:text-3xl font-bold"
+                      />
+                      <Input
+                        value={editFormData.nickname}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, nickname: e.target.value }))}
+                        placeholder="Nickname (optional)"
+                        className="text-base sm:text-lg"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      {contact.name}{contact.nickname ? ` (${contact.nickname})` : ''}
+                    </>
+                  )}
+                </CardTitle>
+                {editingSection === 'name' ? (
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                      {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => startEditing('name')}
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
               {contact.occupation && (
-                <CardDescription className="text-base sm:text-lg text-muted-foreground drop-shadow-sm">
+                <CardDescription className="text-base sm:text-lg text-white drop-shadow-lg bg-black/20 px-2 py-1 rounded mt-1">
                   {contact.occupation} {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && `at ${contact.company}`}
                 </CardDescription>
               )}
@@ -512,122 +889,569 @@ export default function ContactDetailPage() {
               <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-md sm:text-lg">Contact Information</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-md sm:text-lg">Contact Information</CardTitle>
+                      {editingSection === 'contact' ? (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                            {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => startEditing('contact')}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+
                   </CardHeader>
                   <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                    {contact.email && (
-                      <div className="flex items-center">
-                        <Mail className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <a href={`mailto:${contact.email}`} className="text-primary hover:underline break-all">{contact.email}</a>
-                      </div>
-                    )}
-                    {contact.phone && (
-                      <div className="flex items-center">
-                        <Phone className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <span>{contact.phone}</span>
-                      </div>
-                    )}
-                    {contact.hometown && (
-                       <div className="flex items-center">
-                        <Home className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <span>From: {contact.hometown}</span>
-                      </div>
-                    )}
-                    {contact.currentLocation && (
-                       <div className="flex items-center">
-                        <MapPin className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <span>Lives in: {contact.currentLocation}</span>
-                      </div>
-                    )}
-                     {contact.birthday && (
-                       <div className="flex items-center">
-                        <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                         <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
-                      </div>
+                    {editingSection === 'contact' ? (
+                      <>
+                        <div className="flex items-center">
+                          <Mail className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.email}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                            placeholder="Email"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <Phone className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.phone}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                            placeholder="Phone"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <Home className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.hometown}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, hometown: e.target.value }))}
+                            placeholder="Hometown"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <MapPin className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.currentLocation}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, currentLocation: e.target.value }))}
+                            placeholder="Current Location"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.birthday}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, birthday: e.target.value }))}
+                            placeholder="Birthday (YYYY-MM-DD)"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {contact.email && (
+                          <div className="flex items-center">
+                            <Mail className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <a href={`mailto:${contact.email}`} className="text-primary hover:underline break-all">{contact.email}</a>
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div className="flex items-center">
+                            <Phone className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>{contact.phone}</span>
+                          </div>
+                        )}
+                        {contact.hometown && (
+                           <div className="flex items-center">
+                            <Home className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>From: {contact.hometown}</span>
+                          </div>
+                        )}
+                        {contact.currentLocation && (
+                           <div className="flex items-center">
+                            <MapPin className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>{contact.currentLocation}</span>
+                          </div>
+                        )}
+                         {contact.birthday && (
+                           <div className="flex items-center">
+                            <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                             <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
+                          </div>
+                        )}
+                        {contact.age && (
+                          <div className="flex items-center">
+                            <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Age: {contact.age} years old</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-md sm:text-lg">Professional &amp; Education</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-md sm:text-lg">Professional &amp; Education</CardTitle>
+                      {editingSection === 'professional' ? (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                            {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => startEditing('professional')}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                    {contact.occupation && (
-                      <div className="flex items-center">
-                        <Briefcase className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <span>{contact.occupation}</span>
-                      </div>
+                    {editingSection === 'professional' ? (
+                      <>
+                        <div className="flex items-center">
+                          <Briefcase className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.occupation}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, occupation: e.target.value }))}
+                            placeholder="Occupation"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <Building className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.company}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, company: e.target.value }))}
+                            placeholder="Company"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.college}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, college: e.target.value }))}
+                            placeholder="College/University"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {contact.occupation && (
+                          <div className="flex items-center">
+                            <Briefcase className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>{contact.occupation}</span>
+                          </div>
+                        )}
+                        {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && (
+                          <div className="flex items-center">
+                            <Building className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>{contact.company}</span>
+                          </div>
+                        )}
+                        {contact.college && (
+                          <div className="flex items-center">
+                            <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>{contact.college}</span>
+                          </div>
+                        )}
+                        {contact.major && (
+                          <div className="flex items-center">
+                            <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Major: {contact.major}</span>
+                          </div>
+                        )}
+                        {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
+                          <div key={platform} className="flex items-center">
+                            <Link2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline capitalize break-all">
+                              {platform}
+                            </a>
+                          </div>
+                        ))}
+                      </>
                     )}
-                    {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && (
-                      <div className="flex items-center">
-                        <Building className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <span>{contact.company}</span>
-                      </div>
-                    )}
-                    {contact.college && (
-                      <div className="flex items-center">
-                        <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <span>{contact.college}</span>
-                      </div>
-                    )}
-                    {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
-                      <div key={platform} className="flex items-center">
-                        <Link2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                        <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline capitalize break-all">
-                          {platform}
-                        </a>
-                      </div>
-                    ))}
                   </CardContent>
                 </Card>
               </div>
               
+              {/* Basic Information Section */}
+              {(() => {
+                const hasBasicInfo = contact.height || contact.eyeColor || contact.hairColor || contact.bodyType || contact.dressingStyle || contact.skinTone || contact.ethnicity || contact.facialFeatures || contact.distinguishingFeatures || contact.voice || contact.accent;
+                
+                return hasBasicInfo ? (
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-md sm:text-lg flex items-center">
+                        <UserSquare2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/>
+                        Basic Information
+                      </CardTitle>
+                      {editingSection === 'basic' ? (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                            {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => startEditing('basic')}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                    {editingSection === 'basic' ? (
+                      <>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.height}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, height: e.target.value }))}
+                            placeholder="Height"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.eyeColor}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, eyeColor: e.target.value }))}
+                            placeholder="Eye Color"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.hairColor}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, hairColor: e.target.value }))}
+                            placeholder="Hair Color"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.skinTone}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, skinTone: e.target.value }))}
+                            placeholder="Skin Tone"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.bodyType}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, bodyType: e.target.value }))}
+                            placeholder="Body Type"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.facialFeatures}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, facialFeatures: e.target.value }))}
+                            placeholder="Facial Features"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.distinguishingFeatures}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, distinguishingFeatures: e.target.value }))}
+                            placeholder="Distinguishing Features"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.ethnicity}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, ethnicity: e.target.value }))}
+                            placeholder="Ethnicity"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.voice}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, voice: e.target.value }))}
+                            placeholder="Voice"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.accent}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, accent: e.target.value }))}
+                            placeholder="Accent"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                          <Input
+                            value={editFormData.dressingStyle}
+                            onChange={(e) => setEditFormData(prev => ({ ...prev, dressingStyle: e.target.value }))}
+                            placeholder="Dressing Style"
+                            className="h-6 text-xs"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {contact.height && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Height: {contact.height}</span>
+                          </div>
+                        )}
+                        {contact.eyeColor && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Eye Color: {contact.eyeColor}</span>
+                          </div>
+                        )}
+                        {contact.hairColor && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Hair Color: {contact.hairColor}</span>
+                          </div>
+                        )}
+                        {contact.skinTone && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Skin Tone: {contact.skinTone}</span>
+                          </div>
+                        )}
+                        {contact.bodyType && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Body Type: {contact.bodyType}</span>
+                          </div>
+                        )}
+                        {contact.facialFeatures && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Facial Features: {contact.facialFeatures}</span>
+                          </div>
+                        )}
+                        {contact.distinguishingFeatures && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Distinguishing Features: {contact.distinguishingFeatures}</span>
+                          </div>
+                        )}
+                        {contact.ethnicity && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Ethnicity: {contact.ethnicity}</span>
+                          </div>
+                        )}
+                        {contact.voice && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Voice: {contact.voice}</span>
+                          </div>
+                        )}
+                        {contact.accent && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Accent: {contact.accent}</span>
+                          </div>
+                        )}
+                        {contact.dressingStyle && (
+                          <div className="flex items-center">
+                            <UserSquare2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                            <span>Dressing Style: {contact.dressingStyle}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null;
+              })()}
+
+              {/* Extract Basic Information Button */}
+              {contact.notes && !contact.height && !contact.eyeColor && !contact.hairColor && !contact.bodyType && !contact.dressingStyle && !contact.skinTone && !contact.ethnicity && !contact.facialFeatures && !contact.distinguishingFeatures && !contact.voice && !contact.accent && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-md sm:text-lg flex items-center">
+                      <UserSquare2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/>
+                      Extract Basic Information
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Extract height, eye color, hair color, body type, and dressing style from notes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button 
+                      onClick={handleExtractBasicInfo}
+                      disabled={isExtractingBasicInfo}
+                      className="w-full"
+                    >
+                      {isExtractingBasicInfo ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Extracting...
+                        </>
+                      ) : (
+                        <>
+                          <UserSquare2 className="mr-2 h-4 w-4" />
+                          Extract from Notes
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-md sm:text-lg flex items-center"><Tags className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Tags &amp; Categories</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-md sm:text-lg flex items-center"><Tags className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Tags &amp; Categories</CardTitle>
+                    {editingSection === 'tags' ? (
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                          {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => startEditing('tags')}>
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-xs sm:text-sm">
-                    <div className="space-y-1 sm:space-y-2">
-                        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                    {editingSection === 'tags' ? (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
                             <span className="font-medium">Primary Category:</span>
-                            {contact.category ? (
-                            <Badge variant="secondary" className="text-xs sm:text-sm">{contact.category}</Badge>
-                            ) : (
-                            <span className="text-muted-foreground">N/A</span>
-                            )}
+                            <Input
+                              value={editFormData.category}
+                              onChange={(e) => setEditFormData(prev => ({ ...prev, category: e.target.value }))}
+                              placeholder="Category"
+                              className="h-6 text-xs w-32"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">My Relationship:</span>
+                            <Input
+                              value={editFormData.ownerRelationshipLabel}
+                              onChange={(e) => setEditFormData(prev => ({ ...prev, ownerRelationshipLabel: e.target.value }))}
+                              placeholder="Relationship"
+                              className="h-6 text-xs w-32"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Tags:</span>
+                            <Input
+                              value={editFormData.tags.join(', ')}
+                              onChange={(e) => setEditFormData(prev => ({ 
+                                ...prev, 
+                                tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
+                              }))}
+                              placeholder="Tags (comma separated)"
+                              className="h-6 text-xs"
+                            />
+                          </div>
                         </div>
-                        
-                        <div className="flex flex-wrap gap-1 sm:gap-2 items-start">
-                            <span className="font-medium self-center pt-0.5">General Tags:</span>
-                            {contact.tags && contact.tags.length > 0 ? (
-                            contact.tags.map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs sm:text-sm">{tag}</Badge>
-                            ))
-                            ) : (
-                                <span className="text-muted-foreground">No general tags.</span>
-                            )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-1 sm:space-y-2">
+                            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                                <span className="font-medium">Primary Category:</span>
+                                {contact.category ? (
+                                <Badge variant="secondary" className="text-xs sm:text-sm">{contact.category}</Badge>
+                                ) : (
+                                <span className="text-muted-foreground">N/A</span>
+                                )}
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-1 sm:gap-2 items-start">
+                                <span className="font-medium self-center pt-0.5">General Tags:</span>
+                                {contact.tags && contact.tags.length > 0 ? (
+                                contact.tags.map((tag) => (
+                                    <Badge key={tag} variant="outline" className="text-xs sm:text-sm">{tag}</Badge>
+                                ))
+                                ) : (
+                                    <span className="text-muted-foreground">No general tags.</span>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                 
-                  {(!contact.category && (!contact.tags || contact.tags.length === 0)) && 
-                    !contact.ownerRelationshipLabel &&
-                     <p className="text-muted-foreground">No tags or categories defined.</p>
-                  }
-                   {contact.ownerRelationshipLabel && (
-                     <>
-                        <Separator className="my-2 sm:my-3" />
-                        <div className="flex items-center gap-1 sm:gap-2">
-                        <span className="font-medium">My Relationship:</span>
-                        <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground text-xs sm:text-sm">
-                                <UserCheck className="mr-1 h-3 w-3 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
-                                {contact.ownerRelationshipLabel}
-                            </Badge>
-                        </div>
-                     </>
-                  )}
+                     
+                      {(!contact.category && (!contact.tags || contact.tags.length === 0)) && 
+                        !contact.ownerRelationshipLabel &&
+                         <p className="text-muted-foreground">No tags or categories defined.</p>
+                      }
+                       {contact.ownerRelationshipLabel && (
+                         <>
+                            <Separator className="my-2 sm:my-3" />
+                            <div className="flex items-center gap-1 sm:gap-2">
+                            <span className="font-medium">My Relationship:</span>
+                            <Badge variant="outline" className="bg-accent/20 border-accent text-accent-foreground text-xs sm:text-sm">
+                                    <UserCheck className="mr-1 h-3 w-3 sm:mr-1.5 sm:h-3.5 sm:w-3.5" />
+                                    {contact.ownerRelationshipLabel}
+                                </Badge>
+                            </div>
+                         </>
+                      )}
+                      </>
+                    )}
                 </CardContent>
               </Card>
-              <ContactSocialMediaFeed socialProfiles={contact.socialProfiles || {}} />
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-md sm:text-lg flex items-center">
+                      <Link2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/>
+                      Social Media
+                    </CardTitle>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/contacts/${contact.id}/edit`}>
+                        <Edit3 className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ContactSocialMediaFeed socialProfiles={contact.socialProfiles || {}} />
+                </CardContent>
+              </Card>
             </TabsContent>
             )}
 
@@ -635,14 +1459,57 @@ export default function ContactDetailPage() {
             <TabsContent value="relationships">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-md sm:text-lg flex items-center"><Users className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Relationships</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">How {contact.name} is connected to others in your network.</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-md sm:text-lg flex items-center"><Users className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Relationships</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">How {contact.name} is connected to others in your network.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/contacts/${contact.id}/edit`}>
+                        <Edit3 className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ContactRelationships
                     relationships={contact.relationships}
-                    relatedContacts={Object.fromEntries(Object.entries(relatedContacts).map(([id, name]) => [{ id, name }]))}
+                    relatedContacts={relatedContacts}
                     contactName={contact.name}
+                    editMode={true}
+                    contactsList={contactsList}
+                    onChange={async (updatedRelationships) => {
+                      try {
+                        // Update the contact with the new relationships
+                        const response = await fetch(`/api/contacts/${contactId}`, {
+                          method: 'PATCH',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            relationships: updatedRelationships
+                          }),
+                        });
+                        
+                        if (response.ok) {
+                          // Refresh the contact data
+                          await fetchContactDetails();
+                          toast({
+                            title: "Relationships Updated",
+                            description: "The relationships have been saved successfully.",
+                          });
+                        } else {
+                          throw new Error('Failed to update relationships');
+                        }
+                      } catch (error) {
+                        console.error('Error updating relationships:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to save relationships. Please try again.",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
                   />
                 </CardContent>
               </Card>
@@ -653,41 +1520,60 @@ export default function ContactDetailPage() {
             <TabsContent value="photos">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-md sm:text-lg flex items-center"><Camera className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Photos Together</CardTitle>
-                        <CardDescription className="text-xs sm:text-sm">Visual memories with {contact.name}.</CardDescription>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-md sm:text-lg flex items-center"><Camera className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Photos Together</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">Visual memories with {contact.name}.</CardDescription>
+                            </div>
+                            <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/contacts/${contact.id}/edit`}>
+                                    <Edit3 className="h-4 w-4" />
+                                </Link>
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {contact.photosTogether && contact.photosTogether.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                                 {contact.photosTogether.map((photoUrl, index) => (
-                                  <Dialog key={index}>
-                                    <DialogTrigger asChild>
-                                      <div className="aspect-square rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer">
-                                          <Image 
-                                              src={photoUrl} 
-                                              alt={`Photo with ${contact.name} ${index + 1}`} 
-                                              width={200} 
-                                              height={200} 
-                                              className="object-cover w-full h-full"
-                                              data-ai-hint="people event"
-                                          />
-                                      </div>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-sm sm:max-w-xl p-0">
-                                       <DialogHeader className="p-4 border-b">
-                                          <DialogTitle>Photo with {contact.name}</DialogTitle>
-                                        </DialogHeader>
-                                        <div className="relative w-full aspect-square">
-                                          <Image
-                                            src={photoUrl}
-                                            alt={`Photo with ${contact.name} ${index + 1} - enlarged`}
-                                            fill
-                                            style={{objectFit: "contain"}}
-                                            data-ai-hint="people event"
-                                          />
+                                  <div key={index} className="relative group">
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <div className="aspect-square rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer">
+                                            <Image 
+                                                src={photoUrl} 
+                                                alt={`Photo with ${contact.name} ${index + 1}`} 
+                                                width={200} 
+                                                height={200} 
+                                                className="object-cover w-full h-full"
+                                                data-ai-hint="people event"
+                                            />
                                         </div>
-                                    </DialogContent>
-                                  </Dialog>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-sm sm:max-w-xl p-0">
+                                         <DialogHeader className="p-4 border-b">
+                                            <DialogTitle>Photo with {contact.name}</DialogTitle>
+                                          </DialogHeader>
+                                          <div className="relative w-full aspect-square">
+                                            <Image
+                                              src={photoUrl}
+                                              alt={`Photo with ${contact.name} ${index + 1} - enlarged`}
+                                              fill
+                                              style={{objectFit: "contain"}}
+                                              data-ai-hint="people event"
+                                            />
+                                          </div>
+                                      </DialogContent>
+                                    </Dialog>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-destructive/90 hover:bg-destructive text-white"
+                                      onClick={() => handleDeletePhoto(index)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 ))}
                             </div>
                         ) : (
@@ -713,6 +1599,8 @@ export default function ContactDetailPage() {
                                         onChange={handlePhotosTogetherFileChange}
                                         style={{ display: 'none' }}
                                         accept="image/*"
+                                        aria-hidden="true" 
+                                        tabIndex={-1}
                                     />
                                     <Button onClick={handlePhotosTogetherUploadClick} disabled={isUploadingPhotosTogether} className="w-full text-xs sm:text-sm h-8 sm:h-9">
                                         {isUploadingPhotosTogether ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />}
@@ -735,14 +1623,43 @@ export default function ContactDetailPage() {
             <TabsContent value="notes">
                <Card>
                 <CardHeader>
-                    <CardTitle className="text-md sm:text-lg flex items-center"><MessageSquare className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Notes</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Personal notes and reminders about {contact.name}.</CardDescription>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle className="text-md sm:text-lg flex items-center"><MessageSquare className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Notes</CardTitle>
+                            <CardDescription className="text-xs sm:text-sm">Personal notes and reminders about {contact.name}.</CardDescription>
+                        </div>
+                        {editingSection === 'notes' ? (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
+                              {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button variant="ghost" size="sm" onClick={() => startEditing('notes')}>
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    {contact.notes ? (
-                        <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed">{contact.notes}</p>
+                    {editingSection === 'notes' ? (
+                      <Textarea
+                        value={editFormData.notes}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Add your notes here..."
+                        className="min-h-[100px] text-xs sm:text-sm"
+                      />
                     ) : (
-                        <p className="text-muted-foreground text-xs sm:text-sm">No notes added yet for {contact.name}.</p>
+                      <>
+                        {contact.notes ? (
+                            <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed">{contact.notes}</p>
+                        ) : (
+                            <p className="text-muted-foreground text-xs sm:text-sm">No notes added yet for {contact.name}.</p>
+                        )}
+                      </>
                     )}
                 </CardContent>
                  <CardFooter>
@@ -780,6 +1697,85 @@ export default function ContactDetailPage() {
                     </Dialog>
                 </CardFooter>
                </Card>
+               {activeTab === "notes" && (
+                <>
+                  {/* Hidden Notes Section */}
+                  <Card className="mb-4 mt-4">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="text-base">Hidden Notes</CardTitle>
+                      <Button size="sm" variant="outline" onClick={() => setIsPasscodeDialogOpen(true)}>
+                        Edit
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="whitespace-pre-wrap text-muted-foreground text-sm min-h-[40px]">
+                        {hiddenNotesUnlocked ? (
+                          hiddenNotesInput ? hiddenNotesInput : <span className="italic text-xs">No hidden notes yet.</span>
+                        ) : (
+                          <span className="italic text-xs">Enter passcode to view hidden notes.</span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {/* Dialogs for Hidden Notes */}
+                  <Dialog open={isPasscodeDialogOpen} onOpenChange={setIsPasscodeDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Enter Passcode</DialogTitle>
+                      </DialogHeader>
+                      <Input
+                        type="password"
+                        value={passcodeInput}
+                        onChange={e => setPasscodeInput(e.target.value)}
+                        placeholder="Enter passcode"
+                        aria-label="Passcode"
+                        className="mb-2"
+                      />
+                      {passcodeError && <div className="text-red-500 text-xs mb-2">{passcodeError}</div>}
+                      <DialogFooter>
+                        <Button
+                          onClick={() => {
+                            if (passcodeInput === '1234') {
+                              setHiddenNotesUnlocked(true);
+                              setIsPasscodeDialogOpen(false);
+                              setPasscodeInput('');
+                              setPasscodeError('');
+                              setIsHiddenNotesDialogOpen(true);
+                            } else {
+                              setPasscodeError('Incorrect passcode');
+                            }
+                          }}
+                        >
+                          Unlock
+                        </Button>
+                        <Button variant="outline" onClick={() => { setIsPasscodeDialogOpen(false); setPasscodeInput(''); setPasscodeError(''); }}>Cancel</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  <Dialog open={isHiddenNotesDialogOpen} onOpenChange={setIsHiddenNotesDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Hidden Notes</DialogTitle>
+                      </DialogHeader>
+                      <Textarea
+                        value={hiddenNotesInput}
+                        onChange={e => setHiddenNotesInput(e.target.value)}
+                        placeholder="Enter private notes only you can see..."
+                        aria-label="Hidden notes"
+                        rows={6}
+                        className="mb-4"
+                      />
+                      <DialogFooter>
+                        <Button onClick={handleSaveHiddenNotes} disabled={isSavingHiddenNotes}>
+                          {isSavingHiddenNotes ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Save
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsHiddenNotesDialogOpen(false)} disabled={isSavingHiddenNotes}>Cancel</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
             </TabsContent>
             )}
 
@@ -787,8 +1783,17 @@ export default function ContactDetailPage() {
             <TabsContent value="events">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-md sm:text-lg flex items-center"><PartyPopper className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Notable Events</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Keep track of important dates and milestones with {contact.name}.</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-md sm:text-lg flex items-center"><PartyPopper className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/> Notable Events</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Keep track of important dates and milestones with {contact.name}.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/contacts/${contact.id}/edit`}>
+                        <Edit3 className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {contact.notableEvents && contact.notableEvents.length > 0 ? (
@@ -889,7 +1894,7 @@ export default function ContactDetailPage() {
 
             {activeTab === "memories" && (
               <TabsContent value="memories">
-                <ContactMemories contactId={contactId} />
+                <ContactMemories contactId={contactId} contactName={contact.name} />
               </TabsContent>
             )}
           </Tabs>

@@ -9,6 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Mic, MicOff, Send, Loader2, Brain, MessageSquare } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useContacts } from '@/hooks/useContacts';
+import { useRouter } from 'next/navigation';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface AIAskModalProps {
   isOpen: boolean;
@@ -24,6 +27,8 @@ export function AIAskModal({ isOpen, onOpenChange }: AIAskModalProps) {
   const [answer, setAnswer] = useState('');
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const { contacts } = useContacts({ initialLoad: true });
+  const router = useRouter();
 
   const resetState = () => {
     setQuestion('');
@@ -158,6 +163,60 @@ export function AIAskModal({ isOpen, onOpenChange }: AIAskModalProps) {
     handleAskQuestion();
   };
 
+  // Helper to render clickable contact name in answer
+  function renderAnswerWithLink(answer: string) {
+    if (!contacts || contacts.length === 0) return answer;
+    // Build a list of all display names, names, and nicknames
+    const nameToContact = new Map<string, typeof contacts[0]>();
+    contacts.forEach(c => {
+      const displayName = c.nickname ? `${c.name} (${c.nickname})` : c.name;
+      nameToContact.set(displayName, c);
+      nameToContact.set(c.name, c);
+      if (c.nickname) nameToContact.set(c.nickname, c);
+    });
+    // Sort by length descending to prefer longest match
+    const allNames = Array.from(nameToContact.keys()).sort((a, b) => b.length - a.length);
+    // Build a regex to match any name, nickname, or display name, even if followed by punctuation, parentheses, or at line start
+    const nameRegex = new RegExp(`(^|[\s\n\r\t:>\-\*\(])(${allNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?=[\s\n\r\t:,.!?()\-]|$)`, 'g');
+    // Find what to highlight (simple: if 'Birthday:' in answer, highlight birthday)
+    let highlight = '';
+    if (/Birthday:/i.test(answer)) highlight = 'birthday';
+    const parts = [];
+    let lastIndex = 0;
+    answer.replace(nameRegex, (match, pre, name, offset) => {
+      const start = offset;
+      const end = offset + match.length;
+      if (start > lastIndex) parts.push(answer.slice(lastIndex, start));
+      const contact = nameToContact.get(name);
+      if (contact) {
+        parts.push(
+          <span key={name + start} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span
+              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', marginRight: 2 }}
+              onClick={() => router.push(`/contacts/${contact.id}${highlight ? `?highlight=${highlight}` : ''}`)}
+              title={`View ${contact.name}'s profile`}
+            >
+              <Avatar className="w-5 h-5 mr-1 inline-block align-middle">
+                {contact.photoURL ? (
+                  <AvatarImage src={contact.photoURL} alt={contact.name} />
+                ) : (
+                  <AvatarFallback>{contact.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}</AvatarFallback>
+                )}
+              </Avatar>
+            </span>
+            {match}
+          </span>
+        );
+      } else {
+        parts.push(match);
+      }
+      lastIndex = end;
+      return match;
+    });
+    if (lastIndex < answer.length) parts.push(answer.slice(lastIndex));
+    return <>{parts}</>;
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -228,7 +287,7 @@ export function AIAskModal({ isOpen, onOpenChange }: AIAskModalProps) {
                   <MessageSquare className="h-5 w-5 text-primary mt-0.5" />
                   <div className="flex-1">
                     <h4 className="font-semibold mb-2">AI Answer:</h4>
-                    <div className="whitespace-pre-wrap text-sm">{answer}</div>
+                    <div className="whitespace-pre-wrap text-sm">{renderAnswerWithLink(answer)}</div>
                   </div>
                 </div>
               </CardContent>

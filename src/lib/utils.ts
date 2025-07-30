@@ -80,14 +80,55 @@ export function findPotentialContactMatches(personName: string, contacts: any[],
   return contacts
     .map(contact => {
       let similarity = calculateStringSimilarity(personName, contact.name);
+      let reason = '';
+      
+      // Check if personName is a substring of contact name (e.g., "Alice" in "Alice Williams")
+      if (contact.name.toLowerCase().includes(lowerPersonName)) {
+        similarity = Math.max(similarity, 0.9);
+        reason = 'Partial name match';
+      }
+      
+      // Check if contact name starts with personName (e.g., "Alice" matches "Alice Williams")
+      if (contact.name.toLowerCase().startsWith(lowerPersonName + ' ')) {
+        similarity = Math.max(similarity, 0.95);
+        reason = 'First name match';
+      }
+      
       // Boost similarity if the personName is found in notes (nickname match)
       if (contact.notes && contact.notes.toLowerCase().includes(lowerPersonName)) {
         similarity = Math.max(similarity, 0.95); // treat as a strong match
+        reason = 'Matched in notes';
+      }
+      // Boost similarity if the personName matches the nickname
+      if (contact.nickname && contact.nickname.toLowerCase().includes(lowerPersonName)) {
+        similarity = Math.max(similarity, 0.98);
+        reason = 'Matched nickname';
+      }
+      // If exact match to nickname, set to 1.0
+      if (contact.nickname && contact.nickname.toLowerCase() === lowerPersonName) {
+        similarity = 1.0;
+        reason = 'Exact nickname match';
+      }
+      // If exact match to name, set to 1.0
+      if (contact.name && contact.name.toLowerCase() === lowerPersonName) {
+        similarity = 1.0;
+        reason = 'Exact name match';
+      }
+      if (similarity >= threshold) {
+        console.debug(`[findPotentialContactMatches] Matched contact:`, {
+          id: contact.id,
+          name: contact.name,
+          nickname: contact.nickname,
+          similarity,
+          reason
+        });
       }
       return {
         id: contact.id,
         name: contact.name,
-        similarity
+        nickname: contact.nickname,
+        similarity,
+        reason
       };
     })
     .filter(match => match.similarity >= threshold)

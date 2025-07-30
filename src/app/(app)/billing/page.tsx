@@ -1,10 +1,13 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, CreditCard, Download, HelpCircle } from "lucide-react";
+import { CheckCircle, CreditCard, Download, HelpCircle, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const plans = [
   {
@@ -65,6 +68,49 @@ const invoiceHistory = [
 ];
 
 export default function BillingPage() {
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
+  const [usageStats, setUsageStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (currentUser?.uid) {
+      fetchUsageStats();
+    }
+  }, [currentUser]);
+
+  const fetchUsageStats = async () => {
+    try {
+      const response = await fetch(`/api/user/usage?uid=${currentUser?.uid}`);
+      if (response.ok) {
+        const stats = await response.json();
+        setUsageStats(stats);
+      }
+    } catch (error) {
+      console.error('Failed to fetch usage stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpgrade = async (plan: string) => {
+    if (!currentUser?.uid) return;
+    
+    try {
+      // In a real implementation, this would redirect to Stripe or payment processor
+      toast({
+        title: "Upgrade Feature",
+        description: `Upgrade to ${plan} plan - This would redirect to payment processor in production.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Upgrade Failed",
+        description: "Failed to process upgrade. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
@@ -78,30 +124,57 @@ export default function BillingPage() {
           <CardDescription>Choose the plan that best suits your networking needs.</CardDescription>
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <Card key={plan.name} className={`flex flex-col ${plan.isCurrent ? 'border-primary ring-2 ring-primary shadow-xl' : 'hover:shadow-lg transition-shadow'}`}>
-              <CardHeader>
-                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                <p className="text-3xl font-bold">
-                  {plan.price}
-                  <span className="text-sm font-normal text-muted-foreground">{plan.period}</span>
-                </p>
-              </CardHeader>
-              <CardContent className="flex-grow space-y-2">
-                {plan.features.map((feature, index) => (
-                  <div key={index} className="flex items-start">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2 shrink-0 mt-0.5" />
-                    <span className="text-sm">{feature}</span>
-                  </div>
-                ))}
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full" variant={plan.variant} disabled={plan.isCurrent && plan.cta === "Your Current Plan"}>
-                  {plan.cta}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+          {plans.map((plan) => {
+            const isCurrentPlan = usageStats?.plan === plan.name.toLowerCase();
+            const isUpgrade = !isCurrentPlan && plan.name !== "Free Tier";
+            
+            return (
+              <Card key={plan.name} className={`flex flex-col ${isCurrentPlan ? 'border-primary ring-2 ring-primary shadow-xl' : 'hover:shadow-lg transition-shadow'}`}>
+                <CardHeader>
+                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  <p className="text-3xl font-bold">
+                    {plan.price}
+                    <span className="text-sm font-normal text-muted-foreground">{plan.period}</span>
+                  </p>
+                  {isCurrentPlan && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-sm text-green-600 font-medium">Current Plan</span>
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent className="flex-grow space-y-2">
+                  {plan.features.map((feature, index) => (
+                    <div key={index} className="flex items-start">
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-2 shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </div>
+                  ))}
+                  {usageStats && plan.name === "Free Tier" && (
+                    <div className="pt-2 border-t">
+                      <div className="text-xs text-muted-foreground mb-1">Current Usage:</div>
+                      <div className="text-xs">
+                        AI Parsing: {usageStats.aiParsingSessions}/{usageStats.limits.aiParsing}
+                      </div>
+                      <div className="text-xs">
+                        Contacts: {usageStats.contactsCount}/{usageStats.limits.contacts}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    className="w-full" 
+                    variant={isCurrentPlan ? "outline" : isUpgrade ? "default" : "outline"}
+                    disabled={isCurrentPlan}
+                    onClick={() => isUpgrade && handleUpgrade(plan.name)}
+                  >
+                    {isCurrentPlan ? "Current Plan" : isUpgrade ? "Upgrade" : "Your Current Plan"}
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </CardContent>
       </Card>
       

@@ -102,15 +102,30 @@ export default function EditContactPage() {
       }
     }
 
+    // Combine name fields into full name
+    const nameParts = [
+      values.firstName,
+      values.middleName,
+      values.lastName
+    ].filter(Boolean);
+    
+    const fullName = nameParts.length > 0 ? nameParts.join(' ') : values.name;
+
+    // Handle relationships if they exist
+    const relationshipsData = (values as any).relationships || [];
+
     const updatedContactData = {
       ...values,
+      name: fullName, // Use the combined full name
       photoURL: photoUrlToStore,
       hometown: values.hometown || undefined,
       currentLocation: values.currentLocation || undefined,
       birthday: values.birthday ? format(values.birthday, "yyyy-MM-dd") : undefined,
       college: values.college || undefined, 
       ownerRelationshipLabel: values.ownerRelationshipLabel || undefined,
+      notes: values.notes || undefined,
       tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+      relationships: relationshipsData,
     };
     
     // Remove photoFile from the data to be sent to API
@@ -131,7 +146,7 @@ export default function EditContactPage() {
       
       toast({
         title: "Contact Updated",
-        description: `${values.name} has been successfully updated.`,
+        description: `${fullName} has been successfully updated.`,
       });
       
       router.push(`/contacts/${contactId}`); // Redirect to contact detail page
@@ -172,8 +187,34 @@ export default function EditContactPage() {
     );
   }
   
+  // Parse existing name into separate fields
+  const parseName = (fullName: string) => {
+    const nameParts = fullName.trim().split(' ');
+    if (nameParts.length === 1) {
+      return { firstName: nameParts[0], middleName: '', lastName: '', preferredName: contact.preferredName || '' };
+    } else if (nameParts.length === 2) {
+      return { firstName: nameParts[0], middleName: '', lastName: nameParts[1], preferredName: contact.preferredName || '' };
+    } else if (nameParts.length === 3) {
+      return { firstName: nameParts[0], middleName: nameParts[1], lastName: nameParts[2], preferredName: contact.preferredName || '' };
+    } else {
+      // For names with more than 3 parts, put everything after the first name as middle name
+      return { 
+        firstName: nameParts[0], 
+        middleName: nameParts.slice(1, -1).join(' '), 
+        lastName: nameParts[nameParts.length - 1],
+        preferredName: contact.preferredName || ''
+      };
+    }
+  };
+
+  const parsedName = parseName(contact.name);
+
   const defaultFormValues: Partial<ContactFormValues> = {
     name: contact.name,
+    firstName: parsedName.firstName,
+    middleName: parsedName.middleName,
+    lastName: parsedName.lastName,
+    preferredName: parsedName.preferredName,
     email: contact.email || '',
     phone: contact.phone || '',
     occupation: contact.occupation || '',
@@ -185,6 +226,7 @@ export default function EditContactPage() {
     currentLocation: contact.currentLocation || '',
     birthday: contact.birthday ? new Date(contact.birthday + 'T00:00:00') : null, // Ensure correct date parsing for UTC
     photoURL: contact.photoURL || '',
+    notes: contact.notes || '',
     // photoFile should not be pre-filled from existing data for edit
     tags: contact.tags ? contact.tags.join(', ') : '',
   };

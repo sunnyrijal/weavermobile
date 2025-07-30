@@ -14,9 +14,81 @@ export class ContactService {
    * Create a new contact
    */
   static async createContact(contactData: Partial<IContact>): Promise<IContact> {
+    console.log('Creating contact with data:', contactData);
     await connectToDatabase();
-    const contact = new Contact(contactData);
+    
+    // Check if a contact with this name already exists for this owner
+    if (contactData.name && contactData.ownerId) {
+      const existingContact = await Contact.findOne({
+        ownerId: contactData.ownerId,
+        name: { $regex: new RegExp(`^${contactData.name.trim()}$`, 'i') }
+      });
+      
+      if (existingContact) {
+        console.log('⚠️ Contact already exists:', contactData.name);
+        // Return the existing contact instead of creating a new one
+        return convertDocumentToObject(existingContact);
+      }
+    }
+    
+    // Ensure notes field is preserved
+    const contactToSave = { ...contactData };
+    
+    // Process relationships - create contacts for relationship names if they don't exist
+    if (contactData.relationships && Array.isArray(contactData.relationships)) {
+      const processedRelationships = [];
+      
+      for (const relationship of contactData.relationships) {
+        if (relationship.name && relationship.name.trim()) {
+          // Check if a contact with this name already exists
+          const existingContact = await Contact.findOne({
+            ownerId: contactData.ownerId,
+            name: { $regex: new RegExp(`^${relationship.name.trim()}$`, 'i') }
+          });
+          
+          if (existingContact) {
+            // Link to existing contact
+            processedRelationships.push({
+              relatedContactId: existingContact._id.toString(),
+              type: relationship.type,
+              customLabel: relationship.notes || relationship.customLabel || '',
+              notes: relationship.notes || ''
+            });
+          } else {
+            // Create a new contact for this relationship
+            const newContact = new Contact({
+              ownerId: contactData.ownerId,
+              name: relationship.name.trim(),
+              category: 'Other',
+              relationships: [],
+              notes: relationship.notes || ''
+            });
+            await newContact.save();
+            
+            processedRelationships.push({
+              relatedContactId: newContact._id.toString(),
+              type: relationship.type,
+              customLabel: relationship.notes || relationship.customLabel || '',
+              notes: relationship.notes || ''
+            });
+          }
+        }
+      }
+      
+      contactToSave.relationships = processedRelationships;
+    }
+    
+    // Ensure all fields are properly set
+    const contact = new Contact({
+      ...contactToSave,
+      notes: contactData.notes || '',
+      tags: contactData.tags || [],
+      relationships: contactToSave.relationships || []
+    });
+    
+    console.log('Contact model created, saving...');
     await contact.save();
+    console.log('Contact saved successfully');
     
     // Convert the MongoDB _id to id for the frontend
     return convertDocumentToObject(contact);
@@ -27,10 +99,29 @@ export class ContactService {
    */
   static async getContactsByOwnerId(ownerId: string): Promise<IContact[]> {
     await connectToDatabase();
-    const contacts = await Contact.find({ ownerId }).sort({ name: 1 });
+    const contacts = await Contact.find({ ownerId }, null, { lean: true }).sort({ name: 1 });
     
-    // Convert the MongoDB _id to id for the frontend
-    return contacts.map(contact => convertDocumentToObject(contact));
+    // Map _id to id and return plain objects
+    const processedContacts = contacts.map((contact: any) => ({ 
+      ...contact, 
+      id: contact._id.toString() 
+    }));
+    
+    // Populate relationship names for better display
+    for (const contact of processedContacts) {
+      if (contact.relationships && Array.isArray(contact.relationships)) {
+        for (const relationship of contact.relationships) {
+          if (relationship.relatedContactId) {
+            const relatedContact = contacts.find(c => c._id.toString() === relationship.relatedContactId);
+            if (relatedContact) {
+              relationship.name = relatedContact.name;
+            }
+          }
+        }
+      }
+    }
+    
+    return processedContacts;
   }
 
   /**
@@ -51,6 +142,54 @@ export class ContactService {
    */
   static async updateContact(id: string, contactData: Partial<IContact>): Promise<IContact | null> {
     await connectToDatabase();
+    
+    // First, get the existing contact to ensure we have the ownerId
+    const existingContact = await Contact.findById(id);
+    if (!existingContact) {
+      return null;
+    }
+    
+    // Process relationships if they're being updated
+    if (contactData.relationships && Array.isArray(contactData.relationships)) {
+      const processedRelationships = [];
+      
+      for (const relationship of contactData.relationships) {
+        if (relationship.name && relationship.name.trim()) {
+          // Check if a contact with this name already exists
+          const relatedContact = await Contact.findOne({
+            ownerId: existingContact.ownerId, // Use the existing contact's ownerId
+            name: { $regex: new RegExp(`^${relationship.name.trim()}$`, 'i') }
+          });
+          
+          if (relatedContact) {
+            // Link to existing contact
+            processedRelationships.push({
+              ...relationship,
+              relatedContactId: relatedContact._id.toString(),
+              name: relatedContact.name
+            });
+          } else {
+            // Create a new contact for this relationship
+            const newContact = new Contact({
+              ownerId: existingContact.ownerId, // Use the existing contact's ownerId
+              name: relationship.name.trim(),
+              category: 'Other',
+              relationships: []
+            });
+            await newContact.save();
+            
+            processedRelationships.push({
+              ...relationship,
+              relatedContactId: newContact._id.toString(),
+              name: newContact.name
+            });
+          }
+        }
+      }
+      
+      contactData.relationships = processedRelationships;
+    }
+    
     const contact = await Contact.findByIdAndUpdate(id, contactData, { new: true });
     
     if (!contact) return null;
@@ -75,11 +214,13 @@ export class ContactService {
     await connectToDatabase();
     const contacts = await Contact.find({
       ownerId,
-      name: { $regex: searchTerm, $options: 'i' }
-    }).sort({ name: 1 });
+      $or: [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { nickname: { $regex: searchTerm, $options: 'i' } }
+      ]
+    }, null, { lean: true }).sort({ name: 1 });
     
-    // Convert the MongoDB _id to id for the frontend
-    return contacts.map(contact => convertDocumentToObject(contact));
+    return contacts.map((contact: any) => ({ ...contact, id: contact._id.toString() }));
   }
 
   /**
@@ -90,10 +231,9 @@ export class ContactService {
     const contacts = await Contact.find({
       ownerId,
       tags: tag
-    }).sort({ name: 1 });
+    }, null, { lean: true }).sort({ name: 1 });
     
-    // Convert the MongoDB _id to id for the frontend
-    return contacts.map(contact => convertDocumentToObject(contact));
+    return contacts.map((contact: any) => ({ ...contact, id: contact._id.toString() }));
   }
 
   /**
@@ -104,10 +244,9 @@ export class ContactService {
     const contacts = await Contact.find({
       ownerId,
       category
-    }).sort({ name: 1 });
+    }, null, { lean: true }).sort({ name: 1 });
     
-    // Convert the MongoDB _id to id for the frontend
-    return contacts.map(contact => convertDocumentToObject(contact));
+    return contacts.map((contact: any) => ({ ...contact, id: contact._id.toString() }));
   }
 
   /**
@@ -155,11 +294,22 @@ export class ContactService {
         const otherContact = contacts[j];
         if (processedIds.has(otherContact._id.toString())) continue;
         
-        // Check for name similarity
+        // Duplicate heuristic: last name must match exactly and overall similarity high
+        const nameParts1 = contact.name.trim().split(/\s+/);
+        const nameParts2 = otherContact.name.trim().split(/\s+/);
+        const firstName1 = nameParts1[0]?.toLowerCase();
+        const firstName2 = nameParts2[0]?.toLowerCase();
+        const lastName1 = nameParts1.pop()?.toLowerCase();
+        const lastName2 = nameParts2.pop()?.toLowerCase();
         const nameSimilarity = this.calculateNameSimilarity(contact.name, otherContact.name);
-        if (nameSimilarity > 0.7) { // 70% similarity threshold
+        if (firstName1 && firstName2 && lastName1 && lastName2 && firstName1 === firstName2 && lastName1 === lastName2 && nameSimilarity > 0.9) {
           similarContacts.push(convertDocumentToObject(otherContact));
           processedIds.add(otherContact._id.toString());
+        } else if (lastName1 && lastName1 === lastName2) {
+          // Same family name but different first name – consider as relatives (not duplicates)
+          // Attach a lightweight hint on the primary contact for potential relationship suggestions
+          if (!contact.__potentialRelatives) (contact as any).__potentialRelatives = [];
+          (contact as any).__potentialRelatives.push(convertDocumentToObject(otherContact));
         }
       }
       

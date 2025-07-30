@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,12 +25,18 @@ import {
 import { ContactDuplicateManager } from "@/components/contacts/ContactDuplicateManager";
 import { AIAskModal } from "@/components/shared/AIAskModal";
 import { VoiceMemoryInputModal } from "@/components/memory/VoiceMemoryInputModal";
+import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate';
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const [showAIAskModal, setShowAIAskModal] = useState(false);
   const [showMemoryModal, setShowMemoryModal] = useState(false);
+  const [exportDate, setExportDate] = useState<string>("");
+
+  useEffect(() => {
+    setExportDate(new Date().toISOString());
+  }, []);
 
   const handleExportData = async () => {
     if (!currentUser) {
@@ -45,7 +51,7 @@ export default function SettingsPage() {
       const data = await response.json();
       const exportData = {
         contacts: data.contacts,
-        exportDate: new Date().toISOString(),
+        exportDate: exportDate,
         version: '1.0'
       };
 
@@ -53,7 +59,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `networknest-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `networknest-export-${exportDate.split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -120,7 +126,7 @@ export default function SettingsPage() {
                 <div>
                   <label className="text-sm font-medium">Account Created</label>
                   <p className="text-sm text-muted-foreground">
-                    {currentUser.createdAt ? new Date(currentUser.createdAt).toLocaleDateString() : 'Unknown'}
+                    {currentUser.createdAt ? <ClientSideFormattedDate date={currentUser.createdAt} /> : 'Unknown'}
                   </p>
                 </div>
                 <div>

@@ -1,4 +1,4 @@
-import { Schema, model, models, Document, Model } from 'mongoose';
+import mongoose, { Schema, model, models, Document, Model } from 'mongoose';
 
 // Define the NotableEvent interface
 interface NotableEvent {
@@ -13,6 +13,7 @@ interface Relationship {
   relatedContactId: string;
   type: string;
   customLabel?: string;
+  notes?: string;
 }
 
 // Define the SocialProfiles interface
@@ -28,13 +29,22 @@ interface SocialProfiles {
 export interface IContact extends Document {
   ownerId: string;
   name: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  preferredName?: string;
+  nickname?: string;
+  hiddenNotes?: string;
   photoURL?: string;
   birthday?: string;
+  birthYear?: string;
+  age?: string;
   hometown?: string;
   currentLocation?: string;
   occupation?: string;
   company?: string;
   college?: string;
+  major?: string;
   socialProfiles?: SocialProfiles;
   phone?: string;
   email?: string;
@@ -46,6 +56,18 @@ export interface IContact extends Document {
   photosTogether: string[];
   relationships: Relationship[];
   notableEvents?: NotableEvent[];
+  // Basic information fields
+  height?: string;
+  eyeColor?: string;
+  hairColor?: string;
+  bodyType?: string;
+  dressingStyle?: string;
+  skinTone?: string;
+  ethnicity?: string;
+  facialFeatures?: string;
+  distinguishingFeatures?: string;
+  voice?: string;
+  accent?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,13 +77,22 @@ const ContactSchema = new Schema<IContact>(
   {
     ownerId: { type: String, required: true, index: true },
     name: { type: String, required: true },
+    firstName: { type: String },
+    middleName: { type: String },
+    lastName: { type: String },
+    preferredName: { type: String },
+    nickname: { type: String },
+    hiddenNotes: { type: String },
     photoURL: String,
     birthday: String,
+    birthYear: String,
+    age: String,
     hometown: String,
     currentLocation: String,
     occupation: String,
     company: String,
     college: String,
+    major: String,
     socialProfiles: {
       linkedin: String,
       instagram: String,
@@ -81,6 +112,7 @@ const ContactSchema = new Schema<IContact>(
         relatedContactId: { type: String, required: true },
         type: { type: String, required: true },
         customLabel: String,
+        notes: String,
       },
     ],
     notableEvents: [
@@ -91,11 +123,22 @@ const ContactSchema = new Schema<IContact>(
         description: String,
       },
     ],
+    // Basic information fields
+    height: String,
+    eyeColor: String,
+    hairColor: String,
+    bodyType: String,
+    dressingStyle: String,
+    skinTone: String,
+    ethnicity: String,
+    facialFeatures: String,
+    distinguishingFeatures: String,
+    voice: String,
+    accent: String,
   },
   { timestamps: true }
 );
 
-// Create and export the model
-const Contact: Model<IContact> = models.Contact || model<IContact>('Contact', ContactSchema);
-
+// Use the recommended singleton pattern
+const Contact = mongoose.models.Contact || model<IContact>('Contact', ContactSchema);
 export default Contact; 

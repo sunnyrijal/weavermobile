@@ -14,6 +14,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -24,16 +25,20 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, University, Users, UploadCloud, MapPin, Home } from "lucide-react"; 
+import { CalendarIcon, University, Users, UploadCloud, MapPin, Home, Plus, X } from "lucide-react"; 
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format as formatDateFn } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import React, { useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react'; 
 import { useNavigation } from "react-day-picker";
 
 export const contactFormSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  name: z.string().optional(), // Make name optional since we're using separate fields
+  firstName: z.string().optional(),
+  middleName: z.string().optional(),
+  lastName: z.string().optional(),
+  preferredName: z.string().optional(),
   email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   phone: z.string().optional(),
   occupation: z.string().optional(),
@@ -53,6 +58,14 @@ export const contactFormSchema = z.object({
     `Invalid file type. Please upload an image (jpg, jpeg, png, gif, webp).`
   ),
   tags: z.string().optional(), 
+  gender: z.enum(["Male", "Female", "Other", ""]).optional(),
+  notes: z.string().optional(),
+}).refine((data) => {
+  // Require at least firstName or lastName to be filled
+  return (data.firstName && data.firstName.trim()) || (data.lastName && data.lastName.trim()) || (data.name && data.name.trim());
+}, {
+  message: "At least First Name or Last Name is required.",
+  path: ["firstName"] // This will show the error on the firstName field
 });
 
 
@@ -67,11 +80,24 @@ interface ContactFormProps {
 function CalendarCaption({ displayMonth, className }) {
   const { goToMonth } = useNavigation();
 
-  const months = Array.from({ length: 12 }, (_, i) =>
-    new Date(2000, i).toLocaleString(undefined, { month: "long" })
-  );
-  const years = [];
-  for (let y = 1900; y <= new Date().getFullYear(); y++) years.push(y);
+  // Add state for years and months
+  const [years, setYears] = useState<number[]>([]);
+  const [months, setMonths] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Only run on client
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const yearsArr: number[] = [];
+    for (let y = 1900; y <= currentYear; y++) yearsArr.push(y);
+    setYears(yearsArr);
+    const monthsArr: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      monthsArr.push(new Date(2000, i).toLocaleString(undefined, { month: "long" }));
+    }
+    setMonths(monthsArr);
+  }, []);
+
   return (
     <div className={`flex items-center gap-2 justify-center mb-2 ${className || ""}`}>
       <label className="sr-only" htmlFor="month-select">Month</label>
@@ -103,10 +129,21 @@ function CalendarCaption({ displayMonth, className }) {
 }
 
 export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoading = false }: ContactFormProps) {
+  const [relationships, setRelationships] = useState<Array<{
+    id: string;
+    type: string;
+    name: string;
+    notes?: string;
+  }>>([]);
+
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
     defaultValues: {
         name: '',
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        preferredName: '',
         email: '',
         phone: '',
         occupation: '',
@@ -120,6 +157,8 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         photoURL: '',
         photoFile: null,
         tags: '',
+        gender: '',
+        notes: '',
         ...defaultValues, 
       },
   });
@@ -128,6 +167,10 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
     if (defaultValues) {
       const resetValues: ContactFormValues = {
         name: defaultValues.name || '',
+        firstName: defaultValues.firstName || '',
+        middleName: defaultValues.middleName || '',
+        lastName: defaultValues.lastName || '',
+        preferredName: defaultValues.preferredName || '',
         email: defaultValues.email || '',
         phone: defaultValues.phone || '',
         occupation: defaultValues.occupation || '',
@@ -141,33 +184,102 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         photoURL: defaultValues.photoURL || '',
         photoFile: null, // File input should not be pre-filled with existing file objects for security/UX reasons
         tags: defaultValues.tags || '',
+        gender: defaultValues.gender || '',
+        notes: defaultValues.notes || '',
       };
       form.reset(resetValues);
     }
   }, [defaultValues, form.reset]);
 
 
+  const handleFormSubmit = async (values: ContactFormValues) => {
+    console.log('Form submitted with values:', values);
+    console.log('Relationships:', relationships);
+    
+    // Convert relationships to the format expected by the API
+    const relationshipsData = relationships
+      .filter(r => r.name.trim()) // Only include relationships with names
+      .map(r => ({
+        name: r.name.trim(),
+        type: r.type,
+        customLabel: r.notes || '',
+        notes: r.notes || ''
+      }));
+
+    console.log('Processed relationships:', relationshipsData);
+
+    // Call the original onSubmit with the form values and relationships
+    await onSubmit({
+      ...values,
+      relationships: relationshipsData
+    } as any);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
             <CardTitle>{isEditMode ? "Edit Contact" : "Add New Contact"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter contact's full name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter first name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter last name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="middleName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Middle Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter middle name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="preferredName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Nickname or preferred name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <FormField
@@ -418,6 +530,29 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gender</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Used for gendered relationship terms (e.g., Daughter/Son).</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -435,6 +570,131 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 </FormItem>
               )}
             />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <FormLabel className="text-base font-medium">Relationships</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newRelationship = {
+                      id: Date.now().toString(),
+                      type: 'Family',
+                      name: '',
+                      notes: ''
+                    };
+                    setRelationships([...relationships, newRelationship]);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Relationship
+                </Button>
+              </div>
+              
+              {relationships.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4 border-2 border-dashed rounded-lg">
+                  No relationships added yet. Click "Add Relationship" to get started.
+                </div>
+              )}
+              
+              {relationships.map((relationship, index) => (
+                <div key={relationship.id} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Relationship {index + 1}</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setRelationships(relationships.filter(r => r.id !== relationship.id));
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Type</Label>
+                      <Select
+                        value={relationship.type}
+                        onValueChange={(value) => {
+                          const updated = [...relationships];
+                          updated[index].type = value;
+                          setRelationships(updated);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Family">Family</SelectItem>
+                          <SelectItem value="Parent">Parent</SelectItem>
+                          <SelectItem value="Child">Child</SelectItem>
+                          <SelectItem value="Sibling">Sibling</SelectItem>
+                          <SelectItem value="Partner">Partner</SelectItem>
+                          <SelectItem value="Friend">Friend</SelectItem>
+                          <SelectItem value="Colleague">Colleague</SelectItem>
+                          <SelectItem value="Pet">Pet</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Name</Label>
+                      <Input
+                        placeholder="Enter name"
+                        value={relationship.name}
+                        onChange={(e) => {
+                          const updated = [...relationships];
+                          updated[index].name = e.target.value;
+                          setRelationships(updated);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Notes (optional)</Label>
+                    <Textarea
+                      placeholder="Add details about this relationship..."
+                      value={relationship.notes || ''}
+                      onChange={(e) => {
+                        const updated = [...relationships];
+                        updated[index].notes = e.target.value;
+                        setRelationships(updated);
+                      }}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Add any additional notes about this contact..." 
+                      className="min-h-[100px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Any additional information, memories, or details about this contact.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (isEditMode ? "Saving..." : "Adding...") : (isEditMode ? "Save Changes" : "Add Contact")}
             </Button>

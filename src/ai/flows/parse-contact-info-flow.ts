@@ -17,15 +17,15 @@ export type ParseContactInfoInput = z.infer<typeof ParseContactInfoInputSchema>;
 
 const ParseContactInfoOutputSchema = z.object({
   name: z.string().optional().describe("The contact's full name."),
-  email: z.string().email().optional().describe("The contact's email address."),
+  email: z.string().optional().describe("The contact's email address."),
   phone: z.string().optional().describe("The contact's phone number."),
   occupation: z.string().optional().describe("The contact's occupation."),
   company: z.string().optional().describe("The contact's company."),
   college: z.string().optional().describe("The contact's college or university."),
-  category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", "Pet", ""]).optional().describe("The contact's category. Choose from the provided list if a suitable one is mentioned, otherwise leave blank or use 'Other'."),
+  category: z.string().optional().describe("The contact's category. Choose from: Family, Friend, Colleague, Professional, Partner, Other, Pet."),
   hometown: z.string().optional().describe("The contact's city of origin or hometown (e.g., where they grew up)."),
   currentLocation: z.string().optional().describe("The contact's current city and state, or general current location."),
-  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("The contact's birthday in YYYY-MM-DD format. If the year is not mentioned, try to infer a reasonable one or leave it out."),
+  birthday: z.string().optional().describe("The contact's birthday in YYYY-MM-DD format. If the year is not mentioned, try to infer a reasonable one or leave it out."),
   tags: z.array(z.string()).optional().describe("A list of relevant tags based on the transcript (e.g., interests, skills, affiliations)."),
 });
 export type ParseContactInfoOutput = z.infer<typeof ParseContactInfoOutputSchema>;

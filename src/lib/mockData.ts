@@ -2,7 +2,7 @@
 import type { Contact } from '@/lib/types';
 
 // Helper to parse birthday strings like "Month Day (Age)" or "Age"
-const parseBirthday = (birthdayStr?: string, currentYear: number = 2024): string | undefined => {
+const parseBirthday = (birthdayStr?: string, currentYear: number = 2025): string | undefined => {
   if (!birthdayStr) return undefined;
 
   let year, month, day;

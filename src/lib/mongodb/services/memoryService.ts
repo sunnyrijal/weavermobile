@@ -1,6 +1,7 @@
 import { connectToDatabase } from '../config';
 import Memory, { IMemory } from '../models/Memory';
 import mongoose from 'mongoose';
+import JournalEntry from '../models/Journal';
 
 // Helper function to convert MongoDB document to plain object with id
 const convertDocumentToObject = (doc: IMemory): any => {
@@ -27,10 +28,9 @@ export class MemoryService {
    */
   static async getMemoriesByOwnerId(ownerId: string): Promise<IMemory[]> {
     await connectToDatabase();
-    const memories = await Memory.find({ ownerId }).sort({ timestamp: -1 });
+    const memories = await Memory.find({ ownerId }, null, { lean: true }).sort({ timestamp: -1 });
     
-    // Convert the MongoDB _id to id for the frontend
-    return memories.map(memory => convertDocumentToObject(memory));
+    return memories.map((memory: any) => ({ ...memory, id: memory._id.toString() }));
   }
 
   /**
@@ -38,12 +38,11 @@ export class MemoryService {
    */
   static async getMemoryById(id: string): Promise<IMemory | null> {
     await connectToDatabase();
-    const memory = await Memory.findById(id);
+    const memory = await Memory.findById(id, null, { lean: true });
     
     if (!memory) return null;
     
-    // Convert the MongoDB _id to id for the frontend
-    return convertDocumentToObject(memory);
+    return { ...memory, id: memory._id.toString() } as any;
   }
 
   /**
@@ -51,12 +50,11 @@ export class MemoryService {
    */
   static async updateMemory(id: string, memoryData: Partial<IMemory>): Promise<IMemory | null> {
     await connectToDatabase();
-    const memory = await Memory.findByIdAndUpdate(id, memoryData, { new: true });
+    const memory = await Memory.findByIdAndUpdate(id, memoryData, { new: true, lean: true });
     
     if (!memory) return null;
     
-    // Convert the MongoDB _id to id for the frontend
-    return convertDocumentToObject(memory);
+    return { ...memory, id: memory._id.toString() } as any;
   }
 
   /**
@@ -76,10 +74,9 @@ export class MemoryService {
     const memories = await Memory.find({
       ownerId,
       tags: tag
-    }).sort({ timestamp: -1 });
+    }, null, { lean: true }).sort({ timestamp: -1 });
     
-    // Convert the MongoDB _id to id for the frontend
-    return memories.map(memory => convertDocumentToObject(memory));
+    return memories.map((memory: any) => ({ ...memory, id: memory._id.toString() }));
   }
 
   /**
@@ -90,10 +87,9 @@ export class MemoryService {
     const memories = await Memory.find({
       ownerId,
       linkedContactIds: contactId
-    }).sort({ timestamp: -1 });
+    }, null, { lean: true }).sort({ timestamp: -1 });
     
-    // Convert the MongoDB _id to id for the frontend
-    return memories.map(memory => convertDocumentToObject(memory));
+    return memories.map((memory: any) => ({ ...memory, id: memory._id.toString() }));
   }
 
   /**
@@ -107,9 +103,12 @@ export class MemoryService {
         { summary: { $regex: searchTerm, $options: 'i' } },
         { transcript: { $regex: searchTerm, $options: 'i' } }
       ]
-    }).sort({ timestamp: -1 });
+    }, null, { lean: true }).sort({ timestamp: -1 });
+
+    return memories.map((memory: any) => ({ ...memory, id: memory._id.toString() }));
+  }
     
-    // Convert the MongoDB _id to id for the frontend
-    return memories.map(memory => convertDocumentToObject(memory));
+  static async createJournalEntry({ ownerId, content, timestamp, linkedContactIds, tags }) {
+    return await JournalEntry.create({ ownerId, content, timestamp, linkedContactIds, tags });
   }
 } 

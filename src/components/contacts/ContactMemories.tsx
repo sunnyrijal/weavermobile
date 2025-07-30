@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useMemories } from '@/hooks/useMemories';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Brain, Calendar, Tag, Trash2, Loader2 } from 'lucide-react';
+import { Brain, Calendar, Tag, Trash2, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,15 +11,18 @@ import ClientSideFormattedDate from '@/components/shared/ClientSideFormattedDate
 import { Memory } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { VoiceMemoryInputModal } from '@/components/memory/VoiceMemoryInputModal';
 
 interface ContactMemoriesProps {
   contactId: string;
+  contactName?: string;
 }
 
-export function ContactMemories({ contactId }: ContactMemoriesProps) {
+export function ContactMemories({ contactId, contactName }: ContactMemoriesProps) {
   const { getMemoriesByContactId, deleteMemory } = useMemories();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAddMemoryModalOpen, setIsAddMemoryModalOpen] = useState(false);
   const { toast } = useToast();
   const memoriesFetchedRef = useRef(false);
 
@@ -89,6 +92,19 @@ export function ContactMemories({ contactId }: ContactMemoriesProps) {
     }
   };
 
+  // Filter out non-memory entries (fact updates, birthdays, etc.)
+  const isRealMemory = (memory: Memory) => {
+    const summary = memory.summary.toLowerCase();
+    // Exclude if summary contains these keywords (expand as needed)
+    const factKeywords = [
+      'birthday', 'birth date', 'phone', 'email', 'address', 'number', 'contact info', 'born', 'lives at', 'lives in', 'from', 'hometown', 'current location', 'occupation', 'company', 'job', 'works at', 'nickname', 'notes', 'correction', 'update', 'is', 'has', 'her', 'his', 'their', 'actual', 'new', 'changed', 'records', 'contains', 'stores', 'mentions'
+    ];
+    // If summary contains any fact keyword, exclude it
+    return !factKeywords.some(keyword => summary.includes(keyword));
+  };
+
+  const filteredMemories = memories.filter(isRealMemory);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -102,13 +118,25 @@ export function ContactMemories({ contactId }: ContactMemoriesProps) {
             <CardContent>
               <Skeleton className="h-20 w-full" />
             </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+                  </Card>
+      ))}
+      
+      {/* Add Memory Modal */}
+      <VoiceMemoryInputModal
+        isOpen={isAddMemoryModalOpen}
+        onClose={() => setIsAddMemoryModalOpen(false)}
+        contactId={contactId}
+        contactName={contactName}
+        onMemorySaved={() => {
+          setIsAddMemoryModalOpen(false);
+          refreshMemories();
+        }}
+      />
+    </div>
+  );
+}
 
-  if (memories.length === 0) {
+  if (filteredMemories.length === 0) {
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Memories</h3>
@@ -117,8 +145,39 @@ export function ContactMemories({ contactId }: ContactMemoriesProps) {
             <Brain className="mx-auto h-8 w-8 mb-2 opacity-50" />
             <p>No memories associated with this contact yet.</p>
             <p className="text-sm">Use the memory button to create memories and link them to this contact.</p>
+            <div className="flex justify-center gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsAddMemoryModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Memory
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsAddMemoryModalOpen(true)}
+                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Shared Memory
+              </Button>
+            </div>
           </CardContent>
         </Card>
+        
+        {/* Add Memory Modal */}
+        <VoiceMemoryInputModal
+          isOpen={isAddMemoryModalOpen}
+          onClose={() => setIsAddMemoryModalOpen(false)}
+          contactId={contactId}
+          contactName={contactName}
+          onMemorySaved={() => {
+            setIsAddMemoryModalOpen(false);
+            refreshMemories();
+          }}
+        />
       </div>
     );
   }
@@ -127,16 +186,35 @@ export function ContactMemories({ contactId }: ContactMemoriesProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">Memories {memories.length > 0 ? `(${memories.length})` : ''}</h3>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={refreshMemories}
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setIsAddMemoryModalOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Memory
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setIsAddMemoryModalOpen(true)}
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Shared Memory
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={refreshMemories}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+          </Button>
+        </div>
       </div>
-      {memories.map(memory => (
+      {filteredMemories.map(memory => (
         <Card key={memory.id} className="group">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">

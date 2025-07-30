@@ -2,11 +2,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Users, PawPrint, Pencil, Plus, Trash2 } from "lucide-react";
-import React, { useState } from "react";
+import { Users, PawPrint, Pencil, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import React, { useState, useMemo } from "react";
 import RelationshipForm, { RelationshipType } from "./RelationshipForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useContacts } from "@/hooks/useContacts";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Relationship {
   relatedContactId?: string;
@@ -43,10 +44,81 @@ const RELATIONSHIP_COLORS: Record<string, string> = {
   Other: "bg-gray-100 text-gray-800",
 };
 
+// Group relationship types into categories - simplified for the new layout
+const RELATIONSHIP_CATEGORIES = {
+  "Family": ["Dad", "Mom", "Parent", "Father", "Mother", "Brother", "Sister", "Sibling"],
+  "Partner": ["Partner", "Spouse", "Husband", "Wife", "Boyfriend", "Girlfriend"],
+  "Pets": ["Pet", "Dog", "Cat"],
+  "Relatives": ["Cousin", "Uncle", "Aunt", "Grandparent", "Grandchild", "Niece", "Nephew"],
+  "Other": ["Other", "Acquaintance", "Neighbor", "Friend", "Best Friend", "Colleague", "Co-worker", "Manager", "Employee", "Boss"]
+};
+
 export default function ContactRelationships({ relationships, relatedContacts, contactName, editMode = false, contactsList = [], onChange }: ContactRelationshipsProps) {
+  console.log('🔍 ContactRelationships props:', { relationships, relatedContacts, contactName, editMode });
   const [showForm, setShowForm] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const { createBidirectionalRelationship } = useContacts({ initialLoad: false });
+
+  // Group relationships by category
+  const groupedRelationships = useMemo(() => {
+    console.log('🔍 Grouping relationships:', relationships);
+    const groups: Record<string, { relationships: Relationship[], count: number }> = {};
+    
+    relationships.forEach(rel => {
+      const relType = rel.customLabel || rel.type;
+      console.log('🔍 Processing relationship:', rel, 'type:', relType);
+      let category = "Other";
+      
+      // Find the category for this relationship type
+      for (const [cat, types] of Object.entries(RELATIONSHIP_CATEGORIES)) {
+        if (types.some(type => relType.toLowerCase().includes(type.toLowerCase()))) {
+          category = cat;
+          break;
+        }
+      }
+      
+      // Special handling for specific relationship types
+      if (relType.toLowerCase().includes('mom') || relType.toLowerCase().includes('mother') || 
+          relType.toLowerCase().includes('dad') || relType.toLowerCase().includes('father')) {
+        category = "Family";
+      } else if (relType.toLowerCase().includes('brother') || relType.toLowerCase().includes('sister')) {
+        category = "Family";
+      } else if (relType.toLowerCase().includes('girlfriend') || relType.toLowerCase().includes('boyfriend') || 
+                 relType.toLowerCase().includes('partner') || relType.toLowerCase().includes('spouse')) {
+        category = "Partner";
+      } else if (relType.toLowerCase().includes('pet') || relType.toLowerCase().includes('dog') || 
+                 relType.toLowerCase().includes('cat')) {
+        category = "Pets";
+      } else if (relType.toLowerCase().includes('uncle') || relType.toLowerCase().includes('aunt') || 
+                 relType.toLowerCase().includes('cousin') || relType.toLowerCase().includes('grandparent')) {
+        category = "Relatives";
+      }
+      
+      console.log('🔍 Categorized as:', category);
+      
+      if (!groups[category]) {
+        groups[category] = { relationships: [], count: 0 };
+      }
+      groups[category].relationships.push(rel);
+      groups[category].count++;
+    });
+    
+    console.log('🔍 Final grouped relationships:', groups);
+    return groups;
+  }, [relationships]);
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
 
   const handleAdd = async (data: any) => {
     setShowForm(false);
@@ -57,7 +129,7 @@ export default function ContactRelationships({ relationships, relatedContacts, c
         // If the contactId isn't available directly (common in the edit page scenario)
         // we need to find it from the parent component's context
         // The assumption is that we're editing a specific contact's relationships
-        const contactResponse = await fetch(`/api/contacts?name=${encodeURIComponent(contactName)}`);
+        const contactResponse = await fetch(`/api/contacts?name=${encodeURIComponent(contactName)}&ownerId=user1`);
         if (contactResponse.ok) {
           const contactData = await contactResponse.json();
           if (contactData.contacts && contactData.contacts.length > 0) {
@@ -104,7 +176,7 @@ export default function ContactRelationships({ relationships, relatedContacts, c
           currentRel.type !== data.type) {
         try {
           // Same logic as handleAdd to find the contactId
-          const contactResponse = await fetch(`/api/contacts?name=${encodeURIComponent(contactName)}`);
+          const contactResponse = await fetch(`/api/contacts?name=${encodeURIComponent(contactName)}&ownerId=user1`);
           if (contactResponse.ok) {
             const contactData = await contactResponse.json();
             if (contactData.contacts && contactData.contacts.length > 0) {
@@ -163,12 +235,29 @@ export default function ContactRelationships({ relationships, relatedContacts, c
       </div>
     );
   }
+
   return (
-    <div>
+    <div className="space-y-4">
+      {/* Header - matches the design exactly */}
+      <div className="flex items-center gap-3 p-4 bg-card rounded-lg border">
+        <Avatar className="w-12 h-12 bg-orange-600">
+          <AvatarFallback className="text-white font-semibold text-lg">
+            {contactName.split(' ').map(n => n[0]).join('').toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="text-sm text-muted-foreground">Showing relations for</p>
+          <p className="font-semibold text-lg">{contactName}</p>
+        </div>
+      </div>
+
+      {/* Add Relationship Button */}
       {editMode && (
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="mb-4" onClick={() => setShowForm(true)}><Plus className="mr-2 h-4 w-4" /> Add Relationship</Button>
+            <Button variant="outline" className="w-full" onClick={() => setShowForm(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Relationship
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -178,65 +267,101 @@ export default function ContactRelationships({ relationships, relatedContacts, c
           </DialogContent>
         </Dialog>
       )}
-      <ul className="space-y-2 sm:space-y-3">
-        {relationships.map((rel, idx) => {
-          const related = rel.relatedContactId ? relatedContacts[rel.relatedContactId] : undefined;
-          const isPet = related?.category === "Pet" || rel.type === "Pet";
-          const relType = rel.customLabel || rel.type;
+
+      {/* Categorized Relationships - New simplified layout */}
+      <div className="space-y-2">
+        {Object.entries(groupedRelationships).map(([category, { relationships: categoryRelationships, count }]) => {
+          const isExpanded = expandedCategories.has(category);
+          
           return (
-            <li key={(rel.relatedContactId || rel.name || "") + idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted/50 gap-2 sm:gap-0">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10">
-                  {isPet ? (
-                    <PawPrint className="w-6 h-6 text-yellow-700 mx-auto my-auto" />
-                  ) : related?.photoURL ? (
-                    <AvatarImage src={related.photoURL} alt={related.name} />
-                  ) : (
-                    <AvatarFallback>{related?.name ? related.name[0] : rel.name ? rel.name[0] : "?"}</AvatarFallback>
-                  )}
-                </Avatar>
-                <div>
-                  <div className="font-medium text-sm">
-                    {related?.name || 
-                     rel.name || 
-                     (rel.customLabel ? `${rel.customLabel}` : (rel.type === "Pet" ? "Pet" : "Unknown contact"))}
-                  </div>
-                  <Badge className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${RELATIONSHIP_COLORS[relType] || RELATIONSHIP_COLORS.Other}`}>{relType}</Badge>
-                  {rel.notes && <div className="text-xs text-muted-foreground mt-1">{rel.notes}</div>}
+            <div key={category} className="border rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleCategory(category)}
+                className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors bg-background"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{category}</span>
+                  <span className="text-sm text-muted-foreground">({count})</span>
                 </div>
-              </div>
-              <div className="flex gap-2 items-center mt-2 sm:mt-0">
-                {related?.id && (
-                  <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto text-xs sm:text-sm h-7 sm:h-8">
-                    <Link href={`/contacts/${related.id}`}>View Profile</Link>
-                  </Button>
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
-                {editMode && (
-                  <>
-                    <Dialog open={editIdx === idx} onOpenChange={open => setEditIdx(open ? idx : null)}>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setEditIdx(idx)}><Pencil className="w-4 h-4 mr-1" /> Edit</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Edit Relationship</DialogTitle>
-                        </DialogHeader>
-                        <RelationshipForm
-                          contacts={contactsList}
-                          initial={rel}
-                          onSave={data => handleEdit(idx, data)}
-                          onCancel={() => setEditIdx(null)}
-                        />
-                      </DialogContent>
-                    </Dialog>
-                    <Button variant="ghost" size="sm" className="text-xs h-7 text-destructive" onClick={() => handleRemove(idx)}><Trash2 className="w-4 h-4 mr-1" /> Remove</Button>
-                  </>
-                )}
-              </div>
-            </li>
+              </button>
+              
+              {isExpanded && (
+                <div className="border-t bg-muted/20">
+                  {categoryRelationships.map((rel, idx) => {
+                    const related = rel.relatedContactId ? relatedContacts[rel.relatedContactId] : undefined;
+                    const isPet = related?.category === "Pet" || rel.type === "Pet";
+                    const relType = rel.customLabel || rel.type;
+                    const displayName = related?.name || rel.name || "Unknown contact";
+                    
+                    return (
+                      <div key={(rel.relatedContactId || rel.name || "") + idx} className="flex items-center justify-between p-3 hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-8 h-8 bg-orange-600">
+                            {isPet ? (
+                              <PawPrint className="w-4 h-4 text-white mx-auto my-auto" />
+                            ) : related?.photoURL ? (
+                              <AvatarImage src={related.photoURL} alt={displayName} />
+                            ) : (
+                              <AvatarFallback className="text-white font-semibold text-sm">
+                                {displayName[0] || "?"}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <div>
+                            <div className="font-medium text-sm">
+                              {displayName}
+                              {relType && relType !== displayName && (
+                                <span className="text-muted-foreground ml-2">({relType})</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 items-center">
+                          {related?.id && (
+                            <Button variant="ghost" size="sm" asChild className="h-6 px-2 text-xs">
+                              <Link href={`/contacts/${related.id}`}>View</Link>
+                            </Button>
+                          )}
+                          {editMode && (
+                            <>
+                              <Dialog open={editIdx === idx} onOpenChange={open => setEditIdx(open ? idx : null)}>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditIdx(idx)}>
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Edit Relationship</DialogTitle>
+                                  </DialogHeader>
+                                  <RelationshipForm
+                                    contacts={contactsList}
+                                    initial={rel}
+                                    onSave={data => handleEdit(idx, data)}
+                                    onCancel={() => setEditIdx(null)}
+                                  />
+                                </DialogContent>
+                              </Dialog>
+                              <Button variant="ghost" size="sm" className="text-destructive h-6 w-6 p-0" onClick={() => handleRemove(idx)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 } 
