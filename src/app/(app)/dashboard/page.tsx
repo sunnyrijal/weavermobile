@@ -845,12 +845,9 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-accent/5">
           <CardHeader className="text-center pb-4">
-            <div className="flex items-center justify-center mb-2">
-              <Brain className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Your AI Relationship Assistant</CardTitle>
-            <CardDescription className="text-base">
-              Ask anything about your network. Try "When is Sarah's birthday?" or "Who do I know in Seattle?"
+            <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold whitespace-nowrap">Your AI Relationship Assistant</CardTitle>
+            <CardDescription className="text-sm sm:text-base mt-2">
+              Ask anything about your network.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -863,7 +860,7 @@ export default function DashboardPage() {
                 onChange={(e) => setAiQuestionText(e.target.value)}
                 onKeyDown={handleAiQuestionKeyDown}
                 disabled={isLoadingAiAnswer || isListeningToQuestion}
-                className="pl-12 pr-20 py-4 text-lg border-2 focus:border-primary"
+                className="pl-12 pr-20 py-3 md:py-4 text-base md:text-lg border-2 focus:border-primary"
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
                 <Button
@@ -888,7 +885,32 @@ export default function DashboardPage() {
             </div>
             
             {/* Smart Suggestions */}
-            <div className="flex flex-wrap gap-2 justify-center">
+            {/* Mobile: exactly two chips, compact single row */}
+            <div className="flex gap-2 justify-center md:hidden flex-nowrap overflow-x-auto no-scrollbar">
+              {[
+                "When is Sarah's birthday?",
+                "Who do I know in Seattle?",
+                "Show me my close friends",
+                "Recent interactions"
+              ]
+                .slice(0, 2)
+                .map((suggestion, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setAiQuestionText(suggestion);
+                    processAiQuestion(suggestion);
+                  }}
+                  className="text-[11px] px-2 py-1 whitespace-nowrap rounded-full"
+                >
+                  {suggestion}
+                </Button>
+              ))}
+            </div>
+            {/* Desktop/Tablet: show all chips */}
+            <div className="hidden md:flex flex-wrap gap-2 justify-center">
               {[
                 "When is Sarah's birthday?",
                 "Who do I know in Seattle?",
@@ -901,7 +923,7 @@ export default function DashboardPage() {
                   size="sm"
                   onClick={() => {
                     setAiQuestionText(suggestion);
-                    processAiQuestion(suggestion); // Immediately trigger answer
+                    processAiQuestion(suggestion);
                   }}
                   className="text-xs"
                 >
@@ -947,56 +969,56 @@ export default function DashboardPage() {
         <div
           className={
             cn(
-              "grid gap-4 w-full",
-              isMobile ? "grid-cols-2" : "grid-cols-4"
+              "grid w-full",
+              isMobile ? "grid-cols-4 gap-2" : "grid-cols-4 gap-4"
             )
           }
         >
           <Link href="/contacts" className="block">
             <Card className={cn(
               "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
-              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+              isMobile ? "py-2 px-1 h-20" : "py-6 px-4 h-36"
             )}>
-              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
-                <UsersRound className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
-                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{contacts.length}</p>
-                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Total Contacts</p>
+              <CardContent className="flex flex-col items-center justify-center gap-0.5 p-0">
+                <UsersRound className={isMobile ? "h-4 w-4 mb-0.5" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>{contacts.length}</p>
+                <p className={isMobile ? "text-[10px] leading-tight" : "text-sm text-muted-foreground"}>Total Contacts</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/journal" className="block">
             <Card className={cn(
               "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
-              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+              isMobile ? "py-2 px-1 h-20" : "py-6 px-4 h-36"
             )}>
-              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
-                <BookOpen className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
-                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{journalCount}</p>
-                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Journal</p>
+              <CardContent className="flex flex-col items-center justify-center gap-0.5 p-0">
+                <BookOpen className={isMobile ? "h-4 w-4 mb-0.5" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>{journalCount}</p>
+                <p className={isMobile ? "text-[10px] leading-tight" : "text-sm text-muted-foreground"}>Journal</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/updates" className="block">
             <Card className={cn(
               "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
-              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+              isMobile ? "py-2 px-1 h-20" : "py-6 px-4 h-36"
             )}>
-              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
-                <TrendingUp className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
-                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{recentUpdates.length}</p>
-                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Updates</p>
+              <CardContent className="flex flex-col items-center justify-center gap-0.5 p-0">
+                <TrendingUp className={isMobile ? "h-4 w-4 mb-0.5" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>{recentUpdates.length}</p>
+                <p className={isMobile ? "text-[10px] leading-tight" : "text-sm text-muted-foreground"}>Updates</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/realmap" className="block">
             <Card className={cn(
               "shadow-md hover:shadow-lg transition-shadow cursor-pointer flex flex-col items-center justify-center",
-              isMobile ? "py-3 px-2 h-28" : "py-6 px-4 h-36"
+              isMobile ? "py-2 px-1 h-20" : "py-6 px-4 h-36"
             )}>
-              <CardContent className="flex flex-col items-center justify-center gap-1 p-0">
-                <MapPin className={isMobile ? "h-6 w-6 mb-1" : "h-8 w-8 mb-2"} />
-                <p className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>{contactsNearYou.length}</p>
-                <p className={isMobile ? "text-xs" : "text-sm text-muted-foreground"}>Near You</p>
+              <CardContent className="flex flex-col items-center justify-center gap-0.5 p-0">
+                <MapPin className={isMobile ? "h-4 w-4 mb-0.5" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>{contactsNearYou.length}</p>
+                <p className={isMobile ? "text-[10px] leading-tight" : "text-sm text-muted-foreground"}>Near You</p>
               </CardContent>
             </Card>
           </Link>
@@ -1057,10 +1079,9 @@ export default function DashboardPage() {
                 )}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <CalendarDays className="mx-auto h-12 w-12 mb-4" />
-                <p className="text-lg font-medium">No upcoming events</p>
-                <p>Add birthdays and notable events to your contacts to see them here.</p>
+              <div className="text-center py-4 text-muted-foreground">
+                <CalendarDays className="mx-auto h-8 w-8 mb-2" />
+                <p className="text-sm font-medium">No upcoming events</p>
               </div>
             )}
           </CardContent>
@@ -1069,17 +1090,31 @@ export default function DashboardPage() {
         {/* Contact Browsing Section */}
         <Card className="shadow-lg">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
+            <div className="flex flex-row justify-between items-center gap-3">
+              <div className="min-w-0">
                 <CardTitle className="text-xl flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
                   Your Network
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="hidden sm:block">
                   Browse and manage your contacts with AI-powered insights
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2">
+              {/* Mobile: icon-only actions */}
+              <div className="flex sm:hidden items-center gap-2">
+                <Button variant="outline" size="icon" className="h-8 w-8" asChild>
+                  <Link href="/contacts/new">
+                    <PlusCircle className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="icon" className="h-8 w-8" asChild>
+                  <Link href="/import">
+                    <UploadCloud className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+              {/* Desktop/Tablet: text buttons */}
+              <div className="hidden sm:flex items-center gap-2">
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/contacts/new">
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -1117,8 +1152,8 @@ export default function DashboardPage() {
               </Button>
             </div>
             
-            {/* View Controls */}
-            <div className="flex items-center justify-between">
+            {/* View Controls (hidden on mobile) */}
+            <div className="hidden md:flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Button 
                   variant={viewMode === 'grid' ? 'default' : 'outline'} 
@@ -1158,9 +1193,11 @@ export default function DashboardPage() {
         </Card>
         
         <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-3 md:grid-cols-6 mb-4">
+          <TabsList className="w-full mb-4 flex gap-2 overflow-x-auto md:grid md:grid-cols-6">
             {filterCategories.map(category => (
-              <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+              <TabsTrigger key={category} value={category} className="whitespace-nowrap px-3 py-1 text-sm">
+                {category}
+              </TabsTrigger>
             ))}
           </TabsList>
 

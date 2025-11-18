@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronRight, Plus, Users, Edit, UserCog, Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ChevronDown, ChevronRight, Plus, Users, Edit, UserCog, Loader2, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Contact } from '@/lib/types';
 
@@ -87,6 +88,7 @@ export default function RelationshipMapPage() {
   const { contacts, isLoading, error } = useContacts();
   const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Partner', 'Family']));
+  const [open, setOpen] = useState(false);
 
   // Set default selected contact
   React.useEffect(() => {
@@ -224,21 +226,63 @@ export default function RelationshipMapPage() {
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
             <label className="text-sm font-medium">View relationships for:</label>
-            <Select value={selectedContactId} onValueChange={setSelectedContactId}>
-              <SelectTrigger className="w-[300px]">
-                <SelectValue placeholder="Select a contact" />
-              </SelectTrigger>
-              <SelectContent>
-                {contacts.map(contact => (
-                  <SelectItem key={contact.id} value={contact.id}>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-[300px] justify-between"
+                >
+                  {selectedContact ? (
                     <div className="flex items-center gap-2">
                       <UserCog className="h-4 w-4 text-muted-foreground" />
-                      {contact.name}
+                      <span className="truncate">{selectedContact.name}</span>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  ) : (
+                    <span className="text-muted-foreground">Select a contact...</span>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command shouldFilter={true}>
+                  <CommandInput 
+                    placeholder="Type to search contacts..." 
+                  />
+                  <CommandList>
+                    <CommandEmpty>No contacts found.</CommandEmpty>
+                    <CommandGroup>
+                      {contacts.map((contact) => (
+                        <CommandItem
+                          key={contact.id}
+                          value={`${contact.name} ${contact.nickname || ''} ${contact.email || ''} ${contact.occupation || ''} ${contact.company || ''}`}
+                          onSelect={() => {
+                            setSelectedContactId(contact.id);
+                            setOpen(false);
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedContactId === contact.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <UserCog className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate">{contact.name}</span>
+                            {contact.nickname && (
+                              <span className="text-xs text-muted-foreground truncate">({contact.nickname})</span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>

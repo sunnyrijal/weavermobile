@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A Genkit flow to process voice transcripts, extract key entities,
+ * @fileOverview A service to process voice transcripts, extract key entities,
  * and summarize the content as a memory.
  *
  * - processVoiceInput - A function that takes a voice transcript and returns a summary and extracted entities.
@@ -9,7 +9,7 @@
  * - ExtractedEntities - The type for entities extracted from the transcript.
  */
 
-import { ai } from '@/ai/genkit';
+import { GoogleGenAI, Type } from "@google/genai";
 import { z } from 'zod';
 
 const ExtractedEntitiesSchema = z.object({
@@ -33,21 +33,19 @@ const ProcessVoiceInputInputSchema = z.object({
 });
 export type ProcessVoiceInputInput = z.infer<typeof ProcessVoiceInputInputSchema>;
 
-export async function processVoiceInput(input: ProcessVoiceInputInput): Promise<ProcessVoiceInputOutput> {
-  return processVoiceInputFlow(input);
-}
+// Initialize Google GenAI
+const getGeminiAI = () => {
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required');
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
-const processVoiceInputPrompt = ai.definePrompt({
-  name: 'processVoiceInputPrompt',
-  input: { schema: ProcessVoiceInputInputSchema },
-  output: { schema: ProcessVoiceInputOutputSchema },
-  prompt: `You are an intelligent assistant for NetworkNest, a personal relationship management app.
+const systemInstruction = `You are an intelligent assistant for NetworkNest, a personal relationship management app.
 Your task is to analyze the following memory transcript.
 1. **MANDATORY**: Provide a concise summary of the memory.
 2. Extract key entities from the transcript with as much detail as possible.
-
-Transcript:
-"{{{transcript}}}"
 
 **CRITICAL REQUIREMENTS:**
 1. **SUMMARY IS MANDATORY**: You MUST include a "summary" field with a concise summary of the memory
@@ -88,56 +86,166 @@ Try to extract as much information as possible about each person mentioned, incl
 - Where they work or go to school
 - Any other significant details
 
-Example:
-Transcript: "I met Jake, my freshman year of college. Same dorm building (pittman), he is from Kansas, but now lives in Minneapolis. He took accounting and is CPA now. His full name Jacob Lucas. His girlfriend Sydney. brother Marty Lucas. Plays tennis. birthday feb 25. he is 23 yrs old."
-
-Expected Output (example format):
-{
-  "summary": "The memory describes meeting Jacob Lucas (nickname Jake) in freshman year of college. He's from Kansas but now lives in Minneapolis, works as a CPA after studying accounting. He has a girlfriend named Sydney and a brother named Marty Lucas. He plays tennis and his birthday is February 25th, age 23.",
-  "extractedEntities": {
-    "people": ["Jacob Lucas", "Sydney", "Marty Lucas"],
-    "organizations": ["college"],
-    "relationships": ["roommate in freshman year of college", "girlfriend Sydney", "brother Marty Lucas"],
-    "dates": ["2001-02-25"],
-    "locations": ["Kansas", "Minneapolis"],
-    "keyEvents": ["took accounting", "is CPA now", "plays tennis"]
-  }
-}
-
 **MANDATORY OUTPUT FORMAT:**
 - You MUST include a "summary" field
 - You MUST remove all duplicates from all arrays
-- You MUST return valid JSON matching the schema exactly
+- You MUST return valid JSON matching the schema exactly`;
 
-Provide the output as a JSON object matching the defined output schema.
-`,
-});
-
-const processVoiceInputFlow = ai.defineFlow(
-  {
-    name: 'processVoiceInputFlow',
-    inputSchema: ProcessVoiceInputInputSchema,
-    outputSchema: ProcessVoiceInputOutputSchema,
-  },
-  async (input) => {
-    const { output } = await processVoiceInputPrompt(input);
-    if (!output) {
-      throw new Error("AI failed to process voice input.");
+const responseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: {
+      type: Type.STRING,
+      description: 'A concise summary of the memory provided in the transcript.'
+    },
+    extractedEntities: {
+      type: Type.OBJECT,
+      properties: {
+        people: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: 'List of names of individuals mentioned. Include full names if available.'
+        },
+        organizations: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: 'List of names of companies, schools, or other organizations mentioned.'
+        },
+        relationships: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: 'List of phrases describing relationships.'
+        },
+        dates: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: 'List of specific or relative dates mentioned. Format specific dates as YYYY-MM-DD if possible.'
+        },
+        locations: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: 'List of geographical places, addresses, or significant locations.'
+        },
+        keyEvents: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: 'List of significant happenings, life events, or activities.'
+        }
+      },
+      required: []
     }
+  },
+  required: ['summary', 'extractedEntities']
+};
 
-    // Post-process to ensure clean data
-    const cleanedOutput = {
-      summary: output.summary || `Memory about: ${input.transcript.slice(0, 100)}...`,
+/**
+ * Fallback parser using regex patterns when Gemini API is not available
+ */
+function fallbackProcessVoiceInput(transcript: string): ProcessVoiceInputOutput {
+  console.log('🔄 Using fallback regex-based entity extraction');
+  
+  // Extract people names
+  const fullNamePattern = /\b([A-Z][a-z]+ [A-Z][a-z]+)\b/g;
+  const people = [...new Set(Array.from(transcript.matchAll(fullNamePattern), match => match[1]))];
+  
+  // Extract organizations
+  const orgPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inc|Corp|LLC|University|College|School|Company|Corporation|Tech|Technologies|Systems|Solutions))\b/gi;
+  const organizations = [...new Set(Array.from(transcript.matchAll(orgPattern), match => match[1]))];
+  
+  // Extract locations
+  const locationPattern = /\b([A-Z][a-z]+(?:,\s*[A-Z][a-z]+)?)\b/g;
+  const locations = [...new Set(Array.from(transcript.matchAll(locationPattern), match => match[1])
+    .filter(loc => loc.length > 2 && !people.includes(loc)))];
+  
+  // Extract dates (simple patterns)
+  const datePattern = /\b(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}|yesterday|today|tomorrow|last week|next week)\b/gi;
+  const dates = [...new Set(Array.from(transcript.matchAll(datePattern), match => match[1]))];
+  
+  // Extract relationships (simple patterns)
+  const relationshipPattern = /\b(\w+'s\s+(?:mother|father|brother|sister|son|daughter|wife|husband|partner|friend|colleague)|(?:mother|father|brother|sister|son|daughter|wife|husband|partner|friend|colleague)\s+of\s+\w+)\b/gi;
+  const relationships = [...new Set(Array.from(transcript.matchAll(relationshipPattern), match => match[1]))];
+  
+  // Extract key events (simple patterns)
+  const eventPattern = /\b(?:went to|visited|met|had|got|moved to|started|finished|completed|attended|joined|left|graduated from)\s+[^.]+/gi;
+  const keyEvents = [...new Set(Array.from(transcript.matchAll(eventPattern), match => match[0].trim()))];
+  
+  return {
+    summary: `Memory: ${transcript.substring(0, 200)}${transcript.length > 200 ? '...' : ''}`,
+    extractedEntities: {
+      people,
+      organizations,
+      relationships,
+      dates,
+      locations,
+      keyEvents
+    }
+  };
+}
+
+export async function processVoiceInput(input: ProcessVoiceInputInput): Promise<ProcessVoiceInputOutput> {
+  try {
+    const ai = getGeminiAI();
+    
+    const prompt = `Analyze the following memory transcript and extract entities:
+
+Transcript:
+"${input.transcript}"
+
+Provide a summary and extract all entities as specified.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+      },
+    });
+
+    const jsonText = response.text.trim();
+    const parsedOutput = JSON.parse(jsonText) as ProcessVoiceInputOutput;
+
+    // Post-process to ensure clean data and remove duplicates
+    const cleanedOutput: ProcessVoiceInputOutput = {
+      summary: parsedOutput.summary || `Memory about: ${input.transcript.slice(0, 100)}...`,
       extractedEntities: {
-        people: [...new Set(output.extractedEntities?.people || [])],
-        organizations: [...new Set(output.extractedEntities?.organizations || [])],
-        relationships: [...new Set(output.extractedEntities?.relationships || [])],
-        dates: [...new Set(output.extractedEntities?.dates || [])],
-        locations: [...new Set(output.extractedEntities?.locations || [])],
-        keyEvents: [...new Set(output.extractedEntities?.keyEvents || [])]
+        people: [...new Set(parsedOutput.extractedEntities?.people || [])],
+        organizations: [...new Set(parsedOutput.extractedEntities?.organizations || [])],
+        relationships: [...new Set(parsedOutput.extractedEntities?.relationships || [])],
+        dates: [...new Set(parsedOutput.extractedEntities?.dates || [])],
+        locations: [...new Set(parsedOutput.extractedEntities?.locations || [])],
+        keyEvents: [...new Set(parsedOutput.extractedEntities?.keyEvents || [])]
       }
     };
 
     return cleanedOutput;
+  } catch (error) {
+    console.error("Error processing voice input:", error);
+    
+    // Check if it's an API disabled error
+    if (error instanceof Error) {
+      const errorMessage = error.message || '';
+      const errorString = JSON.stringify(error) || '';
+      
+      if (errorMessage.includes('SERVICE_DISABLED') || 
+          errorMessage.includes('Generative Language API') ||
+          errorMessage.includes('403 Forbidden') ||
+          errorString.includes('SERVICE_DISABLED')) {
+        console.warn('⚠️ Generative Language API is not enabled. Using fallback parser.');
+        console.warn('📝 To enable the API, visit: https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview?project=362815930485');
+        // Use fallback parser instead of throwing error
+        return fallbackProcessVoiceInput(input.transcript);
+      }
+      
+      if (errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID')) {
+        console.warn('⚠️ Invalid API key. Using fallback parser.');
+        return fallbackProcessVoiceInput(input.transcript);
+      }
+    }
+    
+    // For other errors, use fallback parser
+    console.warn('⚠️ Gemini API error, using fallback parser:', error);
+    return fallbackProcessVoiceInput(input.transcript);
   }
-);
+}

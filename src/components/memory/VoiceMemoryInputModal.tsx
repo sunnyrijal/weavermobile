@@ -582,46 +582,68 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
             processingTime: enhancedResult.processingTime
           });
           console.log('✅ Gemini CLI parsing successful:', geminiCliResult);
-          console.log('📊 Gemini CLI contacts:', geminiCliResult.contacts);
+          console.log('📊 Gemini CLI contacts (before filtering):', geminiCliResult.contacts);
           setIsUsingGeminiCli(true);
           
-          // Extract people from Gemini CLI results
+          // Filter contacts immediately after API call
           if (geminiCliResult.contacts && geminiCliResult.contacts.length > 0) {
-            const extractedPeople = geminiCliResult.contacts.map((contact: any) => contact.name);
-            console.log('📋 People extracted via Gemini CLI:', extractedPeople);
+            const originalCount = geminiCliResult.contacts.length;
             
-            // Store Gemini CLI contacts for later creation (when Save Memory is clicked)
-            console.log('🔍 Storing Gemini CLI contacts:', geminiCliResult.contacts);
-            console.log('🔍 Detailed contact data:');
-            geminiCliResult.contacts.forEach((contact, index) => {
-              console.log(`  Contact ${index}:`, {
-                name: contact.name,
-                nickname: contact.nickname,
-                notes: contact.notes,
-                interests: contact.interests
-              });
-            });
-            
-            // Filter out non-person entities and deduplicate
+            // Filter out non-person entities
             const nonPersonEntities = [
               'Comp Sci', 'Computer Science', 'Mankato University', 'Gustavus Alumni', 
               'Gustavus Adolphus', 'University', 'College', 'Major', 'Home', 'Minnesota',
-              'Faribault', 'Currently', 'Goes', 'To', 'Also', 'Age', 'Year', 'Freshman'
+              'Faribault', 'Currently', 'Goes', 'To', 'Also', 'Age', 'Year', 'Freshman',
+              'Comp', 'Sci', 'Gustavus', 'Alumni', 'Mankato', 'University', 'Currently',
+              'Minnesota', 'Faribault', 'Home'
             ];
             
             const filteredContacts = geminiCliResult.contacts.filter((contact: any) => {
               const name = contact.name || '';
-              return !nonPersonEntities.some(entity => 
-                name.toLowerCase().includes(entity.toLowerCase())
-              );
+              // Filter out non-person entities
+              if (nonPersonEntities.some(entity => name.toLowerCase() === entity.toLowerCase())) {
+                return false;
+              }
+              // Filter out if name contains non-person keywords
+              if (nonPersonEntities.some(entity => name.toLowerCase().includes(entity.toLowerCase()) && name.length <= entity.length + 5)) {
+                return false;
+              }
+              // Filter out organization patterns
+              if (/\b(University|College|School|Alumni|Inc|Corp|LLC)\b/i.test(name)) {
+                return false;
+              }
+              // Filter out single words that are too short or common
+              if (name.split(' ').length === 1 && name.length < 4) {
+                return false;
+              }
+              // Must have at least first and last name (two words)
+              if (name.split(' ').filter(w => w.length > 0).length < 2) {
+                return false;
+              }
+              return true;
             });
             
-            // Deduplicate by name
-            const uniqueContacts = filteredContacts.filter((contact: any, index: number, self: any[]) => 
-              index === self.findIndex((c: any) => c.name === contact.name)
-            );
+            // Deduplicate by name (case insensitive)
+            const uniqueContacts = filteredContacts.filter((contact: any, index: number, self: any[]) => {
+              const currentName = contact.name.toLowerCase().trim();
+              const firstIndex = self.findIndex((c: any) => c.name.toLowerCase().trim() === currentName);
+              return index === firstIndex;
+            });
             
-            console.log('🔍 Filtered and deduplicated contacts for storage:', uniqueContacts);
+            // Update geminiCliResult with filtered contacts for use in summary generation
+            geminiCliResult.contacts = uniqueContacts;
+            
+            console.log('🔍 Filtered contacts:', {
+              original: originalCount,
+              filtered: uniqueContacts.length,
+              removed: originalCount - uniqueContacts.length
+            });
+            
+            const extractedPeople = uniqueContacts.map((contact: any) => contact.name);
+            console.log('📋 People extracted via Gemini CLI (after filtering):', extractedPeople);
+
+            // Store filtered Gemini CLI contacts for later creation (when Save Memory is clicked)
+            console.log('🔍 Storing filtered Gemini CLI contacts:', uniqueContacts);
             setPendingGeminiCliContacts(uniqueContacts);
             console.log('🔍 Set pendingGeminiCliContacts to:', uniqueContacts);
             
@@ -635,9 +657,9 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
             // Find contact matches for existing contacts and show them
             findContactMatches(extractedPeople);
             
-            // Also check if any of the Gemini CLI contacts match existing contacts
+            // Also check if any of the filtered Gemini CLI contacts match existing contacts
             const existingMatches = [];
-            geminiCliResult.contacts.forEach((contact: any) => {
+            uniqueContacts.forEach((contact: any) => {
               console.log(`🔍 Checking if "${contact.name}" matches existing contacts...`);
               const matches = findPotentialContactMatches(contact.name, contacts, 0.5);
               console.log(`🔍 Found ${matches.length} matches for "${contact.name}":`, matches);
@@ -655,10 +677,10 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
             
             toast({
               title: "Contacts Detected",
-              description: `${geminiCliResult.contacts.length} new contacts will be created when you save the memory.`
+              description: `${uniqueContacts.length} new contact${uniqueContacts.length !== 1 ? 's' : ''} will be created when you save the memory.`
             });
             
-            console.log('📋 Contacts stored for later creation:', geminiCliResult.contacts);
+            console.log('📋 Contacts stored for later creation:', uniqueContacts);
           } else {
             console.log('⚠️ Gemini CLI returned no contacts');
             setIsUsingGeminiCli(false);
@@ -738,34 +760,51 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       console.log('🔍 geminiCliResult.contacts?.length:', geminiCliResult?.contacts?.length);
       
       if (geminiCliResult && geminiCliResult.contacts && geminiCliResult.contacts.length > 0) {
-        // Create a result object from Gemini CLI data with detailed information
-        console.log('🎯 Creating result from Gemini CLI data with', geminiCliResult.contacts.length, 'contacts');
+        // Contacts are already filtered above, use them directly
+        const uniqueContacts = geminiCliResult.contacts;
         
-        // Generate a more detailed summary based on the extracted contacts
-        const contactDetails = geminiCliResult.contacts.map((contact: any) => {
+        console.log('🎯 Creating result from Gemini CLI data');
+        console.log('  - Filtered contacts:', uniqueContacts.length);
+        
+        // Generate a more detailed summary based on the FILTERED contacts
+        const contactDetails = uniqueContacts.map((contact: any) => {
           let details = contact.name;
           if (contact.nickname) details += ` (${contact.nickname})`;
           if (contact.occupation) details += ` - ${contact.occupation}`;
           if (contact.college) details += ` at ${contact.college}`;
           if (contact.hometown) details += ` from ${contact.hometown}`;
-          if (contact.currentLocation) details += ` now in ${contact.currentLocation}`;
+          if (contact.currentLocation) details += ` in ${contact.currentLocation}`;
           if (contact.birthday) details += ` - birthday ${contact.birthday}`;
           if (contact.interests && contact.interests.length > 0) details += ` - interests: ${contact.interests.join(', ')}`;
           return details;
         });
         
-        const detailedSummary = `The memory describes meeting ${contactDetails.join(', ')}. ` +
-          `This information was processed using advanced AI and ${geminiCliResult.contacts.length} new contacts will be created.`;
+        // Create a natural summary
+        let detailedSummary = '';
+        if (uniqueContacts.length === 0) {
+          detailedSummary = 'No valid contacts were found in this memory.';
+        } else if (uniqueContacts.length === 1) {
+          detailedSummary = `The memory describes ${contactDetails[0]}.`;
+        } else {
+          detailedSummary = `The memory describes ${contactDetails.slice(0, -1).join(', ')}, and ${contactDetails[contactDetails.length - 1]}.`;
+        }
+        
+        if (uniqueContacts.length > 0) {
+          detailedSummary += ` This information was processed using AI and ${uniqueContacts.length} contact${uniqueContacts.length !== 1 ? 's' : ''} will be created.`;
+        }
+        
+        // Update geminiCliResult with filtered contacts for later use
+        geminiCliResult.contacts = uniqueContacts;
         
         result = {
           summary: detailedSummary,
           extractedEntities: {
-            people: geminiCliResult.contacts.map((c: any) => c.name),
-            organizations: geminiCliResult.contacts.flatMap((c: any) => [c.company, c.college].filter(Boolean)),
-            relationships: geminiCliResult.contacts.flatMap((c: any) => 
-              c.relationships?.map((r: any) => `${c.name}'s ${r.type}: ${r.name}`) || []
+            people: uniqueContacts.map((c: any) => c.name),
+            organizations: uniqueContacts.flatMap((c: any) => [c.company, c.college].filter(Boolean)),
+            relationships: uniqueContacts.flatMap((c: any) => 
+              c.relationships?.map((r: any) => `${c.name}'s ${r.type || r.customLabel || 'relationship'}: ${r.relatedPersonName || r.name}`) || []
             ),
-            locations: geminiCliResult.contacts.flatMap((c: any) => [c.hometown, c.currentLocation].filter(Boolean)),
+            locations: [...new Set(uniqueContacts.flatMap((c: any) => [c.hometown, c.currentLocation].filter(Boolean)))],
             keyEvents: []
           }
         };

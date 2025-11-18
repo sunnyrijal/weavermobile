@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseTextWithGeminiCli, parseTextWithRelationships, detectContactUpdateType } from '@/lib/gemini-cli-integration';
+import { parseContactInfo, convertParsedContactsToContactFormat } from '@/lib/gemini-parser-service';
 import { ContactService } from '@/lib/mongodb/services/contactService';
 
 export async function POST(request: NextRequest) {
@@ -13,30 +13,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔍 Gemini CLI Parser API called');
+    console.log('🔍 Gemini Parser API called (using new structured parsing)');
     console.log('Text length:', text.length);
-    console.log('Include relationships:', includeRelationships);
     console.log('Text sample:', text.substring(0, 100) + '...');
-    console.log('User profile:', userProfile);
     console.log('Owner ID:', ownerId);
 
-    // Use Gemini CLI for parsing
-    const parseFunction = includeRelationships ? parseTextWithRelationships : parseTextWithGeminiCli;
-    console.log('📝 Using parse function:', includeRelationships ? 'parseTextWithRelationships' : 'parseTextWithGeminiCli');
+    const startTime = Date.now();
     
-    console.log('🚀 Calling Gemini CLI integration...');
-    const result = await parseFunction(text, userProfile, ownerId);
-    console.log('✅ Gemini CLI integration completed');
+    // Use new Gemini structured parsing service
+    console.log('🚀 Calling Gemini structured parsing...');
+    const parsedResult = await parseContactInfo(text);
+    const processingTime = Date.now() - startTime;
 
-    console.log('✅ Gemini CLI parsing completed');
-    console.log('Contacts found:', result.contacts.length);
-    console.log('Confidence:', result.confidence);
-    console.log('Processing time:', result.processingTime, 'ms');
-    console.log('Contacts details:', result.contacts);
+    console.log('✅ Gemini parsing completed');
+    console.log('Contacts found:', parsedResult.contacts.length);
+    console.log('Confidence:', parsedResult.confidence);
+    console.log('Processing time:', processingTime, 'ms');
+    console.log('Processing notes:', parsedResult.processingNotes);
 
-    // Detect if this is a contact update vs. new contact creation
-    const updateType = detectContactUpdateType(text);
-    console.log('🔍 Contact update type detection:', updateType);
+    // Convert to the format expected by the existing codebase
+    const convertedContacts = convertParsedContactsToContactFormat(parsedResult.contacts, ownerId || '');
+
+    // Determine update type from the parsed contacts
+    const hasExistingContacts = parsedResult.contacts.some(c => c.status === 'existing');
+    const updateTypes = parsedResult.contacts.map(c => c.updateType);
+    const primaryUpdateType = updateTypes[0] || 'new_contact';
+    const isUpdate = hasExistingContacts || primaryUpdateType !== 'new_contact';
+
+    console.log('🔍 Contact update analysis:');
+    console.log('  - Has existing contacts:', hasExistingContacts);
+    console.log('  - Primary update type:', primaryUpdateType);
+    console.log('  - Is update:', isUpdate);
 
     // Note: Contacts are not created immediately - they will be created when the memory is saved
     // This prevents premature contact creation and allows users to review before saving
@@ -44,19 +51,20 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      contacts: result.contacts,
-      confidence: result.confidence,
-      processingTime: result.processingTime,
-      geminiCliUsed: true,
-      category: updateType.category,
-      isUpdate: updateType.isUpdate
+      contacts: convertedContacts,
+      confidence: parsedResult.confidence,
+      processingTime: processingTime,
+      geminiCliUsed: true, // Keep for backward compatibility
+      category: isUpdate ? 'Contact Update' : 'New Contact',
+      isUpdate: isUpdate,
+      processingNotes: parsedResult.processingNotes
     });
 
   } catch (error) {
-    console.error('❌ Gemini CLI parsing error:', error);
+    console.error('❌ Gemini parsing error:', error);
     return NextResponse.json(
       { 
-        error: 'Failed to parse text with Gemini CLI',
+        error: 'Failed to parse text with Gemini API',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

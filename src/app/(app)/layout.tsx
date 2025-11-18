@@ -24,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { VoiceMemoryInputModal } from '@/components/memory/VoiceMemoryInputModal';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { ThemeSwitcher } from '@/components/layout/ThemeSwitcher';
+import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -273,7 +274,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {currentUser && <UserNav />}
         </div>
       </header>
-      <main className="flex-1 p-2 sm:p-4 md:p-6 bg-secondary/50 relative">
+      <main className="flex-1 p-2 sm:p-4 md:p-6 bg-secondary/50 relative pb-20 md:pb-0">
         {children}
         <TooltipProvider delayDuration={0}>
           <Tooltip>
@@ -281,7 +282,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Button
                 variant="default"
                 size="icon"
-                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-xl z-50"
+                className="fixed right-6 h-14 w-14 rounded-full shadow-xl z-50 bottom-24 md:bottom-6"
                 onClick={() => setIsMemoryModalOpen(true)}
               >
                 <Brain className="h-7 w-7" />
@@ -294,6 +295,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Tooltip>
         </TooltipProvider>
       </main>
+      <MobileBottomNav />
       <VoiceMemoryInputModal isOpen={isMemoryModalOpen} onOpenChange={setIsMemoryModalOpen} />
     </ThemeProvider>
   );

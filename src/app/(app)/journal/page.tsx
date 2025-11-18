@@ -148,16 +148,16 @@ export default function JournalPage() {
       {/* Mood Statistics */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Mood Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-5 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-4">
           {Object.entries(moodConfig).map(([mood, config]) => {
             const count = moodStats[mood] || 0;
             const Icon = config.icon;
             return (
               <Card key={mood} className={`${config.bgColor} hover:shadow-md transition-shadow cursor-pointer`}>
-                <CardContent className="p-4 text-center">
-                  <Icon className={`h-6 w-6 mx-auto mb-2 ${config.color}`} />
-                  <p className="text-sm font-medium">{mood}</p>
-                  <p className="text-2xl font-bold">{count}</p>
+                <CardContent className="p-2 md:p-4 text-center">
+                  <Icon className={`h-4 w-4 md:h-6 md:w-6 mx-auto mb-0.5 md:mb-2 ${config.color}`} />
+                  <p className="text-[10px] md:text-sm font-medium leading-tight">{mood}</p>
+                  <p className="text-base md:text-2xl font-bold">{count}</p>
                 </CardContent>
               </Card>
             );
