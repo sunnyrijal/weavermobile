@@ -23,7 +23,6 @@ import { format as formatDateFnInternal } from "date-fns";
 import { cn } from "@/lib/utils";
 import ClientSideFormattedDate from "@/components/shared/ClientSideFormattedDate";
 import ContactRelationships from "@/components/contacts/ContactRelationships";
-import ContactSocialMediaFeed from "@/components/contacts/ContactSocialMediaFeed";
 import { ContactMemories } from '@/components/contacts/ContactMemories';
 import { ContactDeleteModal } from '@/components/contacts/ContactDeleteModal';
 
@@ -1432,24 +1431,6 @@ export default function ContactDetailPage() {
                       )}
                       </>
                     )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-md sm:text-lg flex items-center">
-                      <Link2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/>
-                      Social Media
-                    </CardTitle>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/contacts/${contact.id}/edit`}>
-                        <Edit3 className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ContactSocialMediaFeed socialProfiles={contact.socialProfiles || {}} />
                 </CardContent>
               </Card>
             </TabsContent>

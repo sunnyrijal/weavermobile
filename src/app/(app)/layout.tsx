@@ -47,107 +47,15 @@ const bottomNavItems = [
  { href: "/settings", icon: Settings, label: "Settings", tooltip: "Settings" },
 ];
 
-// Sample notification data - External social media updates
-const sampleNotifications = [
-  {
-    id: 1,
-    title: "Sam posted on Instagram",
-    message: "Just finished the new project! Check out the results 🚀 #tech #innovation",
-    time: "2 minutes ago",
-    read: false,
-    type: "instagram",
-    platform: "Instagram",
-    contactName: "Sam Johnson"
-  },
-  {
-    id: 2,
-    title: "Bill got promoted on LinkedIn",
-    message: "Excited to share that I've been promoted to Senior Product Manager at TechCorp!",
-    time: "15 minutes ago",
-    read: false,
-    type: "linkedin",
-    platform: "LinkedIn",
-    contactName: "Bill Smith"
-  },
-  {
-    id: 3,
-    title: "Alice shared on Facebook",
-    message: "Amazing weekend hiking in the mountains! Nature is truly healing 🌲",
-    time: "1 hour ago",
-    read: true,
-    type: "facebook",
-    platform: "Facebook",
-    contactName: "Alice Williams"
-  },
-  {
-    id: 4,
-    title: "Bruce posted on Twitter",
-    message: "Just published my latest article on AI trends. Link in bio! #AI #tech",
-    time: "3 hours ago",
-    read: false,
-    type: "twitter",
-    platform: "Twitter",
-    contactName: "Bruce Lipton"
-  },
-  {
-    id: 5,
-    title: "Coralie updated on LinkedIn",
-    message: "Starting my new role as Software Engineer at StartupXYZ next week!",
-    time: "5 hours ago",
-    read: true,
-    type: "linkedin",
-    platform: "LinkedIn",
-    contactName: "Coralie Matabaro"
-  }
-];
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth(); 
   const router = useRouter();
   const pathname = usePathname(); 
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
-  const [notifications, setNotifications] = useState(sampleNotifications);
+  const [notifications] = useState<any[]>([]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-
-  const markAsRead = (notificationId: number) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const handleNotificationClick = (notification: any) => {
-    markAsRead(notification.id);
-    // Navigate based on notification type
-    switch (notification.type) {
-      case 'instagram':
-        // Could open Instagram profile or post
-        window.open(`https://instagram.com/${notification.contactName?.toLowerCase().replace(' ', '')}`, '_blank');
-        break;
-      case 'linkedin':
-        // Could open LinkedIn profile
-        window.open(`https://linkedin.com/in/${notification.contactName?.toLowerCase().replace(' ', '-')}`, '_blank');
-        break;
-      case 'facebook':
-        // Could open Facebook profile
-        window.open(`https://facebook.com/${notification.contactName?.toLowerCase().replace(' ', '')}`, '_blank');
-        break;
-      case 'twitter':
-        // Could open Twitter profile
-        window.open(`https://twitter.com/${notification.contactName?.toLowerCase().replace(' ', '')}`, '_blank');
-        break;
-      default:
-        // Navigate to contacts page to find the person
-        router.push('/contacts');
-        break;
-    }
-    setIsNotificationOpen(false);
-  };
 
   const navItems = mainNavItemsDefinition.map(item => {
     let currentHref = item.hrefInitial;
@@ -213,61 +121,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-80" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
-                <div className="flex items-center justify-between">
-                  <span>Social Updates</span>
-                  {unreadCount > 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={markAllAsRead}
-                      className="h-6 px-2 text-xs"
-                    >
-                      Mark all as read
-                    </Button>
-                  )}
-                </div>
+                <span>Notifications</span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {notifications.length === 0 ? (
-                <DropdownMenuItem disabled className="text-center text-muted-foreground">
-                  No social updates
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuGroup>
-                  {notifications.map((notification) => (
-                    <DropdownMenuItem 
-                      key={notification.id}
-                      onClick={() => handleNotificationClick(notification)}
-                      className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                    >
-                      <div className="flex items-start justify-between w-full">
-                        <div className="flex flex-col gap-1">
-                          <span className={`text-sm font-medium ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                            {notification.title}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {notification.message}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              {notification.time}
-                            </span>
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                              {notification.platform}
-                            </span>
-                          </div>
-                        </div>
-                        {!notification.read && (
-                          <div className="w-2 h-2 bg-primary rounded-full ml-2" />
-                        )}
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/settings')} className="text-center">
-                Manage social connections
+              <DropdownMenuItem disabled className="text-center text-muted-foreground">
+                No notifications
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

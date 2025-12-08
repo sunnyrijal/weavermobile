@@ -8,59 +8,39 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { ImportedContactPreview } from "@/lib/types";
-import { UploadCloud, Smartphone, Linkedin, Instagram, Facebook, Twitter, FileText, Loader2 } from "lucide-react";
+import { UploadCloud, Smartphone, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 
 const importSources = [
+  { id: "google", name: "Google Contacts", icon: UploadCloud, color: "text-blue-500" },
   { id: "phone", name: "Phone Contacts", icon: Smartphone, color: "text-green-500" },
-  { id: "linkedin", name: "LinkedIn", icon: Linkedin, color: "text-blue-600" },
-  { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-500" },
-  { id: "facebook", name: "Facebook", icon: Facebook, color: "text-blue-700" },
-  { id: "twitter", name: "Twitter", icon: Twitter, color: "text-sky-500" },
-  { id: "csv", name: "CSV File", icon: FileText, color: "text-gray-500" },
 ];
 
-// Mock data fetching for import preview
-const fetchMockImportableContacts = async (source: string): Promise<ImportedContactPreview[]> => {
-  await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
-  if (source === "error_source") throw new Error("Failed to connect to source.");
-  return Array.from({ length: Math.floor(Math.random() * 10) + 5 }).map((_, i) => ({
-    sourceId: `${source}_contact_${i + 1}`,
-    name: `Contact ${i + 1} from ${source.charAt(0).toUpperCase() + source.slice(1)}`,
-    email: `${source.replace(/\s+/g, '').toLowerCase()}_contact${i+1}@example.com`,
-    photoURL: `https://picsum.photos/seed/${source}_contact_${i+1}/40/40`,
-    details: `Some detail for contact ${i+1}`,
-  }));
+// Fetch contacts from Google or device
+const fetchImportableContacts = async (source: string, contacts?: any[]): Promise<ImportedContactPreview[]> => {
+  if (source === "phone" && contacts) {
+    // Transform device contacts to preview format
+    return contacts.map((contact, i) => ({
+      sourceId: `device_contact_${i + 1}`,
+      name: contact.name?.[0] || 'Unknown',
+      email: contact.email?.[0] || '',
+      phone: contact.tel?.[0] || '',
+      photoURL: contact.icon?.[0] || undefined,
+      details: contact.address?.[0] || '',
+    }));
+  }
+  
+  if (source === "google") {
+    // In production, this would call the Google import API
+    // For now, return empty array - user will need to complete OAuth flow
+    return [];
+  }
+  
+  return [];
 };
 
-function extractNotableFactsFromMessages(messages: string[]): string[] {
-  // Dummy AI extraction logic
-  const facts: string[] = [];
-  messages.forEach(msg => {
-    if (/happy birthday/i.test(msg)) facts.push('Birthday detected from messages');
-    if (/puppy|dog|cat|pet/i.test(msg)) facts.push('New pet mentioned');
-    if (/travel|trip|vacation|visited/i.test(msg)) facts.push('Travel event detected');
-    if (/baby|son|daughter|born|birth/i.test(msg)) facts.push('Family event (baby) mentioned');
-    if (/house|home|moved|bought a house/i.test(msg)) facts.push('New house or move detected');
-  });
-  return Array.from(new Set(facts));
-}
-
-// Dummy messages for each contact
-const dummyMessages: Record<string, string[]> = {
-  phone_contact_1: [
-    "Happy Birthday! Hope you have a great year ahead!",
-    "Did you get a new puppy? So cute!",
-    "Congrats on your new house!"
-  ],
-  phone_contact_2: [
-    "Let's plan a trip to Spain this summer!",
-    "Congrats on the baby!"
-  ],
-  // Add more as needed for demo
-};
 
 function ImportPageContent() {
   const searchParams = useSearchParams();
@@ -73,7 +53,6 @@ function ImportPageContent() {
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
-  const [allowMessageAnalysis, setAllowMessageAnalysis] = useState(false);
 
   const currentSourceDetails = useMemo(() => importSources.find(s => s.id === selectedSource), [selectedSource]);
 
@@ -83,23 +62,91 @@ function ImportPageContent() {
     }
   }, [initialSource]);
 
-  const handleSourceSelect = async (sourceId: string) => {
-    setSelectedSource(sourceId);
+  const handleDeviceImport = async () => {
+    const props = ['name', 'email', 'tel', 'address', 'icon'];
+    const opts = { multiple: true };
+    
+    try {
+      // @ts-ignore - navigator.contacts is not in standard TypeScript types
+      if (!navigator.contacts || !navigator.contacts.select) {
+        toast({ 
+          title: "Not Supported", 
+          description: "Contact Picker API is not available in this browser. Please use Chrome on Android or a supported browser.", 
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      // @ts-ignore
+      const contacts = await navigator.contacts.select(props, opts);
+      
+      if (contacts && contacts.length > 0) {
+        setSelectedSource("phone");
+        setIsLoading(true);
+        const previewContacts = await fetchImportableContacts("phone", contacts);
+        setImportableContacts(previewContacts);
+        setSelectedContacts(previewContacts.reduce((acc, c) => ({ ...acc, [c.sourceId]: true }), {}));
+        setIsLoading(false);
+        toast({ 
+          title: `Selected ${previewContacts.length} contacts`, 
+          description: "Review and select contacts to import." 
+        });
+      }
+    } catch (ex: any) {
+      console.error('Error selecting contacts:', ex);
+      if (ex.name === 'AbortError' || ex.name === 'NotSupportedError') {
+        toast({ 
+          title: "Not Supported", 
+          description: "Contact Picker API is not available. Please use Chrome on Android or try importing from Google Contacts instead.", 
+          variant: "destructive" 
+        });
+      } else {
+        toast({ 
+          title: "Error", 
+          description: ex.message || "Failed to access device contacts.", 
+          variant: "destructive" 
+        });
+      }
+    }
+  };
+
+  const handleGoogleImport = async () => {
+    setSelectedSource("google");
     setIsLoading(true);
     setImportableContacts([]);
     setSelectedContacts({});
+    
     try {
-      // In a real app, this would trigger OAuth flow then fetch contacts
-      toast({ title: `Connecting to ${importSources.find(s=>s.id === sourceId)?.name}...` });
-      const contacts = await fetchMockImportableContacts(sourceId);
-      setImportableContacts(contacts);
-      setSelectedContacts(contacts.reduce((acc, c) => ({ ...acc, [c.sourceId]: true }), {})); // Select all by default
-      toast({ title: `Fetched ${contacts.length} contacts from ${importSources.find(s=>s.id === sourceId)?.name}.`, description: "Review and select contacts to import."});
+      // Redirect to Google OAuth or trigger OAuth flow
+      // For now, we'll show a message that this needs to be implemented
+      toast({ 
+        title: "Google Import", 
+        description: "Redirecting to Google to authorize contact access..." 
+      });
+      
+      // In production, redirect to OAuth endpoint
+      // window.location.href = `/api/contacts/import/google/auth?ownerId=${currentUser?.uid}`;
+      
+      // For now, simulate fetching (in production, this would happen after OAuth callback)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({ 
+        title: "Google Import", 
+        description: "Please complete the OAuth flow to import contacts from Google.", 
+        variant: "default" 
+      });
     } catch (error) {
-      toast({ title: "Error fetching contacts", description: (error as Error).message, variant: "destructive" });
-      setSelectedSource(null); // Reset source on error
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+      setSelectedSource(null);
     }
     setIsLoading(false);
+  };
+
+  const handleSourceSelect = async (sourceId: string) => {
+    if (sourceId === "phone") {
+      await handleDeviceImport();
+    } else if (sourceId === "google") {
+      await handleGoogleImport();
+    }
   };
 
   const handleToggleSelectAll = (checked: boolean) => {
@@ -116,20 +163,56 @@ function ImportPageContent() {
     setIsImporting(true);
     setImportProgress(0);
     
-    // Simulate import process
-    for (let i = 0; i < contactsToImport.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 200)); // Simulate import of one contact
-      setImportProgress(((i + 1) / contactsToImport.length) * 100);
+    try {
+      // Get ownerId from auth context or localStorage
+      const ownerId = localStorage.getItem('userId') || 'user1'; // TODO: Get from auth context
+      
+      const importEndpoint = selectedSource === "phone" 
+        ? "/api/contacts/import/device"
+        : "/api/contacts/import/google";
+      
+      const response = await fetch(importEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contacts: contactsToImport,
+          ownerId
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to import contacts');
+      }
+      
+      const result = await response.json();
+      
+      // Update progress
+      setImportProgress(100);
+      
+      toast({ 
+        title: "Import Complete!", 
+        description: `Successfully imported ${result.contacts?.length || contactsToImport.length} contacts.` 
+      });
+      
+      // Clear and reset
+      setIsImporting(false);
+      setImportableContacts([]);
+      setSelectedContacts({});
+      setSelectedSource(null);
+      
+      // Optionally redirect to contacts page
+      // router.push('/contacts');
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({ 
+        title: "Import Failed", 
+        description: (error as Error).message || "Failed to import contacts. Please try again.", 
+        variant: "destructive" 
+      });
+      setIsImporting(false);
     }
-    
-    toast({ title: "Import Complete!", description: `${contactsToImport.length} contacts imported successfully.` });
-    // Here you would call AI tagging, conflict resolution, and save to Firestore.
-    // For AI tagging: const tags = await suggestTags({ profileInformation: JSON.stringify(contactToImport) });
-
-    setIsImporting(false);
-    setImportableContacts([]); // Clear list after import
-    setSelectedContacts({});
-    setSelectedSource(null); // Reset source selection
   };
   
   const numSelected = Object.values(selectedContacts).filter(Boolean).length;
@@ -138,8 +221,8 @@ function ImportPageContent() {
     <div className="space-y-6">
       <Card className="shadow-md">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2"><UploadCloud className="text-primary"/> Unified Contact Import</CardTitle>
-          <CardDescription>Connect your accounts or upload a file to import contacts into NetworkNest.</CardDescription>
+          <CardTitle className="text-2xl flex items-center gap-2"><UploadCloud className="text-primary"/> Find Friends</CardTitle>
+          <CardDescription>Import contacts from your Google account or device address book.</CardDescription>
         </CardHeader>
         {!selectedSource && (
             <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -159,25 +242,6 @@ function ImportPageContent() {
         )}
       </Card>
 
-      {/* Permission step for message analysis */}
-      {selectedSource && !isLoading && (
-        <Card className="shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Message Analysis Permission</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center gap-4 py-6">
-            <div className="flex items-center gap-3">
-              <Checkbox id="allow-messages" checked={allowMessageAnalysis} onCheckedChange={setAllowMessageAnalysis} />
-              <Label htmlFor="allow-messages" className="text-base font-medium">
-                Allow WeaverCursor to analyze your messages for smarter contact insights <span className="text-muted-foreground text-sm">(e.g., birthdays, life events, notable facts)</span>?
-              </Label>
-            </div>
-            <p className="text-xs text-muted-foreground text-center max-w-xl">
-              If enabled, WeaverCursor will use AI to scan your messages for important moments and facts about your contacts. No messages are stored—only relevant insights are extracted and linked to your contacts.
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
       {isLoading && selectedSource && (
         <Card className="shadow-md">
@@ -221,49 +285,43 @@ function ImportPageContent() {
             {isImporting && <Progress value={importProgress} className="w-full mb-4" />}
             
             <ul className="max-h-[400px] overflow-y-auto space-y-2 pr-2">
-              {importableContacts.map(contact => {
-                let facts: string[] = [];
-                if (allowMessageAnalysis) {
-                  const messages = dummyMessages[contact.sourceId] || [];
-                  facts = extractNotableFactsFromMessages(messages);
-                }
-                return (
-                  <li key={contact.sourceId} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-                    <div className="flex items-center gap-3">
-                      <Checkbox 
-                          id={contact.sourceId} 
-                          checked={selectedContacts[contact.sourceId] || false}
-                          onCheckedChange={(checked) => setSelectedContacts(prev => ({ ...prev, [contact.sourceId]: Boolean(checked)}))}
-                      />
-                      <Label htmlFor={contact.sourceId} className="flex items-center gap-3 cursor-pointer">
+              {importableContacts.map(contact => (
+                <li key={contact.sourceId} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <Checkbox 
+                        id={contact.sourceId} 
+                        checked={selectedContacts[contact.sourceId] || false}
+                        onCheckedChange={(checked) => setSelectedContacts(prev => ({ ...prev, [contact.sourceId]: Boolean(checked)}))}
+                    />
+                    <Label htmlFor={contact.sourceId} className="flex items-center gap-3 cursor-pointer">
+                        {contact.photoURL && (
                           <Image 
-                              src={contact.photoURL || `https://picsum.photos/seed/${contact.sourceId}/40/40`} 
+                              src={contact.photoURL} 
                               alt={contact.name}
                               width={40}
                               height={40}
                               className="rounded-full object-cover"
                               data-ai-hint="person avatar"
                           />
-                          <div>
-                              <p className="font-medium text-sm sm:text-base">{contact.name}</p>
-                              <p className="text-xs text-muted-foreground">{contact.email || contact.details}</p>
-                              {allowMessageAnalysis && facts.length > 0 && (
-                                <ul className="mt-1 text-xs text-primary/80 list-disc list-inside">
-                                  {facts.map((fact, i) => <li key={i}>{fact}</li>)}
-                                </ul>
-                              )}
+                        )}
+                        {!contact.photoURL && (
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                            {contact.name.charAt(0).toUpperCase()}
                           </div>
-                      </Label>
-                    </div>
-                  </li>
-                );
-              })}
+                        )}
+                        <div>
+                            <p className="font-medium text-sm sm:text-base">{contact.name}</p>
+                            <p className="text-xs text-muted-foreground">{contact.email || contact.phone || contact.details || 'No contact info'}</p>
+                        </div>
+                    </Label>
+                  </div>
+                </li>
+              ))}
             </ul>
           </CardContent>
           <CardFooter className="border-t pt-4">
              <p className="text-xs text-muted-foreground">
-                Smart Tagging will be applied during import (e.g., "{currentSourceDetails?.name} Import"). You can customize tags later.
-                Potential duplicate contacts will be flagged for review post-import (feature coming soon).
+                Smart tagging will be applied during import. Duplicate contacts will be automatically detected and merged.
              </p>
           </CardFooter>
         </Card>

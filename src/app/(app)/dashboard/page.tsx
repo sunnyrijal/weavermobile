@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Linkedin, Instagram, Facebook, Twitter, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2, Send, Brain, TrendingUp, Clock, MapPin, MessageSquare, BookOpen, MoreVertical, Trash2, Edit } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { List, LayoutGrid, Share2, Search, Mic, Users, Briefcase, UsersRound, Heart, Smartphone, PlusCircle, UploadCloud, MicOff, Eye, EyeOff, CalendarDays, Gift, Sparkles, Loader2, Send, Brain, TrendingUp, Clock, MapPin, MessageSquare, BookOpen, MoreVertical, Trash2, Edit } from "lucide-react";
 import type { Contact, ContactViewMode, NotableEvent } from '@/lib/types';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -387,35 +388,9 @@ const enrichContactsForAI = (contactsToEnrich: Contact[], allContacts: Contact[]
 };
 
 function getRecentUpdates(contacts: Contact[]) {
-  // Mock: count recent social posts (from MOCK_POSTS in ContactSocialMediaFeed)
-  // In real app, would fetch from backend or social APIs
-  let updates: { contactId: string; platform: string; postId: string; timestamp: string }[] = [];
-  const MOCK_POSTS = {
-    instagram: [
-      { id: "ig1", timestamp: "2024-06-01T12:00:00Z" },
-      { id: "ig2", timestamp: "2024-05-28T09:30:00Z" },
-    ],
-    facebook: [
-      { id: "fb1", timestamp: "2024-05-20T18:45:00Z" },
-    ],
-    linkedin: [
-      { id: "li1", timestamp: "2024-05-15T08:00:00Z" },
-    ],
-  };
-  contacts.forEach(contact => {
-    if (!contact.socialProfiles) return;
-    Object.entries(contact.socialProfiles).forEach(([platform, url]) => {
-      if (MOCK_POSTS[platform]) {
-        MOCK_POSTS[platform].forEach(post => {
-          updates.push({ contactId: contact.id, platform, postId: post.id, timestamp: post.timestamp });
-        });
-      }
-    });
-  });
-  // Only show updates from last 30 days
-  const now = new Date();
-  updates = updates.filter(u => (now.getTime() - new Date(u.timestamp).getTime()) < 1000 * 60 * 60 * 24 * 30);
-  return updates;
+  // Social media feed monitoring has been removed
+  // Return empty array as we no longer track social media posts
+  return [];
 }
 
 function getContactsNearYou(contacts: Contact[], userCity = "Cincinnati") {
@@ -427,7 +402,7 @@ export default function DashboardPage() {
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<ContactViewMode>('grid');
-  const [activeFilter, setActiveFilter] = useState<string>("Friend");
+  const [activeFilter, setActiveFilter] = useState<string>("All");
   const { toast } = useToast();
   const {
     contacts,
@@ -504,23 +479,12 @@ export default function DashboardPage() {
     // Apply category filter
     if (activeFilter === "All") {
       // Show all contacts when "All" is selected
-      if (showAllContacts) {
-        // Show all contacts when "All" is selected and showAllContacts is true
-        contactsToDisplay = contactsToDisplay;
-      } else {
-        // Show only main contacts (no relationships) for All category
-        contactsToDisplay = contactsToDisplay.filter(contact => {
-          const isMainContact = !contact.relationships || contact.relationships.length === 0;
-          return isMainContact;
-        });
-      }
+      contactsToDisplay = contactsToDisplay;
     } else {
-      // For other filters, show only main contacts with matching category
+      // For other filters, show contacts with matching category
       contactsToDisplay = contactsToDisplay.filter(contact => {
         const matchesCategory = contact.category === activeFilter;
-        // Show only main contacts (no relationships) for specific category tabs to mirror Contacts page
-        const isMainContact = !contact.relationships || contact.relationships.length === 0;
-        return matchesCategory && isMainContact;
+        return matchesCategory;
       });
     }
     
@@ -842,15 +806,14 @@ export default function DashboardPage() {
       />
       
       {/* Hero AI Section */}
-      <div className="space-y-6">
+      <div className={cn("space-y-6", isMobile && "space-y-3")}>
         <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-accent/5">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold whitespace-nowrap">Your AI Relationship Assistant</CardTitle>
-            <CardDescription className="text-sm sm:text-base mt-2">
+            <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold">
               Ask anything about your network.
-            </CardDescription>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-2 md:space-y-4">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input 
@@ -970,7 +933,7 @@ export default function DashboardPage() {
           className={
             cn(
               "grid w-full",
-              isMobile ? "grid-cols-4 gap-2" : "grid-cols-4 gap-4"
+              isMobile ? "grid-cols-4 gap-2 -mt-2" : "grid-cols-4 gap-4"
             )
           }
         >
@@ -1004,9 +967,9 @@ export default function DashboardPage() {
               isMobile ? "py-2 px-1 h-20" : "py-6 px-4 h-36"
             )}>
               <CardContent className="flex flex-col items-center justify-center gap-0.5 p-0">
-                <TrendingUp className={isMobile ? "h-4 w-4 mb-0.5" : "h-8 w-8 mb-2"} />
-                <p className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>{recentUpdates.length}</p>
-                <p className={isMobile ? "text-[10px] leading-tight" : "text-sm text-muted-foreground"}>Updates</p>
+                <CalendarDays className={isMobile ? "h-4 w-4 mb-0.5" : "h-8 w-8 mb-2"} />
+                <p className={isMobile ? "text-base font-bold" : "text-2xl font-bold"}>{upcomingEvents.length}</p>
+                <p className={isMobile ? "text-[10px] leading-tight" : "text-sm text-muted-foreground"}>Events</p>
               </CardContent>
             </Card>
           </Link>
@@ -1025,70 +988,85 @@ export default function DashboardPage() {
         </div>
 
         {/* Upcoming Events Section */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2">
-              <CalendarDays className="text-primary"/>
-              Upcoming Events
-            </CardTitle>
-            <CardDescription>Stay on top of important dates in your network.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {upcomingEvents.length > 0 ? (
-              <div className="space-y-3">
-                {upcomingEvents.slice(0, 5).map(event => (
-                  <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${event.type === 'Birthday' ? 'bg-accent/10' : event.type === 'Anniversary' ? 'bg-pink-500/10' : 'bg-primary/10'}`}>
-                        <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{event.title}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <ClientSideFormattedDate date={event.date} format="MMMM do" />
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${
-                            event.daysRemaining === 0 
-                              ? 'bg-red-100 text-red-700' 
-                              : event.daysRemaining <= 3 
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-green-100 text-green-700'
-                          }`}>
-                            {event.daysRemaining === 0 ? "Today!" : `${event.daysRemaining} day${event.daysRemaining === 1 ? '' : 's'}`}
-                          </span>
+        <Card className={cn("shadow-lg", isMobile && "mt-2")}>
+          <Accordion 
+            type="single" 
+            collapsible 
+            defaultValue={upcomingEvents.length > 0 ? "events" : undefined}
+            className="w-full"
+          >
+            <AccordionItem value="events" className="border-0">
+              <CardHeader className="pb-3">
+                <AccordionTrigger className="hover:no-underline py-0">
+                  <div className="flex-1 text-left">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <CalendarDays className="text-primary"/>
+                      Upcoming Events
+                    </CardTitle>
+                    <CardDescription className="mt-1">Stay on top of important dates in your network.</CardDescription>
+                  </div>
+                </AccordionTrigger>
+              </CardHeader>
+              <AccordionContent>
+                <CardContent className="pt-0">
+                  {upcomingEvents.length > 0 ? (
+                    <div className="space-y-3">
+                      {upcomingEvents.slice(0, 5).map(event => (
+                        <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-lg ${event.type === 'Birthday' ? 'bg-accent/10' : event.type === 'Anniversary' ? 'bg-pink-500/10' : 'bg-primary/10'}`}>
+                              <event.icon className={`h-5 w-5 ${event.type === 'Birthday' ? 'text-accent' : event.type === 'Anniversary' ? 'text-pink-500' : 'text-primary'}`} />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{event.title}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <ClientSideFormattedDate date={event.date} format="MMMM do" />
+                                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                  event.daysRemaining === 0 
+                                    ? 'bg-red-100 text-red-700' 
+                                    : event.daysRemaining <= 3 
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-green-100 text-green-700'
+                                }`}>
+                                  {event.daysRemaining === 0 ? "Today!" : `${event.daysRemaining} day${event.daysRemaining === 1 ? '' : 's'}`}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {event.contactId && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleOpenEventModal(event)}
+                            >
+                              View
+                            </Button>
+                          )}
                         </div>
-                      </div>
+                      ))}
+                      {upcomingEvents.length > 5 && (
+                        <div className="text-center pt-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href="/contacts">View All Events</Link>
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    {event.contactId && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleOpenEventModal(event)}
-                      >
-                        View
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {upcomingEvents.length > 5 && (
-                  <div className="text-center pt-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/contacts">View All Events</Link>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                <CalendarDays className="mx-auto h-8 w-8 mb-2" />
-                <p className="text-sm font-medium">No upcoming events</p>
-              </div>
-            )}
-          </CardContent>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <CalendarDays className="mx-auto h-8 w-8 mb-2" />
+                      <p className="text-sm font-medium">No upcoming events</p>
+                    </div>
+                  )}
+                </CardContent>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </Card>
 
         {/* Contact Browsing Section */}
-        <Card className="shadow-lg">
+        <Card className={cn("shadow-lg", isMobile && "mt-2")}>
           <CardHeader>
             <div className="flex flex-row justify-between items-center gap-3">
               <div className="min-w-0">
@@ -1193,13 +1171,19 @@ export default function DashboardPage() {
         </Card>
         
         <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
-          <TabsList className="w-full mb-4 flex gap-2 overflow-x-auto md:grid md:grid-cols-6">
-            {filterCategories.map(category => (
-              <TabsTrigger key={category} value={category} className="whitespace-nowrap px-3 py-1 text-sm">
-                {category}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="w-full mb-4 overflow-x-auto -mx-2 px-2 md:mx-0 md:px-0">
+            <TabsList className="w-full flex gap-2 justify-start md:grid md:grid-cols-6 md:justify-center min-w-max md:min-w-0">
+              {filterCategories.map(category => (
+                <TabsTrigger 
+                  key={category} 
+                  value={category} 
+                  className="whitespace-nowrap px-3 py-1 text-sm flex-shrink-0"
+                >
+                  {category}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           <TabsContent value={activeFilter}>
             {viewMode === 'grid' && (
@@ -1227,36 +1211,33 @@ export default function DashboardPage() {
         </Tabs>
 
         {/* Import Section */}
-        <Card className="shadow-lg bg-gradient-to-br from-muted/20 to-background">
+        <Card className={cn("shadow-lg bg-gradient-to-br from-muted/20 to-background", isMobile && "mt-2")}>
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <UploadCloud className="h-5 w-5 text-primary" />
-              Import Your Network
+              Find Friends
             </CardTitle>
             <CardDescription>
-              Connect your accounts to easily import contacts with AI-powered categorization
+              Import contacts from your Google account or device address book
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {[
-                { name: "Phone", icon: Smartphone, color: "text-green-500", bgColor: "bg-green-500/10" },
-                { name: "LinkedIn", icon: Linkedin, color: "text-blue-600", bgColor: "bg-blue-500/10" },
-                { name: "Instagram", icon: Instagram, color: "text-pink-500", bgColor: "bg-pink-500/10" },
-                { name: "Facebook", icon: Facebook, color: "text-blue-700", bgColor: "bg-blue-600/10" },
-                { name: "Twitter", icon: Twitter, color: "text-sky-500", bgColor: "bg-sky-500/10" },
+                { name: "Google Contacts", id: "google", icon: UploadCloud, color: "text-blue-500", bgColor: "bg-blue-500/10" },
+                { name: "Phone Contacts", id: "phone", icon: Smartphone, color: "text-green-500", bgColor: "bg-green-500/10" },
               ].map(source => (
                 <Button 
-                  key={source.name} 
+                  key={source.id} 
                   variant="outline" 
                   className={`flex flex-col h-20 items-center justify-center gap-2 hover:shadow-md transition-all duration-200 border-0 bg-background/50 backdrop-blur-sm`} 
                   asChild
                 >
-                  <Link href={`/import?source=${source.name.toLowerCase()}`}>
+                  <Link href={`/import?source=${source.id}`}>
                     <div className={`p-2 rounded-lg ${source.bgColor} mb-1`}>
                       <source.icon className={`h-6 w-6 ${source.color}`} />
                     </div>
-                    <span className="text-xs font-medium">{source.name}</span>
+                    <span className="text-xs font-medium text-center">{source.name}</span>
                   </Link>
                 </Button>
               ))}

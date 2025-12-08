@@ -15,9 +15,10 @@ const plans = [
     price: "$0",
     period: "/ month",
     features: [
-      "Up to 100 contacts",
+      "Up to 50 contacts",
       "Basic relationship mapping",
-      "Manual data import",
+      "Manual contact entry only",
+      "3 AI parsing sessions per month",
       "Community support",
     ],
     isCurrent: false,
@@ -31,7 +32,9 @@ const plans = [
     features: [
       "Up to 1,000 contacts",
       "Advanced relationship mapping",
-      "OAuth imports (LinkedIn, etc.)",
+      "Google Contacts import",
+      "Device address book import",
+      "Unlimited AI parsing",
       "AI-powered tagging",
       "Priority email support",
     ],
@@ -49,6 +52,7 @@ const plans = [
       "Advanced analytics",
       "API access",
       "Dedicated account manager",
+      "Custom integrations",
     ],
     isCurrent: false,
     cta: "Upgrade to Business",
@@ -115,7 +119,7 @@ export default function BillingPage() {
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Billing & Subscriptions</h1>
-        <p className="text-muted-foreground">Manage your NetworkNest plan, payment methods, and view invoice history.</p>
+        <p className="text-muted-foreground">Manage your WeaverMobile plan, payment methods, and view invoice history.</p>
       </div>
 
       <Card className="shadow-md">

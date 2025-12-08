@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { VoiceMemoryInputModal } from '@/components/memory/VoiceMemoryInputModal';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 interface JournalEntry {
   _id: string;
@@ -50,6 +52,7 @@ const moodConfig = {
 
 export default function JournalPage() {
   const { currentUser } = useAuth();
+  const isMobile = useIsMobile();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
@@ -127,28 +130,29 @@ export default function JournalPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4">
-      <div className="mb-8">
+    <div className="max-w-6xl mx-auto py-4 md:py-8 px-2 md:px-4">
+      <div className="mb-6 md:mb-8">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <BookOpen className="h-8 w-8 text-primary" />
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <BookOpen className="h-6 w-6 md:h-8 md:w-8 text-primary" />
             My Journal
           </h1>
           <Button 
             onClick={() => setShowMemoryModal(true)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-10"
           >
-            <Plus className="h-4 w-4" />
-            New Entry
+            <Plus className="h-3 w-3 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">New Entry</span>
+            <span className="sm:hidden">New</span>
           </Button>
         </div>
-        <p className="text-muted-foreground">Reflect on your thoughts and experiences</p>
+        <p className="text-sm md:text-base text-muted-foreground">Reflect on your thoughts and experiences</p>
       </div>
 
       {/* Mood Statistics */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Mood Overview</h2>
-        <div className="grid grid-cols-5 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-4">
+      <div className="mb-6 md:mb-8">
+        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Mood Overview</h2>
+        <div className="grid grid-cols-5 gap-2 md:gap-4">
           {Object.entries(moodConfig).map(([mood, config]) => {
             const count = moodStats[mood] || 0;
             const Icon = config.icon;
@@ -166,33 +170,39 @@ export default function JournalPage() {
       </div>
 
       {/* Journal Entries */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Entries</h2>
-          <Badge variant="secondary">{filteredEntries.length} entries</Badge>
+      <div className="mb-6 md:mb-8">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
+          <h2 className="text-lg md:text-xl font-semibold">Entries</h2>
+          <Badge variant="secondary" className="text-xs md:text-sm">{filteredEntries.length} entries</Badge>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="contact-updates" className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              Updates
-            </TabsTrigger>
-            <TabsTrigger value="new-contacts" className="flex items-center gap-1">
-              <Plus className="h-3 w-3" />
-              New
-            </TabsTrigger>
-            {Object.keys(moodConfig).map(mood => (
-              <TabsTrigger key={mood} value={mood} className="flex items-center gap-1">
-                {(() => {
-                  const Icon = moodConfig[mood as keyof typeof moodConfig].icon;
-                  return <Icon className="h-3 w-3" />;
-                })()}
-                {mood}
+          <div className="w-full overflow-x-auto -mx-2 px-2 md:mx-0 md:px-0">
+            <TabsList className={cn(
+              "w-full flex gap-2 justify-start md:grid md:grid-cols-8 md:justify-center min-w-max md:min-w-0"
+            )}>
+              <TabsTrigger value="all" className="flex-shrink-0 whitespace-nowrap">All</TabsTrigger>
+              <TabsTrigger value="contact-updates" className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
+                <Users className="h-3 w-3" />
+                <span className="hidden sm:inline">Updates</span>
+                <span className="sm:hidden">Upd</span>
               </TabsTrigger>
-            ))}
-          </TabsList>
+              <TabsTrigger value="new-contacts" className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
+                <Plus className="h-3 w-3" />
+                New
+              </TabsTrigger>
+              {Object.keys(moodConfig).map(mood => (
+                <TabsTrigger key={mood} value={mood} className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
+                  {(() => {
+                    const Icon = moodConfig[mood as keyof typeof moodConfig].icon;
+                    return <Icon className="h-4 w-4" />;
+                  })()}
+                  <span className="hidden md:inline">{mood}</span>
+                  <span className="hidden sm:inline md:hidden">{mood.substring(0, 4)}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           <TabsContent value={activeTab} className="mt-6">
             {filteredEntries.length === 0 ? (
