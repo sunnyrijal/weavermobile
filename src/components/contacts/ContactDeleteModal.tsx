@@ -11,12 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 interface ContactDeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  contact: { id: string; name: string; email?: string; phone?: string; photoURL?: string; ownerId: string; category?: string; relationships?: { relatedContactId: string; type: string }[] } | null;
+  contact: { id: string; name: string; email?: string; phone?: string; photoURL?: string; ownerId: string; category?: string; relationships?: { relatedContactId: string; type: string; customLabel?: string; notes?: string }[] } | null;
   onContactDeleted: () => void;
 }
 
 interface RelatedContact {
-  contact: { id: string; name: string; email?: string; phone?: string; photoURL?: string; ownerId: string; category?: string; relationships?: { relatedContactId: string; type: string }[] };
+  contact: { id: string; name: string; email?: string; phone?: string; photoURL?: string; ownerId: string; category?: string; relationships?: { relatedContactId: string; type: string; customLabel?: string; notes?: string }[] };
   relationship: string;
   isSelected: boolean;
 }
@@ -29,12 +29,14 @@ export function ContactDeleteModal({ isOpen, onClose, contact, onContactDeleted 
 
   // Get initials for avatar
   const getInitials = (name: string) => {
+    if (!name) return 'NN';
     return name
       .split(' ')
+      .filter(Boolean)
       .map(word => word[0])
       .join('')
       .toUpperCase()
-      .slice(0, 2);
+      .slice(0, 2) || 'NN';
   };
 
   // Load related contacts when modal opens
@@ -56,9 +58,9 @@ export function ContactDeleteModal({ isOpen, onClose, contact, onContactDeleted 
       const related: RelatedContact[] = [];
 
       // Find contacts that have relationships with the main contact
-      allContacts.forEach(otherContact => {
+      allContacts.forEach((otherContact: any) => {
         if (otherContact.id !== contact.id && otherContact.relationships) {
-          otherContact.relationships.forEach(rel => {
+          otherContact.relationships.forEach((rel: any) => {
             if (rel.relatedContactId === contact.id) {
               related.push({
                 contact: otherContact,
@@ -72,8 +74,8 @@ export function ContactDeleteModal({ isOpen, onClose, contact, onContactDeleted 
 
       // Also find contacts that the main contact has relationships with
       if (contact.relationships) {
-        contact.relationships.forEach(rel => {
-          const relatedContact = allContacts.find(c => c.id === rel.relatedContactId);
+        contact.relationships.forEach((rel: any) => {
+          const relatedContact = allContacts.find((c: any) => c.id === rel.relatedContactId);
           if (relatedContact) {
             related.push({
               contact: relatedContact,
@@ -86,7 +88,7 @@ export function ContactDeleteModal({ isOpen, onClose, contact, onContactDeleted 
 
       // Remove duplicates
       const uniqueRelated = related.filter((item, index, self) => 
-        index === self.findIndex(t => t.contact.id === item.contact.id)
+        index === self.findIndex((t: any) => t.contact.id === item.contact.id)
       );
 
       setRelatedContacts(uniqueRelated);

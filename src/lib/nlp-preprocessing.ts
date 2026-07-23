@@ -12,6 +12,11 @@ export interface NLPPreprocessingResult {
     organizations: string[];
     dates: string[];
     numbers: string[];
+    phone_numbers: string[];
+    emails: string[];
+    ages: string[];
+    majors: string[];
+    universities: string[];
   };
   confidence: number;
   processingTime: number;
@@ -87,7 +92,12 @@ export class NLPPreprocessingService {
           locations: result.entities.locations || [],
           organizations: result.entities.organizations || [],
           dates: result.entities.dates || [],
-          numbers: result.entities.numbers || []
+          numbers: result.entities.numbers || [],
+          phone_numbers: result.entities.phone_numbers || [],
+          emails: result.entities.emails || [],
+          ages: result.entities.ages || [],
+          majors: result.entities.majors || [],
+          universities: result.entities.universities || []
         },
         confidence: result.confidence || 0.8,
         processingTime
@@ -102,7 +112,12 @@ export class NLPPreprocessingService {
           locations: [],
           organizations: [],
           dates: [],
-          numbers: []
+          numbers: [],
+          phone_numbers: [],
+          emails: [],
+          ages: [],
+          majors: [],
+          universities: []
         },
         confidence: 0.0,
         processingTime: Date.now() - startTime

@@ -1,6 +1,5 @@
 import type { Timestamp } from 'firebase/firestore'; // Only for type, mock will use Date
 import type { z } from 'zod';
-import type { contactFormSchema } from '@/components/contacts/ContactForm'; // Assuming ContactForm will export its schema
 import type { ExtractedEntities as VoiceInputExtractedEntities } from '@/ai/flows/process-voice-input-flow';
 
 
@@ -25,6 +24,9 @@ export interface Relationship {
   relatedContactId: string;
   type: string; // e.g., "Parent", "Sibling", "Partner", "Child", "Colleague", "Pet", "Friend"
   customLabel?: string;
+  relatedContactName?: string;
+  name?: string;
+  notes?: string;
 }
 
 export interface NotableEvent {
@@ -39,13 +41,17 @@ export interface Contact {
   ownerId: string; // User UID
   name: string;
   nickname?: string; // Nickname for display (e.g., Coco)
+  preferredName?: string;
+  age?: number;
   photoURL?: string; // URL to image in Firebase Storage
   birthday?: string; // YYYY-MM-DD
+  birthYear?: string;
   hometown?: string; // e.g., "Kritipur, Nepal"
   currentLocation?: string; // e.g., "Cincinnati, Ohio"
   occupation?: string;
   company?: string;
   college?: string; 
+  major?: string;
   socialProfiles?: {
     linkedin?: string;
     instagram?: string;
@@ -63,6 +69,21 @@ export interface Contact {
   photosTogether: string[]; // Array of URLs to images in Firebase Storage
   relationships: Relationship[];
   notableEvents?: NotableEvent[]; // Added notable events
+  gender?: string;
+  height?: string;
+  eyeColor?: string;
+  hairColor?: string;
+  bodyType?: string;
+  dressingStyle?: string;
+  skinTone?: string;
+  ethnicity?: string;
+  facialFeatures?: string;
+  distinguishingFeatures?: string;
+  voice?: string;
+  accent?: string;
+  isCompanyContact?: boolean;
+  companyContextType?: 'shared' | 'private';
+  lastUpdatedBy?: string;
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
 }
@@ -92,7 +113,7 @@ export interface ImportedContactPreview {
 export type ContactViewMode = 'list' | 'grid' | 'tree';
 
 // Form specific types
-export type ContactFormValues = z.infer<typeof contactFormSchema>;
+export type { ContactFormValues } from './forms';
 
 
 // For Voice Input and Memory System

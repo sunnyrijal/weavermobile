@@ -55,9 +55,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState('cozy');
 
   useEffect(() => {
-    const vars = themes[theme].variables;
+    const vars = (themes as any)[theme].variables;
     for (const key in vars) {
-      document.documentElement.style.setProperty(key, vars[key]);
+      document.documentElement.style.setProperty(key, (vars as any)[key]);
     }
     document.documentElement.style.fontFamily = vars['--font-family'];
   }, [theme]);

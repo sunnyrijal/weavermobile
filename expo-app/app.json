@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Memore",
+    "slug": "memore-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.anonymous.memoremobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to upload profile photos."
+      }
+    },
+    "android": {
+      "package": "com.anonymous.memoremobile"
+    }
+  }
+}

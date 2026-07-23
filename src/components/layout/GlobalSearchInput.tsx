@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // 
 export function GlobalSearchInput() {
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const [isListeningToVoice, setIsListeningToVoice] = useState(false);
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const speechRecognitionRef = useRef<any | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null); // Added state for mic error
@@ -44,7 +44,8 @@ export function GlobalSearchInput() {
 
   const handleVoiceSearchClick = async () => {
     if (typeof window === 'undefined') return;
-    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const win = window as any;
+    const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
       toast({ title: "Voice Search Not Supported", description: "Your browser doesn't support voice recognition. Please check browser settings.", variant: "destructive" });
@@ -61,13 +62,13 @@ export function GlobalSearchInput() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
       stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately
 
-      const recognition = new SpeechRecognitionAPI();
+      const recognition = new (SpeechRecognitionAPI as any)();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
       speechRecognitionRef.current = recognition;
 
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setInternalSearchTerm(transcript);
         toast({ title: "Voice input received", description: `Search term set to: "${transcript}". Press Enter to search.` });
@@ -75,7 +76,7 @@ export function GlobalSearchInput() {
         // Or router.push(`/contacts?search=${encodeURIComponent(transcript.trim())}`);
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: any) => {
         console.error("Speech recognition error (global search):", event.error, event.message);
         let errorMessage = `Speech recognition error: ${event.error}.`;
         if (event.message) errorMessage += ` Details: ${event.message}`;

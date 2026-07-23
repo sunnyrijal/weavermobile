@@ -55,6 +55,77 @@ const parseBirthday = (birthdayStr?: string, currentYear: number = 2025): string
 
 
 export const mockContacts: Contact[] = [
+  // Sarah Williams (Shared Company Contact)
+  {
+    id: "comp_1",
+    ownerId: "user1",
+    name: "Sarah Williams",
+    photoURL: "https://picsum.photos/seed/sarahw/200/200",
+    category: "Professional",
+    tags: ["Product Lead", "Figma", "Design", "Colleague"],
+    occupation: "Product Lead",
+    company: "Figma",
+    isCompanyContact: true,
+    companyContextType: "shared",
+    lastUpdatedBy: "Jordan",
+    birthday: parseBirthday("July 26 (28)"),
+    createdAt: new Date("2026-07-01T10:00:00Z"),
+    updatedAt: new Date("2026-07-16T12:00:00Z"),
+    relationships: [],
+    photosTogether: []
+  },
+  // Emma & Carlos (Private Company Contact)
+  {
+    id: "comp_2",
+    ownerId: "user1",
+    name: "Emma & Carlos",
+    photoURL: "https://picsum.photos/seed/emmacarlos/200/200",
+    category: "Friend",
+    tags: ["Anniversary", "Figma Family", "Couple"],
+    isCompanyContact: true,
+    companyContextType: "private",
+    notes: "Emma works in marketing, Carlos is a developer. 5 years together.",
+    createdAt: new Date("2026-07-02T10:00:00Z"),
+    updatedAt: new Date("2026-07-15T15:30:00Z"),
+    relationships: [],
+    photosTogether: []
+  },
+  // Aisha Vance (Shared Company Contact)
+  {
+    id: "comp_3",
+    ownerId: "user1",
+    name: "Aisha Vance",
+    photoURL: "https://picsum.photos/seed/aisha/200/200",
+    category: "Professional",
+    tags: ["UX Designer", "Figma", "Design System"],
+    occupation: "UX Designer",
+    company: "Figma",
+    isCompanyContact: true,
+    companyContextType: "shared",
+    lastUpdatedBy: "Marcus Chen",
+    createdAt: new Date("2026-07-03T10:00:00Z"),
+    updatedAt: new Date("2026-07-14T09:00:00Z"),
+    relationships: [],
+    photosTogether: []
+  },
+  // Marcus Chen (Shared Company Contact)
+  {
+    id: "comp_4",
+    ownerId: "user1",
+    name: "Marcus Chen",
+    photoURL: "https://picsum.photos/seed/marcus/200/200",
+    category: "Friend",
+    tags: ["Product Lead", "Figma", "Friend"],
+    occupation: "Product Lead",
+    company: "Figma",
+    isCompanyContact: true,
+    companyContextType: "shared",
+    lastUpdatedBy: "Aisha Vance",
+    createdAt: new Date("2026-07-04T10:00:00Z"),
+    updatedAt: new Date("2026-07-17T11:45:00Z"),
+    relationships: [],
+    photosTogether: []
+  },
   // Chandra Oli
   {
     id: "1",

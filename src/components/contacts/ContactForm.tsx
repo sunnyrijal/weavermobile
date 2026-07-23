@@ -1,5 +1,6 @@
 "use client";
 
+import { useContactsContext } from "@/contexts/ContactsContext";
 import type { ContactFormValues } from "@/lib/types/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -44,7 +45,7 @@ export const contactFormSchema = z.object({
   occupation: z.string().optional(),
   company: z.string().optional(),
   college: z.string().optional(), 
-  category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", "Pet", ""]).optional(),
+  category: z.string().optional(),
   ownerRelationshipLabel: z.string().optional().describe("Your specific relationship to this contact, e.g., Host Mom, Mentor, Childhood Friend."),
   hometown: z.string().optional(),
   currentLocation: z.string().optional(),
@@ -77,7 +78,7 @@ interface ContactFormProps {
 }
 
 // Custom Caption for Calendar (minimal, just dropdowns side by side)
-function CalendarCaption({ displayMonth, className }) {
+function CalendarCaption({ displayMonth, className }: { displayMonth: Date; className?: string }) {
   const { goToMonth } = useNavigation();
 
   // Add state for years and months
@@ -129,6 +130,7 @@ function CalendarCaption({ displayMonth, className }) {
 }
 
 export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoading = false }: ContactFormProps) {
+  const { currentContext, activeCompanyTab } = useContactsContext();
   const [relationships, setRelationships] = useState<Array<{
     id: string;
     type: string;
@@ -162,6 +164,16 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
         ...defaultValues, 
       },
   });
+
+  const categoryValue = form.watch('category') || "";
+  const isCustomCategory = categoryValue !== "" && !["Friend", "Family", "Colleague", "Professional", "Partner", "Pet"].includes(categoryValue);
+  const [customCategory, setCustomCategory] = useState("");
+
+  useEffect(() => {
+    if (isCustomCategory) {
+      setCustomCategory(categoryValue);
+    }
+  }, [categoryValue, isCustomCategory]);
 
   useEffect(() => {
     if (defaultValues) {
@@ -211,27 +223,33 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
     // Call the original onSubmit with the form values and relationships
     await onSubmit({
       ...values,
-      relationships: relationshipsData
+      relationships: relationshipsData,
+      isCompanyContact: currentContext === 'company',
+      companyContextType: currentContext === 'company' ? activeCompanyTab : undefined,
+      lastUpdatedBy: currentContext === 'company' ? 'Jordan' : undefined
     } as any);
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>{isEditMode ? "Edit Contact" : "Add New Contact"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+        {/* Main Card */}
+        <div className="bg-white dark:bg-card rounded-3xl border border-[rgba(26,15,6,0.08)] shadow-sm p-5 space-y-5">
+          <h2 className="font-serif text-2xl font-bold text-[#1A0F06] dark:text-foreground">
+            {isEditMode ? "Edit Contact" : "Add New Contact"}
+          </h2>
+
+          <div className="space-y-4">
+            {/* Name Fields */}
+            <div className="space-y-3">
               <FormField
                 control={form.control}
                 name="firstName"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name *</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">First Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter first name" {...field} />
+                      <Input placeholder="Enter first name" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -241,10 +259,10 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 control={form.control}
                 name="lastName"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name *</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Last Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter last name" {...field} />
+                      <Input placeholder="Enter last name" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -252,15 +270,15 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-3">
               <FormField
                 control={form.control}
                 name="middleName"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Middle Name</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Middle Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter middle name" {...field} />
+                      <Input placeholder="Enter middle name" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -270,10 +288,10 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 control={form.control}
                 name="preferredName"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preferred Name</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Preferred Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Nickname or preferred name" {...field} />
+                      <Input placeholder="e.g., Nickname or preferred name" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -281,15 +299,16 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            {/* Contact Details */}
+            <div className="space-y-3">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="contact@example.com" {...field} />
+                      <Input type="email" placeholder="contact@example.com" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -299,10 +318,10 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 control={form.control}
                 name="phone"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Phone</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., (555) 123-4567" {...field} />
+                      <Input placeholder="e.g., (555) 123-4567" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -310,15 +329,16 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-               <FormField
+            {/* Work & Education */}
+            <div className="space-y-3">
+              <FormField
                 control={form.control}
                 name="occupation"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Occupation</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Occupation</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Software Engineer" {...field} />
+                      <Input placeholder="e.g., Software Engineer" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -328,10 +348,10 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 control={form.control}
                 name="company"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Company</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Tech Solutions Inc." {...field} />
+                      <Input placeholder="e.g., Tech Solutions Inc." className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -343,31 +363,31 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               control={form.control}
               name="college"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center">
-                    <University className="mr-2 h-4 w-4 text-muted-foreground" />
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider flex items-center">
+                    <University className="mr-1.5 h-3.5 w-3.5 text-[#B0A090]" />
                     College / University
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., University of Example" {...field} />
+                    <Input placeholder="e.g., University of Cincinnati" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-3">
               <FormField
                 control={form.control}
                 name="hometown"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center">
-                      <Home className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider flex items-center">
+                      <Home className="mr-1.5 h-3.5 w-3.5 text-[#B0A090]" />
                       Hometown
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Kritipur, Nepal" {...field} />
+                      <Input placeholder="e.g., Kritipur, Nepal" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -377,13 +397,13 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                 control={form.control}
                 name="currentLocation"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center">
-                      <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider flex items-center">
+                      <MapPin className="mr-1.5 h-3.5 w-3.5 text-[#B0A090]" />
                       Current Location
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., San Francisco, CA" {...field} />
+                      <Input placeholder="e.g., San Francisco, CA" className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -391,20 +411,29 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               />
             </div>
             
-            <div className="grid md:grid-cols-2 gap-6">
-                <FormField
+            <div className="space-y-3">
+              <FormField
                 control={form.control}
                 name="category"
                 render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Primary Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Primary Category</FormLabel>
+                    <Select 
+                      onValueChange={(val) => {
+                        if (val === 'Other') {
+                          form.setValue('category', customCategory || 'Other');
+                        } else {
+                          form.setValue('category', val);
+                        }
+                      }} 
+                      value={isCustomCategory ? "Other" : (field.value || "")}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5">
+                          <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
+                      </FormControl>
+                      <SelectContent className="rounded-2xl">
                         <SelectItem value="Friend">Friend</SelectItem>
                         <SelectItem value="Family">Family</SelectItem>
                         <SelectItem value="Colleague">Colleague</SelectItem>
@@ -412,60 +441,74 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
                         <SelectItem value="Partner">Partner</SelectItem>
                         <SelectItem value="Pet">Pet</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
+                      </SelectContent>
                     </Select>
-                    <FormDescription>The general category for this contact.</FormDescription>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                    control={form.control}
-                    name="birthday"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                        <FormLabel>Birthday</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                                >
-                                {field.value ? (
-                                    formatDateFn(field.value, "PPP") 
-                                ) : (
-                                    <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                month={field.value ?? undefined}
-                                disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                                }
-                                initialFocus
-                                fromYear={1900}
-                                toYear={new Date().getFullYear()}
-                                components={{
-                                  Caption: CalendarCaption
-                                }}
-                            />
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                        </FormItem>
+                    
+                    {(field.value === 'Other' || isCustomCategory) && (
+                      <div className="space-y-1.5 pt-1 animate-in fade-in duration-200">
+                        <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Custom Category Name</FormLabel>
+                        <Input
+                          placeholder="Enter custom category (e.g., Cousin, Mentor, Neighbor)"
+                          value={customCategory}
+                          onChange={(e) => {
+                            setCustomCategory(e.target.value);
+                            form.setValue('category', e.target.value || 'Other');
+                          }}
+                          className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10 px-3.5"
+                        />
+                      </div>
                     )}
-                />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="birthday"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col space-y-1">
+                    <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Birthday</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3.5 text-left font-normal rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm h-10",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              formatDateFn(field.value, "PPP") 
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 rounded-2xl" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ?? undefined}
+                          onSelect={field.onChange}
+                          month={field.value ?? undefined}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                          fromYear={1900}
+                          toYear={new Date().getFullYear()}
+                          components={{
+                            Caption: CalendarCaption as any
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField
@@ -488,47 +531,51 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="photoURL"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Photo URL</FormLabel>
-                  <FormControl>
-                    <Input type="url" placeholder="https://example.com/photo.jpg" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Link to an image for the contact's profile.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {currentContext !== 'company' && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="photoURL"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Photo URL</FormLabel>
+                      <FormControl>
+                        <Input type="url" placeholder="https://example.com/photo.jpg" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Link to an image for the contact's profile.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="photoFile"
-              render={({ field: { onChange, value, ...rest } }) => ( // Destructure onChange to handle file input
-                <FormItem>
-                  <FormLabel className="flex items-center">
-                      <UploadCloud className="mr-2 h-4 w-4 text-muted-foreground" />
-                      Upload Photo
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                        type="file" 
-                        accept="image/jpeg, image/png, image/gif, image/webp"
-                        onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
-                        {...rest} 
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Or upload an image file (max 2MB: jpg, png, gif, webp). This will override the Photo URL if both are provided.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="photoFile"
+                  render={({ field: { onChange, value, ...rest } }) => ( // Destructure onChange to handle file input
+                    <FormItem>
+                      <FormLabel className="flex items-center">
+                          <UploadCloud className="mr-2 h-4 w-4 text-muted-foreground" />
+                          Upload Photo
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                            type="file" 
+                            accept="image/jpeg, image/png, image/gif, image/webp"
+                            onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
+                            {...rest} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Or upload an image file (max 2MB: jpg, png, gif, webp). This will override the Photo URL if both are provided.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             <FormField
               control={form.control}
@@ -536,7 +583,7 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Gender</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <Select onValueChange={field.onChange} value={(field.value as string) || ""}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />
@@ -678,28 +725,29 @@ export function ContactForm({ onSubmit, defaultValues, isEditMode = false, isLoa
               control={form.control}
               name="notes"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs font-bold text-[#B0A090] uppercase tracking-wider">Notes</FormLabel>
                   <FormControl>
                     <Textarea 
                       placeholder="Add any additional notes about this contact..." 
-                      className="min-h-[100px]"
+                      className="min-h-[90px] rounded-2xl border-[rgba(26,15,6,0.12)] bg-[#FAF7F4] dark:bg-background text-sm p-3.5"
                       {...field} 
                     />
                   </FormControl>
-                  <FormDescription>
-                    Any additional information, memories, or details about this contact.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full rounded-2xl bg-[#C4622D] hover:bg-[#A84F20] text-white font-semibold py-6 text-sm shadow-sm transition-colors mt-2" 
+              disabled={isLoading}
+            >
               {isLoading ? (isEditMode ? "Saving..." : "Adding...") : (isEditMode ? "Save Changes" : "Add Contact")}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </form>
     </Form>
   );

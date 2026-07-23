@@ -24,7 +24,7 @@ export function ContactMemories({ contactId, contactName }: ContactMemoriesProps
   const [loading, setLoading] = useState(true);
   const [isAddMemoryModalOpen, setIsAddMemoryModalOpen] = useState(false);
   const { toast } = useToast();
-  const memoriesFetchedRef = useRef(false);
+  const memoriesFetchedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fetchMemories = async () => {
@@ -34,7 +34,7 @@ export function ContactMemories({ contactId, contactName }: ContactMemoriesProps
       try {
         const contactMemories = await getMemoriesByContactId(contactId);
         setMemories(contactMemories);
-        memoriesFetchedRef.current = true;
+        memoriesFetchedRef.current = contactId;
       } catch (error) {
         console.error('Error fetching memories:', error);
         toast({ 
@@ -47,7 +47,7 @@ export function ContactMemories({ contactId, contactName }: ContactMemoriesProps
       }
     };
 
-    if (!memoriesFetchedRef.current || memoriesFetchedRef.current !== contactId) {
+    if (memoriesFetchedRef.current !== contactId) {
       memoriesFetchedRef.current = contactId;
       fetchMemories();
     }
@@ -124,7 +124,7 @@ export function ContactMemories({ contactId, contactName }: ContactMemoriesProps
       {/* Add Memory Modal */}
       <VoiceMemoryInputModal
         isOpen={isAddMemoryModalOpen}
-        onClose={() => setIsAddMemoryModalOpen(false)}
+        onOpenChange={(open) => setIsAddMemoryModalOpen(open)}
         contactId={contactId}
         contactName={contactName}
         onMemorySaved={() => {
@@ -170,7 +170,7 @@ export function ContactMemories({ contactId, contactName }: ContactMemoriesProps
         {/* Add Memory Modal */}
         <VoiceMemoryInputModal
           isOpen={isAddMemoryModalOpen}
-          onClose={() => setIsAddMemoryModalOpen(false)}
+          onOpenChange={(open) => setIsAddMemoryModalOpen(open)}
           contactId={contactId}
           contactName={contactName}
           onMemorySaved={() => {
@@ -222,7 +222,7 @@ export function ContactMemories({ contactId, contactName }: ContactMemoriesProps
                 <CardTitle className="text-base">{memory.summary.length > 60 ? `${memory.summary.substring(0, 60)}...` : memory.summary}</CardTitle>
                 <CardDescription className="flex items-center gap-1 mt-1">
                   <Calendar className="h-3 w-3" />
-                  <ClientSideFormattedDate date={memory.timestamp} format="PPP" />
+                  <ClientSideFormattedDate date={memory.timestamp as any} format="PPP" />
                 </CardDescription>
               </div>
               <AlertDialog>

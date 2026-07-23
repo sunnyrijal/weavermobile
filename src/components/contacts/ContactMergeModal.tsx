@@ -170,7 +170,7 @@ export function ContactMergeModal({ isOpen, onOpenChange, duplicates, onMergeCom
                     <Input
                       id="name"
                       value={mergedContact.name || ''}
-                      onChange={(e) => setMergedContact(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setMergedContact((prev: any) => ({ ...prev, name: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -178,7 +178,7 @@ export function ContactMergeModal({ isOpen, onOpenChange, duplicates, onMergeCom
                     <Input
                       id="email"
                       value={mergedContact.email || ''}
-                      onChange={(e) => setMergedContact(prev => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) => setMergedContact((prev: any) => ({ ...prev, email: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -186,7 +186,7 @@ export function ContactMergeModal({ isOpen, onOpenChange, duplicates, onMergeCom
                     <Input
                       id="phone"
                       value={mergedContact.phone || ''}
-                      onChange={(e) => setMergedContact(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) => setMergedContact((prev: any) => ({ ...prev, phone: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -194,7 +194,7 @@ export function ContactMergeModal({ isOpen, onOpenChange, duplicates, onMergeCom
                     <Input
                       id="company"
                       value={mergedContact.company || ''}
-                      onChange={(e) => setMergedContact(prev => ({ ...prev, company: e.target.value }))}
+                      onChange={(e) => setMergedContact((prev: any) => ({ ...prev, company: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -202,7 +202,7 @@ export function ContactMergeModal({ isOpen, onOpenChange, duplicates, onMergeCom
                     <Input
                       id="occupation"
                       value={mergedContact.occupation || ''}
-                      onChange={(e) => setMergedContact(prev => ({ ...prev, occupation: e.target.value }))}
+                      onChange={(e) => setMergedContact((prev: any) => ({ ...prev, occupation: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -210,7 +210,7 @@ export function ContactMergeModal({ isOpen, onOpenChange, duplicates, onMergeCom
                     <Input
                       id="currentLocation"
                       value={mergedContact.currentLocation || ''}
-                      onChange={(e) => setMergedContact(prev => ({ ...prev, currentLocation: e.target.value }))}
+                      onChange={(e) => setMergedContact((prev: any) => ({ ...prev, currentLocation: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -219,7 +219,7 @@ export function ContactMergeModal({ isOpen, onOpenChange, duplicates, onMergeCom
                   <Textarea
                     id="notes"
                     value={mergedContact.notes || ''}
-                    onChange={(e) => setMergedContact(prev => ({ ...prev, notes: e.target.value }))}
+                    onChange={(e) => setMergedContact((prev: any) => ({ ...prev, notes: e.target.value }))}
                     rows={3}
                   />
                 </div>

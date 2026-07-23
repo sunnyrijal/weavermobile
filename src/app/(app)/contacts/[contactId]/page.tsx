@@ -25,7 +25,7 @@ import ClientSideFormattedDate from "@/components/shared/ClientSideFormattedDate
 import ContactRelationships from "@/components/contacts/ContactRelationships";
 import { ContactMemories } from '@/components/contacts/ContactMemories';
 import { ContactDeleteModal } from '@/components/contacts/ContactDeleteModal';
-
+import { useContactsContext } from '@/contexts/ContactsContext';
 
 
 const getInitials = (name: string) => {
@@ -172,35 +172,48 @@ export default function ContactDetailPage() {
   const highlight = searchParams.get('highlight');
 
 
+  const { contacts: ctxContacts } = useContactsContext();
+
   const fetchContactDetails = async () => {
     try {
       const response = await fetch(`/api/contacts/${contactId}`);
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          setContact(null);
-        } else {
-          throw new Error('Failed to fetch contact details');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.contact) {
+          setContact(data.contact);
+          setNotesInput(data.contact.notes || "");
+          setHiddenNotesInput(data.contact.hiddenNotes || "");
+          
+          if (data.contact.relationships && data.contact.relationships.length > 0) {
+            fetchRelatedContactNames(data.contact.relationships);
+          }
+          return;
         }
-        return;
       }
       
-      const data = await response.json();
-      setContact(data.contact);
-      setNotesInput(data.contact.notes || "");
-      setHiddenNotesInput(data.contact.hiddenNotes || "");
-      
-      // Fetch related contact names if relationships exist
-      if (data.contact.relationships && data.contact.relationships.length > 0) {
-        fetchRelatedContactNames(data.contact.relationships);
+      // Fallback: check contacts from ContactsContext
+      const ctxContact = ctxContacts.find((c: any) => c.id === contactId || (c as any)._id === contactId) || contactsList.find((c: any) => c.id === contactId || (c as any)._id === contactId);
+      if (ctxContact) {
+        setContact(ctxContact as any);
+        setNotesInput(ctxContact.notes || "");
+        setHiddenNotesInput((ctxContact as any).hiddenNotes || "");
+        if (ctxContact.relationships && ctxContact.relationships.length > 0) {
+          fetchRelatedContactNames(ctxContact.relationships);
+        }
+      } else {
+        setContact(null);
       }
     } catch (error) {
-      console.error('Error fetching contact details:', error);
-      toast({ 
-        title: "Error", 
-        description: "Failed to load contact details", 
-        variant: "destructive" 
-      });
+      console.warn('Error fetching contact details, checking context fallback:', error);
+      const ctxContact = ctxContacts.find((c: any) => c.id === contactId || (c as any)._id === contactId) || contactsList.find((c: any) => c.id === contactId || (c as any)._id === contactId);
+      if (ctxContact) {
+        setContact(ctxContact as any);
+        setNotesInput(ctxContact.notes || "");
+        setHiddenNotesInput((ctxContact as any).hiddenNotes || "");
+      } else {
+        setContact(null);
+      }
     }
   };
 
@@ -449,6 +462,7 @@ export default function ContactDetailPage() {
             name: data.contact.name,
             photoURL: data.contact.photoURL,
             category: data.contact.category,
+            relationships: data.contact.relationships || [],
           };
         }
       } catch (error) {
@@ -515,7 +529,7 @@ export default function ContactDetailPage() {
   };
 
   const handleOpenDeleteModal = () => {
-    setContactToDelete(contact);
+    setContactToDelete(contact || null);
     setIsDeleteDialogOpen(true);
   };
 
@@ -730,23 +744,36 @@ export default function ContactDetailPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 p-2 sm:p-0">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-        <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+    <div className="flex flex-col h-full bg-[#FAF7F4] dark:bg-background px-4 sm:px-6 pt-2 pb-12 space-y-4 max-w-xl mx-auto w-full">
+      {/* Top Navigation Bar */}
+      <div className="flex items-center justify-between py-1">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => router.back()} 
+          className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-white dark:bg-card text-xs font-semibold text-[#1A0F06] dark:text-foreground h-9 px-3 shadow-sm hover:bg-[#FAEEE5]"
+        >
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5 text-[#C4622D]" /> Back
         </Button>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button variant="default" asChild className="w-full sm:w-auto">
+        
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            asChild 
+            className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-white dark:bg-card text-xs font-semibold text-[#1A0F06] dark:text-foreground h-9 px-3 shadow-sm hover:bg-[#FAEEE5]"
+          >
             <Link href={`/contacts/${contact.id}/edit`}>
-              <Edit3 className="mr-2 h-4 w-4" /> Edit Contact
+              <Edit3 className="mr-1.5 h-3.5 w-3.5 text-[#C4622D]" /> Edit Profile
             </Link>
           </Button>
           <Button 
-            variant="destructive" 
-            className="w-full sm:w-auto"
+            variant="outline" 
+            size="sm"
             onClick={handleOpenDeleteModal}
+            className="rounded-2xl border-rose-200 bg-white dark:bg-card text-xs font-semibold text-rose-600 h-9 px-3 shadow-sm hover:bg-rose-50"
           >
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
+            <Trash2 className="mr-1.5 h-3.5 w-3.5 text-rose-500" /> Delete
           </Button>
         </div>
       </div>
@@ -762,336 +789,334 @@ export default function ContactDetailPage() {
         onContactDeleted={handleContactDeleted}
       />
 
-      <Card className="shadow-xl overflow-hidden">
-        <div className="relative h-32 sm:h-48 bg-muted">
-          <Image 
-            src={contact.photoURL || `https://picsum.photos/seed/${contact.id}_cover/1000/200`} 
-            alt={`${contact.name} cover photo`} 
-            fill={true}
-            style={{objectFit:"cover"}}
-            data-ai-hint="landscape nature"
-            className="opacity-50"
-            priority={true} 
-          />
-          <div className="absolute bottom-0 left-0 w-full sm:w-auto p-2 sm:p-4 md:p-6 flex flex-col items-center text-center sm:flex-row sm:items-end sm:space-x-4 sm:text-left">
-            <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
-              <DialogTrigger asChild>
-                <div className="mb-1 sm:mb-0">
-                    <Avatar className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 border-2 sm:border-4 border-background shadow-lg cursor-pointer hover:opacity-90 transition-opacity">
-                    <AvatarImage src={contact.photoURL} alt={contact.name} data-ai-hint="person avatar large" className="object-cover"/>
-                    <AvatarFallback className="text-2xl sm:text-3xl md:text-4xl">{getInitials(contact.name)}</AvatarFallback>
-                    </Avatar>
+      {/* Hero Profile Card */}
+      <div className="bg-white dark:bg-card rounded-3xl border border-[rgba(26,15,6,0.08)] shadow-sm overflow-hidden">
+        {/* Cover Banner */}
+        <div className="relative h-28 sm:h-36 bg-gradient-to-r from-[#FAEEE5] via-[#F3E5D8] to-[#EAD4C3] dark:from-muted dark:to-card">
+          {contact.photoURL && (
+            <Image 
+              src={contact.photoURL} 
+              alt={`${contact.name} cover`} 
+              fill
+              className="object-cover opacity-20 blur-sm"
+              priority
+            />
+          )}
+        </div>
+
+        {/* Profile Info Row */}
+        <div className="px-5 pb-5 pt-0 relative flex flex-col items-start">
+          <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
+            <DialogTrigger asChild>
+              <div className="-mt-12 mb-3 cursor-pointer group relative">
+                <Avatar className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-card shadow-md group-hover:opacity-90 transition-opacity">
+                  <AvatarImage src={contact.photoURL} alt={contact.name} className="object-cover"/>
+                  <AvatarFallback className="bg-[#FAEEE5] text-[#C4622D] text-xl font-bold font-serif">{getInitials(contact.name)}</AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="h-5 w-5 text-white" />
                 </div>
-              </DialogTrigger>
-              <DialogContent className="max-w-xs sm:max-w-md p-0">
-                 <DialogHeader className="p-4 border-b">
-                    <DialogTitle>{contact.name}'s Profile Photo</DialogTitle>
-                  </DialogHeader>
-                {contact.photoURL ? (
-                  <div className="relative w-full aspect-square">
-                    <Image
-                      src={contact.photoURL}
-                      alt={`${contact.name}'s profile photo - enlarged`}
-                      fill
-                      style={{objectFit: "contain"}}
-                      data-ai-hint="person avatar large"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-48 sm:h-64 bg-muted">
-                    <p className="text-muted-foreground">No profile photo available.</p>
-                  </div>
-                )}
-                 <DialogFooter className="p-4 border-t flex flex-col sm:flex-row justify-between gap-2 sm:justify-end">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileChange} 
-                        style={{ display: 'none' }} 
-                        accept="image/*"
-                        aria-hidden="true" 
-                        tabIndex={-1}
-                    />
-                    <Button variant="outline" onClick={() => setIsPhotoDialogOpen(false)} disabled={isUploadingPhoto} className="w-full sm:w-auto">Cancel</Button>
-                    <Button onClick={handlePhotoUploadClick} disabled={isUploadingPhoto} className="w-full sm:w-auto">
-                        {isUploadingPhoto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                        Upload New Photo
-                    </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              </div>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-xs sm:max-w-md p-0 rounded-3xl overflow-hidden bg-[#FAF7F4] dark:bg-background">
+              <DialogHeader className="p-4 border-b border-[rgba(26,15,6,0.08)]">
+                <DialogTitle className="font-serif text-lg font-bold">{contact.name}'s Profile Photo</DialogTitle>
+              </DialogHeader>
+              {contact.photoURL ? (
+                <div className="relative w-full aspect-square bg-white dark:bg-card">
+                  <Image
+                    src={contact.photoURL}
+                    alt={`${contact.name}'s profile photo`}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-48 bg-muted text-xs text-[#8C7B6B]">
+                  No profile photo available.
+                </div>
+              )}
+              <DialogFooter className="p-4 border-t border-[rgba(26,15,6,0.08)] flex flex-col sm:flex-row gap-2">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  style={{ display: 'none' }} 
+                  accept="image/*"
+                />
+                <Button variant="outline" onClick={() => setIsPhotoDialogOpen(false)} disabled={isUploadingPhoto} className="rounded-2xl">Cancel</Button>
+                <Button onClick={handlePhotoUploadClick} disabled={isUploadingPhoto} className="rounded-2xl bg-[#C4622D] text-white">
+                  {isUploadingPhoto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                  Upload New Photo
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <div className="w-full flex items-start justify-between">
             <div>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-white drop-shadow-lg bg-black/20 px-2 py-1 rounded">
-                  {editingSection === 'name' ? (
-                    <div className="flex flex-col gap-2">
-                      <Input
-                        value={editFormData.name}
-                        onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Full Name"
-                        className="text-xl sm:text-2xl md:text-3xl font-bold"
-                      />
-                      <Input
-                        value={editFormData.nickname}
-                        onChange={(e) => setEditFormData(prev => ({ ...prev, nickname: e.target.value }))}
-                        placeholder="Nickname (optional)"
-                        className="text-base sm:text-lg"
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      {contact.name}{contact.nickname ? ` (${contact.nickname})` : ''}
-                    </>
-                  )}
-                </CardTitle>
-                {editingSection === 'name' ? (
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
-                      {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => startEditing('name')}
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-serif text-2xl font-bold text-[#1A0F06] dark:text-foreground">
+                  {contact.name}
+                </h1>
+                {contact.nickname && (
+                  <span className="text-xs text-[#8C7B6B] font-semibold">({contact.nickname})</span>
+                )}
+                {contact.category && (
+                  <Badge variant="outline" className="rounded-xl text-[10px] px-2 py-0.5 border-[rgba(26,15,6,0.12)] text-[#5A4535] bg-[#FAF7F4] font-medium">
+                    {contact.category}
+                  </Badge>
                 )}
               </div>
-              {contact.occupation && (
-                <CardDescription className="text-base sm:text-lg text-white drop-shadow-lg bg-black/20 px-2 py-1 rounded mt-1">
-                  {contact.occupation} {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && `at ${contact.company}`}
-                </CardDescription>
+
+              {(contact.occupation || contact.company) && (
+                <p className="text-xs text-[#8C7B6B] mt-0.5 font-medium">
+                  {contact.occupation}
+                  {contact.company && !contact.occupation?.includes(contact.company) ? ` · ${contact.company}` : ''}
+                </p>
               )}
             </div>
+
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => startEditing('name')} 
+              className="h-8 w-8 text-[#B0A090] hover:text-[#C4622D] rounded-full shrink-0"
+            >
+              <Edit3 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-        
-        <CardContent className="pt-24 sm:pt-28 md:pt-20"> {/* Adjusted pt for stacked avatar */}
-           <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="overview">
-            <TabsList className="mb-4 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="relationships">Relationships</TabsTrigger>
-              <TabsTrigger value="photos">Photos Together</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="events">Notable Events</TabsTrigger>
-              <TabsTrigger value="memories">Memories</TabsTrigger>
-            </TabsList>
+      </div>
+      
+      {/* Tabs Section */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="overview" className="w-full">
+        {/* Horizontal Scrollable Pill Tabs */}
+        <TabsList className="flex items-center gap-1.5 overflow-x-auto no-scrollbar p-1.5 bg-white dark:bg-card rounded-2xl w-full justify-start border border-[rgba(26,15,6,0.08)] mb-3">
+          <TabsTrigger value="overview" className="shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-semibold data-[state=active]:bg-[#FAEEE5] data-[state=active]:text-[#C4622D] data-[state=active]:shadow-none text-[#8C7B6B]">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="relationships" className="shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-semibold data-[state=active]:bg-[#FAEEE5] data-[state=active]:text-[#C4622D] data-[state=active]:shadow-none text-[#8C7B6B]">
+            Relationships
+          </TabsTrigger>
+          <TabsTrigger value="photos" className="shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-semibold data-[state=active]:bg-[#FAEEE5] data-[state=active]:text-[#C4622D] data-[state=active]:shadow-none text-[#8C7B6B]">
+            Photos
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-semibold data-[state=active]:bg-[#FAEEE5] data-[state=active]:text-[#C4622D] data-[state=active]:shadow-none text-[#8C7B6B]">
+            Notes
+          </TabsTrigger>
+          <TabsTrigger value="events" className="shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-semibold data-[state=active]:bg-[#FAEEE5] data-[state=active]:text-[#C4622D] data-[state=active]:shadow-none text-[#8C7B6B]">
+            Events
+          </TabsTrigger>
+          <TabsTrigger value="memories" className="shrink-0 rounded-xl px-3.5 py-1.5 text-xs font-semibold data-[state=active]:bg-[#FAEEE5] data-[state=active]:text-[#C4622D] data-[state=active]:shadow-none text-[#8C7B6B]">
+            Memories
+          </TabsTrigger>
+        </TabsList>
 
-            {activeTab === "overview" && (
-            <TabsContent value="overview" className="space-y-4 sm:space-y-6">
-              <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-md sm:text-lg">Contact Information</CardTitle>
-                      {editingSection === 'contact' ? (
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
-                            {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                            <X className="h-4 w-4" />
-                          </Button>
+        {activeTab === "overview" && (
+          <TabsContent value="overview" className="space-y-4">
+            <div className="flex flex-col gap-4">
+              {/* Contact Information Card */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-[rgba(26,15,6,0.08)] p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-[rgba(26,15,6,0.06)] pb-2.5">
+                  <h3 className="font-serif text-base font-bold text-[#1A0F06] dark:text-foreground">
+                    Contact Information
+                  </h3>
+                  {editingSection === 'contact' ? (
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit} className="h-7 w-7 p-0 text-[#C4622D]">
+                        {isSavingEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={cancelEditing} className="h-7 w-7 p-0 text-[#8C7B6B]">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => startEditing('contact')} className="h-7 w-7 p-0 text-[#B0A090] hover:text-[#C4622D]">
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2.5 text-xs">
+                  {editingSection === 'contact' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.email}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="Email"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.phone}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="Phone"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Home className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.hometown}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, hometown: e.target.value }))}
+                          placeholder="Hometown"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.currentLocation}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, currentLocation: e.target.value }))}
+                          placeholder="Current Location"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.birthday}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, birthday: e.target.value }))}
+                          placeholder="Birthday (YYYY-MM-DD)"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 font-medium">
+                      {contact.email ? (
+                        <div className="flex items-center gap-2.5">
+                          <Mail className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <a href={`mailto:${contact.email}`} className="text-[#C4622D] hover:underline break-all">{contact.email}</a>
                         </div>
-                      ) : (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => startEditing('contact')}
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
+                      ) : null}
+                      {contact.phone ? (
+                        <div className="flex items-center gap-2.5">
+                          <Phone className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <span className="text-[#1A0F06] dark:text-foreground">{contact.phone}</span>
+                        </div>
+                      ) : null}
+                      {contact.hometown ? (
+                        <div className="flex items-center gap-2.5">
+                          <Home className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <span className="text-[#1A0F06] dark:text-foreground">From: {contact.hometown}</span>
+                        </div>
+                      ) : null}
+                      {contact.currentLocation ? (
+                        <div className="flex items-center gap-2.5">
+                          <MapPin className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <span className="text-[#1A0F06] dark:text-foreground">{contact.currentLocation}</span>
+                        </div>
+                      ) : null}
+                      {contact.birthday ? (
+                        <div className="flex items-center gap-2.5">
+                          <CalendarDays className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
+                        </div>
+                      ) : null}
+                      {!contact.email && !contact.phone && !contact.hometown && !contact.currentLocation && !contact.birthday && (
+                        <p className="text-[#8C7B6B] italic text-xs">No contact details added yet.</p>
                       )}
                     </div>
-
-                  </CardHeader>
-                  <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                    {editingSection === 'contact' ? (
-                      <>
-                        <div className="flex items-center">
-                          <Mail className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.email}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, email: e.target.value }))}
-                            placeholder="Email"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <Phone className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.phone}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
-                            placeholder="Phone"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <Home className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.hometown}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, hometown: e.target.value }))}
-                            placeholder="Hometown"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <MapPin className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.currentLocation}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, currentLocation: e.target.value }))}
-                            placeholder="Current Location"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.birthday}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, birthday: e.target.value }))}
-                            placeholder="Birthday (YYYY-MM-DD)"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {contact.email && (
-                          <div className="flex items-center">
-                            <Mail className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <a href={`mailto:${contact.email}`} className="text-primary hover:underline break-all">{contact.email}</a>
-                          </div>
-                        )}
-                        {contact.phone && (
-                          <div className="flex items-center">
-                            <Phone className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>{contact.phone}</span>
-                          </div>
-                        )}
-                        {contact.hometown && (
-                           <div className="flex items-center">
-                            <Home className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>From: {contact.hometown}</span>
-                          </div>
-                        )}
-                        {contact.currentLocation && (
-                           <div className="flex items-center">
-                            <MapPin className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>{contact.currentLocation}</span>
-                          </div>
-                        )}
-                         {contact.birthday && (
-                           <div className="flex items-center">
-                            <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                             <ClientSideFormattedDate date={contact.birthday} prefix="Born " />
-                          </div>
-                        )}
-                        {contact.age && (
-                          <div className="flex items-center">
-                            <CalendarDays className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>Age: {contact.age} years old</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-md sm:text-lg">Professional &amp; Education</CardTitle>
-                      {editingSection === 'professional' ? (
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit}>
-                            {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button variant="ghost" size="sm" onClick={() => startEditing('professional')}>
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                    {editingSection === 'professional' ? (
-                      <>
-                        <div className="flex items-center">
-                          <Briefcase className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.occupation}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, occupation: e.target.value }))}
-                            placeholder="Occupation"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <Building className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.company}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, company: e.target.value }))}
-                            placeholder="Company"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                          <Input
-                            value={editFormData.college}
-                            onChange={(e) => setEditFormData(prev => ({ ...prev, college: e.target.value }))}
-                            placeholder="College/University"
-                            className="h-6 text-xs"
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {contact.occupation && (
-                          <div className="flex items-center">
-                            <Briefcase className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>{contact.occupation}</span>
-                          </div>
-                        )}
-                        {contact.company && !(contact.occupation?.toLowerCase().includes("student") && contact.company === contact.college) && (
-                          <div className="flex items-center">
-                            <Building className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>{contact.company}</span>
-                          </div>
-                        )}
-                        {contact.college && (
-                          <div className="flex items-center">
-                            <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>{contact.college}</span>
-                          </div>
-                        )}
-                        {contact.major && (
-                          <div className="flex items-center">
-                            <University className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <span>Major: {contact.major}</span>
-                          </div>
-                        )}
-                        {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
-                          <div key={platform} className="flex items-center">
-                            <Link2 className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                            <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline capitalize break-all">
-                              {platform}
-                            </a>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
               </div>
+
+              {/* Professional & Education Card */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-[rgba(26,15,6,0.08)] p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-[rgba(26,15,6,0.06)] pb-2.5">
+                  <h3 className="font-serif text-base font-bold text-[#1A0F06] dark:text-foreground">
+                    Professional & Education
+                  </h3>
+                  {editingSection === 'professional' ? (
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={saveEdit} disabled={isSavingEdit} className="h-7 w-7 p-0 text-[#C4622D]">
+                        {isSavingEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={cancelEditing} className="h-7 w-7 p-0 text-[#8C7B6B]">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => startEditing('professional')} className="h-7 w-7 p-0 text-[#B0A090] hover:text-[#C4622D]">
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2.5 text-xs">
+                  {editingSection === 'professional' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.occupation}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, occupation: e.target.value }))}
+                          placeholder="Occupation"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.company}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, company: e.target.value }))}
+                          placeholder="Company"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <University className="h-4 w-4 text-[#B0A090] shrink-0" />
+                        <Input
+                          value={editFormData.college}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, college: e.target.value }))}
+                          placeholder="College/University"
+                          className="h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 font-medium">
+                      {contact.occupation ? (
+                        <div className="flex items-center gap-2.5">
+                          <Briefcase className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <span className="text-[#1A0F06] dark:text-foreground">{contact.occupation}</span>
+                        </div>
+                      ) : null}
+                      {contact.company ? (
+                        <div className="flex items-center gap-2.5">
+                          <Building className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <span className="text-[#1A0F06] dark:text-foreground">{contact.company}</span>
+                        </div>
+                      ) : null}
+                      {contact.college ? (
+                        <div className="flex items-center gap-2.5">
+                          <University className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <span className="text-[#1A0F06] dark:text-foreground">{contact.college}</span>
+                        </div>
+                      ) : null}
+                      {contact.socialProfiles && Object.entries(contact.socialProfiles).map(([platform, url]) => url && (
+                        <div key={platform} className="flex items-center gap-2.5">
+                          <Link2 className="h-4 w-4 text-[#B0A090] shrink-0" />
+                          <a href={url.startsWith('http') ? url : `https://${url}`} target="_blank" rel="noopener noreferrer" className="text-[#C4622D] hover:underline capitalize break-all font-medium">
+                            {platform}
+                          </a>
+                        </div>
+                      ))}
+                      {!contact.occupation && !contact.company && !contact.college && (
+                        <p className="text-[#8C7B6B] italic text-xs">No work or education details added yet.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
               
               {/* Basic Information Section */}
               {(() => {
@@ -1299,39 +1324,7 @@ export default function ContactDetailPage() {
               ) : null;
               })()}
 
-              {/* Extract Basic Information Button */}
-              {contact.notes && !contact.height && !contact.eyeColor && !contact.hairColor && !contact.bodyType && !contact.dressingStyle && !contact.skinTone && !contact.ethnicity && !contact.facialFeatures && !contact.distinguishingFeatures && !contact.voice && !contact.accent && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-md sm:text-lg flex items-center">
-                      <UserSquare2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary"/>
-                      Extract Basic Information
-                    </CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">
-                      Extract height, eye color, hair color, body type, and dressing style from notes
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button 
-                      onClick={handleExtractBasicInfo}
-                      disabled={isExtractingBasicInfo}
-                      className="w-full"
-                    >
-                      {isExtractingBasicInfo ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Extracting...
-                        </>
-                      ) : (
-                        <>
-                          <UserSquare2 className="mr-2 h-4 w-4" />
-                          Extract from Notes
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+
               
               <Card>
                 <CardHeader>
@@ -1837,9 +1830,9 @@ export default function ContactDetailPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                selected={eventFormValues.date}
+                                <Calendar
+                                  mode="single"
+                                  selected={eventFormValues.date || undefined}
                                 onSelect={(date) => setEventFormValues(prev => ({ ...prev, date: date || null }))}
                                 initialFocus
                                 disabled={(date) => date > new Date() || date < new Date("1900-01-01")} 
@@ -1879,12 +1872,12 @@ export default function ContactDetailPage() {
               </TabsContent>
             )}
           </Tabs>
-        </CardContent>
-        <CardFooter className="border-t pt-2 sm:pt-4 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
-            <ClientSideFormattedDate date={contact.createdAt} format="PPpp" prefix="Contact created on: " />
-            <ClientSideFormattedDate date={contact.updatedAt} format="PPpp" prefix="Last updated: " className="sm:ml-auto"/>
-        </CardFooter>
-      </Card>
+
+          {/* Footer Timestamps */}
+          <div className="pt-3 border-t border-[rgba(26,15,6,0.06)] text-[11px] text-[#8C7B6B] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+            <ClientSideFormattedDate date={contact.createdAt as any} format="PP" prefix="Created: " />
+            <ClientSideFormattedDate date={contact.updatedAt as any} format="PP" prefix="Updated: " />
+          </div>
     </div>
   );
 }

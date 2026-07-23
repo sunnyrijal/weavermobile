@@ -4,16 +4,17 @@ import { connectToDatabase } from '@/lib/mongodb/config';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    const resolvedParams = await params;
     
     const { searchParams } = new URL(request.url);
     const includeCompleted = searchParams.get('includeCompleted') === 'true';
     const type = searchParams.get('type') || undefined;
     
-    const reminders = await ReminderService.getUserReminders(params.id, {
+    const reminders = await ReminderService.getUserReminders(resolvedParams.id, {
       includeCompleted,
       type
     });
@@ -30,10 +31,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    await params; // Await params even if not used to satisfy Next.js 15 signature
     
     const body = await request.json();
     const { contactId, ...reminderData } = body;

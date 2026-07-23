@@ -26,7 +26,7 @@ export function AIAskModal({ isOpen, onOpenChange }: AIAskModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [answer, setAnswer] = useState('');
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null);
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const speechRecognitionRef = useRef<any | null>(null);
   const { contacts } = useContacts({ initialLoad: true });
   const router = useRouter();
 
@@ -45,12 +45,13 @@ export function AIAskModal({ isOpen, onOpenChange }: AIAskModalProps) {
   }, [isOpen]);
 
   const startListening = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    const win = window as any;
+    if (!win.webkitSpeechRecognition && !win.SpeechRecognition) {
       toast({ title: "Speech recognition not supported", description: "Your browser doesn't support speech recognition.", variant: "destructive" });
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
     speechRecognitionRef.current = new SpeechRecognition();
     const recognition = speechRecognitionRef.current;
 
@@ -63,13 +64,13 @@ export function AIAskModal({ isOpen, onOpenChange }: AIAskModalProps) {
       setMicrophonePermissionError(null);
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setQuestion(transcript);
       setIsListening(false);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       let errorMessage = `Speech recognition error: ${event.error}.`;
       

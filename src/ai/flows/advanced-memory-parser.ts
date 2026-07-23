@@ -12,6 +12,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { callPersonResolution, callHolmesExtractor, callGLiREL } from '@/lib/nlpClients';
 
 // Input schema for advanced memory parsing
 const AdvancedMemoryInputSchema = z.object({
@@ -117,7 +118,7 @@ function formatBirthday(birthday: string | undefined, age: number | undefined, c
   return birthday;
 }
 
-export async function parseAdvancedMemory(text: string, userProfile: { college?: string }, currentYear: number = 2025): Promise<ParseResult> {
+export async function parseAdvancedMemory(text: string, userProfile: { college?: string }, currentYear: number = 2025): Promise<any> {
   // 1. Person and nickname resolution
   const { persons, name_map } = await callPersonResolution(text);
   console.log('name_map:', name_map);
@@ -131,8 +132,8 @@ export async function parseAdvancedMemory(text: string, userProfile: { college?:
   console.log('glirelRels:', glirelRels);
 
   // 4. Build contact_updates
-  const contact_updates: ContactUpdate[] = [];
-  for (const [canonicalName, meta] of Object.entries(name_map)) {
+  const contact_updates: any[] = [];
+  for (const [canonicalName, meta] of Object.entries(name_map) as any) {
     const facts = holmesFacts.facts[canonicalName] || {};
     const age = facts.age ? parseInt(facts.age) : undefined;
     const birthday = formatBirthday(facts.birthday, age, currentYear);
@@ -149,7 +150,7 @@ export async function parseAdvancedMemory(text: string, userProfile: { college?:
     }
     contact_updates.push({
       name: canonicalName,
-      nickname: meta.nickname,
+      nickname: (meta as any).nickname,
       is_new_contact: true,
       extracted_info: {
         age,
@@ -283,7 +284,7 @@ Provide the output as a JSON object matching the defined schema. Be thorough but
 });
 
 // Post-processing: filter out any events that do not have a valid date or are not a real event type
-function filterValidEvents(events) {
+function filterValidEvents(events: any) {
   if (!Array.isArray(events)) return [];
   return events.filter(event => {
     // Must have a valid date and a real event type
@@ -311,3 +312,7 @@ const advancedMemoryParserFlow = ai.defineFlow(
     return output;
   }
 ); 
+
+export async function runAdvancedMemoryParserFlow(input: AdvancedMemoryInput): Promise<any> {
+  return advancedMemoryParserFlow(input);
+} 

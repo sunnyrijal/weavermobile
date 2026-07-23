@@ -7,6 +7,7 @@ Tests different AI APIs with the contact parsing prompt
 import os
 import json
 import re
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 # Test cases
@@ -35,7 +36,8 @@ TEST_CASES = [
 
 def load_prompt_template() -> str:
     """Load the prompt template from file"""
-    with open('test-contact-parsing-prompt.txt', 'r') as f:
+    prompt_path = Path(__file__).with_name('test-contact-parsing-prompt.txt')
+    with prompt_path.open('r') as f:
         return f.read()
 
 def extract_json(text: str) -> Optional[Dict]:
@@ -324,6 +326,5 @@ def run_tests():
 
 if __name__ == "__main__":
     run_tests()
-
 
 

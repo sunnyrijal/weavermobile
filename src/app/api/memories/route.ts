@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'ownerId is required' }, { status: 400 });
     }
 
-    let memories = [];
+    let memories: any[] = [];
     try {
       memories = await MemoryService.getMemoriesByOwnerId(ownerId);
     } catch (dbError) {

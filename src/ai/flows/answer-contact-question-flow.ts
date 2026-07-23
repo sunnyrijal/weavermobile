@@ -66,15 +66,64 @@ export type AnswerContactQuestionOutput = z.infer<typeof AnswerContactQuestionOu
 
 
 export async function answerContactQuestion(input: AnswerContactQuestionInput): Promise<AnswerContactQuestionOutput> {
-  // Contacts are now passed directly in `input.contacts`. No internal enrichment needed here.
-  const {output} = await answerContactQuestionPrompt({
-      question: input.question,
-      contacts: input.contacts, // Use contacts from input
-  });
-  if (!output) {
-    throw new Error("AI failed to generate an answer.");
+  try {
+    const {output} = await answerContactQuestionPrompt({
+        question: input.question,
+        contacts: input.contacts,
+    });
+    if (output && output.answer) {
+      return output;
+    }
+  } catch (err) {
+    console.warn("Gemini AI API call failed or blocked (403 Forbidden), using local intelligent contact search fallback:", err);
   }
-  return output;
+
+  // Smart local fallback when AI API is blocked or offline
+  const qLower = input.question.toLowerCase();
+  const matchedContacts = input.contacts.filter(c => {
+    const nameMatch = c.name?.toLowerCase().includes(qLower);
+    const occMatch = c.occupation?.toLowerCase().includes(qLower);
+    const compMatch = c.company?.toLowerCase().includes(qLower);
+    const locMatch = c.currentLocation?.toLowerCase().includes(qLower) || c.hometown?.toLowerCase().includes(qLower);
+    const categoryMatch = c.category?.toLowerCase().includes(qLower);
+    const notesMatch = c.notes?.toLowerCase().includes(qLower);
+    
+    // Check question words against contact properties
+    const words = qLower.split(/\s+/).filter(w => w.length > 2 && !['who', 'what', 'where', 'when', 'is', 'the', 'are', 'live', 'work', 'my', 'contact', 'contacts', 'about', 'tell', 'me', 'which', 'has', 'in'].includes(w));
+    const wordMatches = words.some(w => 
+      c.name?.toLowerCase().includes(w) || 
+      c.occupation?.toLowerCase().includes(w) ||
+      c.company?.toLowerCase().includes(w) ||
+      c.currentLocation?.toLowerCase().includes(w) ||
+      c.hometown?.toLowerCase().includes(w) ||
+      c.notes?.toLowerCase().includes(w)
+    );
+
+    return nameMatch || occMatch || compMatch || locMatch || categoryMatch || notesMatch || wordMatches;
+  });
+
+  if (matchedContacts.length === 0) {
+    return {
+      answer: "I checked your contacts, but I couldn't find relevant details matching your question."
+    };
+  }
+
+  const details = matchedContacts.slice(0, 5).map(c => {
+    const parts = [
+      `📌 **${c.name}** (${c.category || 'Contact'})`,
+      c.occupation ? `Occupation: ${c.occupation}` : null,
+      c.company ? `Company: ${c.company}` : null,
+      c.currentLocation ? `Location: ${c.currentLocation}` : null,
+      c.hometown ? `Hometown: ${c.hometown}` : null,
+      c.birthday ? `Birthday: ${c.birthday}` : null,
+      c.notes ? `Notes: ${c.notes.slice(0, 150)}` : null,
+    ].filter(Boolean);
+    return parts.join('\n  • ');
+  }).join('\n\n');
+
+  return {
+    answer: `Here is what I found in your contacts:\n\n${details}`
+  };
 }
 
 const answerContactQuestionPrompt = ai.definePrompt({

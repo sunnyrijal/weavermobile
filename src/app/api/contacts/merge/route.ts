@@ -14,6 +14,9 @@ export async function POST(req: NextRequest) {
     } else {
       merged = await ContactService.createContact(mergedContact);
     }
+    if (!merged) {
+      return NextResponse.json({ error: 'Failed to save merged contact' }, { status: 500 });
+    }
     // Delete all duplicates except the merged one
     for (const id of duplicateIds) {
       if (id !== merged.id) {

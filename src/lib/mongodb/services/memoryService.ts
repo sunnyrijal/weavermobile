@@ -108,7 +108,13 @@ export class MemoryService {
     return memories.map((memory: any) => ({ ...memory, id: memory._id.toString() }));
   }
     
-  static async createJournalEntry({ ownerId, content, timestamp, linkedContactIds, tags }) {
+  static async createJournalEntry({ ownerId, content, timestamp, linkedContactIds, tags }: {
+    ownerId: string;
+    content: string;
+    timestamp?: Date;
+    linkedContactIds?: string[];
+    tags?: string[];
+  }) {
     return await JournalEntry.create({ ownerId, content, timestamp, linkedContactIds, tags });
   }
 } 

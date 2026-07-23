@@ -28,14 +28,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface VoiceMemoryInputModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  contactId?: string;
+  contactName?: string;
+  onMemorySaved?: () => void;
+  container?: HTMLElement | null;
 }
 
 // Helper: Apply memory-based corrections/updates to a contact
-async function applyMemoryUpdateToContact(memoryText: string, extractedEntities: ProcessVoiceInputOutput['extractedEntities'], contact: Contact, updateContact: (id: string, data: Partial<Contact>) => Promise<Contact>, toast: { title: string, description: string, variant: "default" | "destructive" | "info" | "success" }) {
+async function applyMemoryUpdateToContact(memoryText: string, extractedEntities: ProcessVoiceInputOutput['extractedEntities'], contact: Contact, updateContact: (id: string, data: Partial<Contact>) => Promise<Contact | null>, toast: any) {
   console.log('[DEBUG] Attempting to update contact:', contact, extractedEntities);
   const correctionPhrases = ["instead of", "actually", "correction", "now", "used to", "but", "previously"];
   const isCorrection = correctionPhrases.some(phrase => memoryText.toLowerCase().includes(phrase));
-  let updateFields = {};
+  let updateFields: any = {};
   const entities = extractedEntities as any;
 
   // Generalized entity update logic
@@ -163,7 +167,7 @@ async function applyMemoryUpdateToContact(memoryText: string, extractedEntities:
 
   // 11. Handle basic information extraction from memory text AND existing notes
   if (!isCorrection && (memoryText || contact.notes) && typeof (memoryText || contact.notes) === 'string') {
-    const textToAnalyze = memoryText || contact.notes;
+    const textToAnalyze = (memoryText || contact.notes || '') as string;
     // Height patterns - improved to capture full height expressions
     const heightPatterns = [
       /(?:is|are) (?:around |about |approximately |like )?(\d+\s*(?:feet?|ft|')\s*\d*\s*(?:inches?|in|")?)/i,
@@ -177,9 +181,31 @@ async function applyMemoryUpdateToContact(memoryText: string, extractedEntities:
     for (const pattern of heightPatterns) {
       const match = textToAnalyze.match(pattern);
       if (match && match[1] && !contact.height) {
-        updateFields = { ...updateFields, height: match[1].trim() };
-        console.log('[DEBUG] Will update height:', match[1].trim());
-        break;
+        let heightStr = match[1].trim();
+        if (heightStr.length > 0) {
+          updateFields = { ...updateFields, height: heightStr };
+          console.log('[DEBUG] Will update height:', heightStr);
+          break;
+        }
+      }
+    }
+
+    // Weight patterns
+    const weightPatterns = [
+      /(?:is|are) (?:around |about |approximately |like )?(\d+\s*(?:lbs?|pounds?|kg|kilos?))/i,
+      /(?:weight|weighs|weight is) (?:around |about |approximately |like )?(\d+\s*(?:lbs?|pounds?|kg|kilos?))/i,
+      /(?:like |around |about |approximately )?(\d+\s*(?:lbs?|pounds?|kg|kilos?))/i
+    ];
+    
+    for (const pattern of weightPatterns) {
+      const match = textToAnalyze.match(pattern);
+      if (match && match[1] && !contact.weight) {
+        let weightStr = match[1].trim();
+        if (weightStr.length > 0) {
+          updateFields = { ...updateFields, weight: weightStr };
+          console.log('[DEBUG] Will update weight:', weightStr);
+          break;
+        }
       }
     }
 
@@ -276,7 +302,7 @@ async function applyMemoryUpdateToContact(memoryText: string, extractedEntities:
   }
 }
 
-export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInputModalProps) {
+export function VoiceMemoryInputModal({ isOpen, onOpenChange, contactId, contactName, onMemorySaved, container }: VoiceMemoryInputModalProps) {
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const { createMemory } = useMemories();
@@ -290,7 +316,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
   const [isProcessing, setIsProcessing] = useState(false);
   const [aiResponse, setAiResponse] = useState<ProcessVoiceInputOutput | null>(null);
   const [manualMemoryText, setManualMemoryText] = useState('');
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const speechRecognitionRef = useRef<any | null>(null);
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null);
   const [processedInputType, setProcessedInputType] = useState<'voice' | 'text' | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -318,11 +344,44 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
   const [selectedRelationship, setSelectedRelationship] = useState<string>('');
   const [showManualInput, setShowManualInput] = useState(false);
   const [geminiCliResult, setGeminiCliResult] = useState<any>(null);
+  const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef(false);
+
+  const handleStartPress = () => {
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      setInputMode('text');
+      toast({
+        title: "Switched to Note Typing Mode",
+        description: "Type your memory directly below and click 'Process Text' for AI parsing.",
+      });
+    }, 450);
+  };
+
+  const handleEndPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
 
   // Debug pendingGeminiCliContacts changes
   useEffect(() => {
     console.log('🔍 pendingGeminiCliContacts changed:', pendingGeminiCliContacts);
   }, [pendingGeminiCliContacts]);
+
+  // Synchronize selectedContactIds when modal opens with a contactId
+  useEffect(() => {
+    if (isOpen) {
+      if (contactId) {
+        setSelectedContactIds([contactId]);
+      } else {
+        setSelectedContactIds([]);
+      }
+    }
+  }, [isOpen, contactId]);
 
   const resetState = useCallback(() => {
     setTranscript('');
@@ -367,45 +426,43 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     }
   }, []);
 
+  const fetchContacts = useCallback(async () => {
+    if (!currentUser) return;
+    setIsLoadingContacts(true);
+    try {
+      const response = await fetch(`/api/contacts?ownerId=${currentUser.uid}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setContacts(data.contacts || []);
+      contactsFetchedRef.current = true;
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+      toast({ 
+        title: 'Error',
+        description: 'Failed to fetch contacts',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  }, [currentUser]);
+
   // Fetch contacts only once when modal opens
   useEffect(() => {
-    const fetchContacts = async () => {
-      if (!currentUser || contactsFetchedRef.current) return;
-      
-      setIsLoadingContacts(true);
-      try {
-        const response = await fetch(`/api/contacts?ownerId=${currentUser.uid}`);
-        
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        setContacts(data.contacts || []);
-        contactsFetchedRef.current = true;
-      } catch (error) {
-        console.error('Error fetching contacts:', error);
-        toast({ 
-          title: 'Error',
-          description: 'Failed to fetch contacts',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoadingContacts(false);
-      }
-    };
-
     // Only fetch contacts once when the modal opens
     if (isOpen && currentUser && !contactsFetchedRef.current) {
       fetchContacts();
-      contactsFetchedRef.current = true;
     }
     
     // Reset the ref when the modal closes
     if (!isOpen) {
       contactsFetchedRef.current = false;
     }
-  }, [isOpen, currentUser]);
+  }, [isOpen, currentUser, fetchContacts]);
 
   const handleCreateContact = async () => {
     if (!newContactName.trim() || !currentUser) return;
@@ -617,7 +674,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
                 return false;
               }
               // Must have at least first and last name (two words)
-              if (name.split(' ').filter(w => w.length > 0).length < 2) {
+              if (name.split(' ').filter((w: string) => w.length > 0).length < 2) {
                 return false;
               }
               return true;
@@ -658,7 +715,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
             findContactMatches(extractedPeople);
             
             // Also check if any of the filtered Gemini CLI contacts match existing contacts
-            const existingMatches = [];
+            const existingMatches: any[] = [];
             uniqueContacts.forEach((contact: any) => {
               console.log(`🔍 Checking if "${contact.name}" matches existing contacts...`);
               const matches = findPotentialContactMatches(contact.name, contacts, 0.5);
@@ -861,7 +918,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
         }
       }
       
-      setAiResponse(result);
+      setAiResponse(result as any);
       console.log('🎯 Set aiResponse:', result);
       console.log('🎯 aiResponse summary:', result.summary);
       console.log('🎯 aiResponse extractedEntities:', result.extractedEntities);
@@ -887,13 +944,14 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     }
 
     try {
+      const win = window as any;
       // Check if the browser supports the Web Speech API
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      if (!win.webkitSpeechRecognition && !win.SpeechRecognition) {
         throw new Error("Your browser doesn't support speech recognition. Try Chrome or Edge.");
       }
 
       // Initialize the SpeechRecognition object
-      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+      const SpeechRecognition = win.webkitSpeechRecognition || win.SpeechRecognition;
       const recognition = new SpeechRecognition();
       speechRecognitionRef.current = recognition;
 
@@ -903,7 +961,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
 
       let finalTranscriptForProcessing = '';
 
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: any) => {
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -922,7 +980,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
         });
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: any) => {
         if (event.error === 'not-allowed') {
           setMicrophonePermissionError("You denied microphone access. Please enable it in your browser settings and try again.");
         } else {
@@ -1032,7 +1090,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
           tags: geminiContact.interests || [],
           // Only apply selected relationship category to the main contact
           category: isMainContact ? (selectedRelationship || geminiContact.userRelationship || 'Other') : (geminiContact.userRelationship || 'Other'),
-          relationships: geminiContact.relationships?.map(rel => {
+          relationships: geminiContact.relationships?.map((rel: any) => {
             // Find the related contact by name
             const relatedContact = contacts.find(c => 
               c.name.toLowerCase() === rel.name.toLowerCase() ||
@@ -1289,7 +1347,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
   };
 
   // Handler for clicking on the memory saved toast
-  const onMemoryClick = (memory) => {
+  const onMemoryClick = (memory: any) => {
     // For now, just alert or log; replace with navigation/modal as needed
     alert(`Memory ID: ${memory?.id || 'unknown'}\nSummary: ${memory?.summary || ''}`);
     // Example: router.push(`/memories/${memory.id}`) or open modal
@@ -1319,8 +1377,8 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
           originalContent,
           timestamp: new Date().toISOString(),
           linkedContactIds: selectedContactIds,
-          tags: Array.isArray(aiResponse?.extractedEntities?.tags) ? aiResponse.extractedEntities.tags : [],
-          category: aiResponse?.category || 'General Memory',
+          tags: Array.isArray((aiResponse as any)?.extractedEntities?.tags) ? (aiResponse as any).extractedEntities.tags : [],
+          category: (aiResponse as any)?.category || 'General Memory',
         })
       });
       if (!res.ok) throw new Error('Failed to save journal entry');
@@ -1328,6 +1386,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       if (saveToJournalOnly) {
         toast({ title: "Journal Entry Saved", description: "Your memory was saved to your journal." });
         onOpenChange(false);
+        onMemorySaved?.();
         return;
       }
 
@@ -1401,7 +1460,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
               
               if (contactData.interests && contactData.interests.length > 0) {
                 const existingTags = existingContact.tags || [];
-                const newTags = contactData.interests.filter(interest => 
+                const newTags = contactData.interests.filter((interest: any) => 
                   !existingTags.some(tag => tag.toLowerCase() === interest.toLowerCase())
                 );
                 if (newTags.length > 0) {
@@ -1450,7 +1509,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
           console.log('🔍 Number of contacts to create:', newContacts.length);
           console.log('🔍 selectedContactIds:', selectedContactIds);
           
-          const createdContacts = [];
+          const createdContacts: any[] = [];
           for (const contactData of newContacts) {
             try {
               console.log('🔍 Creating contact with data:', contactData);
@@ -1558,7 +1617,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
                         
                         // Add relationship to main contact
                         const mainContactRelationship = {
-                          relatedContactId: relatedContact.id || relatedContact._id,
+                          relatedContactId: (relatedContact as any).id || (relatedContact as any)._id,
                           type: relationship.type,
                           notes: relationship.notes || `${relationship.type} of ${contactData.name}`
                         };
@@ -1575,7 +1634,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
                           relationships: [...(created.relationships || []), mainContactRelationship]
                         });
                         
-                        await updateContact(relatedContact.id || relatedContact._id, {
+                        await updateContact((relatedContact as any).id || (relatedContact as any)._id, {
                           relationships: [...(relatedContact.relationships || []), relatedContactRelationship]
                         });
                         
@@ -1640,7 +1699,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
     if (contact.notes && typeof contact.notes === 'string' && 
         (!contact.height && !contact.eyeColor && !contact.hairColor && !contact.bodyType && !contact.dressingStyle)) {
       console.log(`🔄 Extracting basic information from ${contact.name}'s notes...`);
-      await applyMemoryUpdateToContact('', { people: [], phone: [], email: [], occupation: [], company: [], locations: [], dates: [], relationships: [] }, contact, updateContact, toast);
+      await applyMemoryUpdateToContact('', { people: [], phone: [], email: [], occupation: [], company: [], locations: [], dates: [], relationships: [] } as any, contact, updateContact, toast);
     }
   };
       
@@ -1683,6 +1742,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
         )
       });
       onOpenChange(false);
+      onMemorySaved?.();
     } catch (error) {
       console.error("Error saving memory:", error);
       toast({ title: "Save Error", description: "Failed to save memory to database.", variant: "destructive" });
@@ -1786,8 +1846,9 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
       const contact = contacts.find(c => c.id === contactId);
       if (!contact) continue;
       for (const field of updatableFields) {
-        const value = Array.isArray(aiResponse.extractedEntities?.[field.key]) ? aiResponse.extractedEntities[field.key][0] : null;
-        if (value && 'birthday' in contact && contact[field.key] !== value) {
+        const entities = aiResponse.extractedEntities as any;
+        const value = Array.isArray(entities?.[field.key]) ? entities[field.key][0] : null;
+        if (value && 'birthday' in contact && (contact as any)[field.key] !== value) {
           updates.push({
             contactId,
             contactName: contact.name,
@@ -1960,85 +2021,154 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent container={container} className="w-[92%] max-w-[420px] max-h-[85vh] overflow-y-auto rounded-3xl p-4 sm:p-5 bg-[#FAF7F4] dark:bg-background border border-[rgba(26,15,6,0.08)]">
         <DialogHeader>
-          <DialogTitle>Add Memory</DialogTitle>
-          <DialogDescription>
-            Record a voice memory or type your memory manually.
+          <div className="flex items-center justify-between">
+            <DialogTitle className="font-serif text-2xl font-bold text-[#1A0F06] dark:text-foreground">
+              Add Memory
+            </DialogTitle>
+            {/* Mode Switcher Tabs */}
+            <div className="flex bg-[#EDE8E3] dark:bg-muted p-1 rounded-full text-xs font-semibold shrink-0 mr-6">
+              <button
+                type="button"
+                onClick={() => setInputMode('voice')}
+                title="Voice Input"
+                aria-label="Voice Input"
+                className={`p-2 rounded-full transition-all flex items-center justify-center ${
+                  inputMode === 'voice' 
+                    ? 'bg-white dark:bg-card text-[#C4622D] shadow-sm' 
+                    : 'text-[#8C7B6B] hover:text-[#1A0F06]'
+                }`}
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode('text')}
+                title="Note Typing"
+                aria-label="Note Typing"
+                className={`p-2 rounded-full transition-all flex items-center justify-center ${
+                  inputMode === 'text' 
+                    ? 'bg-white dark:bg-card text-[#C4622D] shadow-sm' 
+                    : 'text-[#8C7B6B] hover:text-[#1A0F06]'
+                }`}
+              >
+                <Type className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <DialogDescription className="text-xs text-[#8C7B6B] dark:text-muted-foreground mt-1">
+            {inputMode === 'voice' 
+              ? "Record a voice memory (hold button down to switch to Note Typing)."
+              : "Type notes directly below and tap 'Process Text' for AI parsing."}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-4 pt-2">
           {/* Voice Input Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">Voice Input</h3>
-              <div className="flex items-center space-x-2">
-                {isListening && (
-                  <div className="flex items-center space-x-1 text-red-500">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs">Listening...</span>
-                  </div>
-                )}
-                {isRecording && (
-                  <div className="flex items-center space-x-1 text-red-500">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs">Recording...</span>
-                  </div>
-                )}
+          {inputMode === 'voice' ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-[#B0A090] tracking-wider uppercase font-sans">VOICE CAPTURE</h3>
+                <div className="flex items-center space-x-2">
+                  {isListening && (
+                    <div className="flex items-center space-x-1 text-red-500">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs font-semibold">Listening...</span>
+                    </div>
+                  )}
+                  {isRecording && (
+                    <div className="flex items-center space-x-1 text-red-500">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs font-semibold">Recording...</span>
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  onClick={(e) => {
+                    if (isLongPressRef.current) return;
+                    handleVoiceInput();
+                  }}
+                  onMouseDown={handleStartPress}
+                  onMouseUp={handleEndPress}
+                  onTouchStart={handleStartPress}
+                  onTouchEnd={handleEndPress}
+                  disabled={isListening || isRecording || isProcessing}
+                  className="flex-1 rounded-2xl py-6 bg-[#C4622D] hover:bg-[#A84F20] text-white font-semibold text-sm shadow-md"
+                >
+                  {isListening ? (
+                    <>
+                      <Mic className="mr-2 h-4 w-4 animate-pulse text-white" />
+                      Stop Listening
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="mr-2 h-4 w-4" />
+                      Hold or Click to Speak
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={() => setInputMode('text')}
+                  variant="outline"
+                  className="rounded-2xl border-[rgba(26,15,6,0.12)] text-[#5A4535] hover:bg-[#FAEEE5]"
+                  title="Switch to direct Note Typing mode"
+                >
+                  <Type className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <p className="text-[11px] text-[#B0A090] text-center italic">
+                💡 Tip: Press & hold the Voice button to switch directly to Note Typing.
+              </p>
+
+              {transcript && (
+                <div className="p-3.5 bg-white dark:bg-card rounded-2xl border border-[rgba(26,15,6,0.08)] shadow-sm">
+                  <p className="text-xs font-semibold text-[#8C7B6B] mb-1">Transcript:</p>
+                  <p className="text-sm text-[#1A0F06] dark:text-foreground">{transcript}</p>
+                </div>
+              )}
             </div>
-            
-            <div className="flex space-x-2">
+          ) : (
+            /* Direct Note Typing Section */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="manualMemoryText" className="text-xs font-bold text-[#B0A090] tracking-wider uppercase font-sans">
+                  TYPE MEMORY NOTE
+                </Label>
+                <span className="text-[11px] text-[#C4622D] font-medium">Direct AI Parsing</span>
+              </div>
+              <Textarea
+                id="manualMemoryText"
+                value={manualMemoryText}
+                onChange={(e) => setManualMemoryText(e.target.value)}
+                placeholder="Type your memory note here (e.g. 'Met Sarah Williams for coffee, she moved to Greenpoint and her birthday is July 26th')..."
+                className="min-h-[120px] rounded-2xl border-[rgba(26,15,6,0.12)] p-3 text-sm focus:border-[#C4622D] bg-white dark:bg-card"
+                autoFocus
+              />
               <Button
-                onClick={handleVoiceInput}
-                disabled={isListening || isRecording || isProcessing}
-                variant={isListening ? "destructive" : "default"}
-                className="flex-1"
+                onClick={handleProcessManualText}
+                disabled={isProcessing || !manualMemoryText.trim()}
+                className="w-full rounded-2xl bg-[#C4622D] hover:bg-[#A84F20] text-white font-semibold py-3 shadow-md"
               >
-                {isListening ? (
+                {isProcessing ? (
                   <>
-                    <Mic className="mr-2 h-4 w-4" />
-                    Stop Listening
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Parsing Note with AI...
                   </>
                 ) : (
                   <>
-                    <Mic className="mr-2 h-4 w-4" />
-                    Start Voice Input
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Process & Extract Facts
                   </>
                 )}
               </Button>
-              
-              <Button
-                onClick={handleProcessManualText}
-                disabled={isProcessing}
-                variant="outline"
-                className="flex-1"
-              >
-                <Type className="mr-2 h-4 w-4" />
-                Process Text
-              </Button>
             </div>
-            
-            {transcript && (
-              <div className="p-3 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground mb-2">Transcript:</p>
-                <p className="text-sm">{transcript}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Manual Text Input */}
-          <div className="space-y-2">
-            <Label htmlFor="manualMemoryText">Memory Text</Label>
-            <Textarea
-              id="manualMemoryText"
-              value={manualMemoryText}
-              onChange={(e) => setManualMemoryText(e.target.value)}
-              placeholder="Type your memory here or use voice input above..."
-              className="min-h-[100px]"
-            />
-          </div>
+          )}
 
           {/* Processing Status */}
           {isProcessing && (
@@ -2169,7 +2299,7 @@ export function VoiceMemoryInputModal({ isOpen, onOpenChange }: VoiceMemoryInput
               <Checkbox
                 id="saveToJournalOnly"
                 checked={saveToJournalOnly}
-                onCheckedChange={setSaveToJournalOnly}
+                onCheckedChange={(checked) => setSaveToJournalOnly(!!checked)}
               />
               <Label htmlFor="saveToJournalOnly">Save to journal only (no contact updates)</Label>
             </div>

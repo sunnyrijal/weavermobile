@@ -126,7 +126,7 @@ export default function SettingsPage() {
                 <div>
                   <label className="text-sm font-medium">Account Created</label>
                   <p className="text-sm text-muted-foreground">
-                    {currentUser.createdAt ? <ClientSideFormattedDate date={currentUser.createdAt} /> : 'Unknown'}
+                    {currentUser.createdAt ? <ClientSideFormattedDate date={currentUser.createdAt as any} /> : 'Unknown'}
                   </p>
                 </div>
                 <div>

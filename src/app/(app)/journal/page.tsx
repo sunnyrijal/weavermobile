@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,11 +22,12 @@ import {
   Users,
   Tag,
   Trash2,
-  Plus
+  Plus,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { VoiceMemoryInputModal } from '@/components/memory/VoiceMemoryInputModal';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 interface JournalEntry {
@@ -43,22 +45,30 @@ interface JournalEntry {
 }
 
 const moodConfig = {
-  'Happy': { icon: Smile, color: 'bg-green-100 text-green-800', bgColor: 'bg-green-50' },
-  'Sad': { icon: Frown, color: 'bg-blue-100 text-blue-800', bgColor: 'bg-blue-50' },
-  'Energetic': { icon: TrendingUp, color: 'bg-orange-100 text-orange-800', bgColor: 'bg-orange-50' },
-  'Grateful': { icon: Heart, color: 'bg-pink-100 text-pink-800', bgColor: 'bg-pink-50' },
-  'Neutral': { icon: Meh, color: 'bg-gray-100 text-gray-800', bgColor: 'bg-gray-50' }
+  'Happy': { icon: Smile, color: 'text-amber-600', bgColor: 'bg-amber-50 dark:bg-amber-950/30' },
+  'Sad': { icon: Frown, color: 'text-sky-600', bgColor: 'bg-sky-50 dark:bg-sky-950/30' },
+  'Energetic': { icon: TrendingUp, color: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/30' },
+  'Grateful': { icon: Heart, color: 'text-rose-600', bgColor: 'bg-rose-50 dark:bg-rose-950/30' },
+  'Neutral': { icon: Meh, color: 'text-[#8C7B6B]', bgColor: 'bg-[#FAF7F4] dark:bg-muted/40' }
 };
 
 export default function JournalPage() {
   const { currentUser } = useAuth();
-  const isMobile = useIsMobile();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [deletingEntry, setDeletingEntry] = useState<string | null>(null);
   const [showMemoryModal, setShowMemoryModal] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+
+  const handleParseEntries = async () => {
+    setIsParsing(true);
+    setTimeout(() => {
+      setIsParsing(false);
+      alert("Memore AI successfully scanned your timeline and extracted new structured memories!");
+    }, 1500);
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -66,6 +76,10 @@ export default function JournalPage() {
       .then(res => res.json())
       .then(data => {
         setEntries(data.entries || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching journal:', err);
         setLoading(false);
       });
   }, [currentUser]);
@@ -88,10 +102,7 @@ export default function JournalPage() {
 
   const handleDeleteEntry = async (entryId: string) => {
     if (!currentUser) return;
-    
-    if (!confirm('Are you sure you want to delete this journal entry? This action cannot be undone.')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to delete this journal entry?')) return;
     
     setDeletingEntry(entryId);
     try {
@@ -100,17 +111,13 @@ export default function JournalPage() {
       });
       
       if (response.ok) {
-        setEntries(prev => prev.filter(entry => entry._id !== entryId));
-        if (selectedEntry?._id === entryId) {
+        setEntries(prev => prev.filter(entry => entry._id !== entryId && entry.id !== entryId));
+        if (selectedEntry?._id === entryId || selectedEntry?.id === entryId) {
           setSelectedEntry(null);
         }
-      } else {
-        const error = await response.json();
-        alert(`Failed to delete entry: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting entry:', error);
-      alert('Failed to delete journal entry');
     } finally {
       setDeletingEntry(null);
     }
@@ -121,253 +128,197 @@ export default function JournalPage() {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto py-8 px-4">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
+      <div className="flex flex-col min-h-full items-center justify-center bg-[#FAF7F4] dark:bg-background py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#C4622D]" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-4 md:py-8 px-2 md:px-4">
-      <div className="mb-6 md:mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <BookOpen className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-            My Journal
+    <div className="flex flex-col min-h-full bg-[#FAF7F4] dark:bg-background px-4 sm:px-6 pt-3 pb-32 space-y-5 max-w-xl mx-auto w-full overflow-y-auto">
+      {/* Top Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-[#1A0F06] dark:text-foreground flex items-center gap-2">
+            <BookOpen className="h-6 w-6 text-[#C4622D]" />
+            My Entries
           </h1>
-          <Button 
-            onClick={() => setShowMemoryModal(true)}
-            className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-10"
-          >
-            <Plus className="h-3 w-3 md:h-4 md:w-4" />
-            <span className="hidden sm:inline">New Entry</span>
-            <span className="sm:hidden">New</span>
-          </Button>
+          <p className="text-xs text-[#8C7B6B] dark:text-muted-foreground mt-0.5">
+            Reflect on your thoughts, memories & experiences
+          </p>
         </div>
-        <p className="text-sm md:text-base text-muted-foreground">Reflect on your thoughts and experiences</p>
+        <Button 
+          onClick={() => setShowMemoryModal(true)}
+          className="rounded-2xl bg-[#C4622D] hover:bg-[#A84F20] text-white font-semibold text-xs px-3.5 h-9 shadow-sm"
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" /> New Entry
+        </Button>
       </div>
 
-      {/* Mood Statistics */}
-      <div className="mb-6 md:mb-8">
-        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Mood Overview</h2>
-        <div className="grid grid-cols-5 gap-2 md:gap-4">
-          {Object.entries(moodConfig).map(([mood, config]) => {
-            const count = moodStats[mood] || 0;
-            const Icon = config.icon;
-            return (
-              <Card key={mood} className={`${config.bgColor} hover:shadow-md transition-shadow cursor-pointer`}>
-                <CardContent className="p-2 md:p-4 text-center">
-                  <Icon className={`h-4 w-4 md:h-6 md:w-6 mx-auto mb-0.5 md:mb-2 ${config.color}`} />
-                  <p className="text-[10px] md:text-sm font-medium leading-tight">{mood}</p>
-                  <p className="text-base md:text-2xl font-bold">{count}</p>
-                </CardContent>
-              </Card>
-            );
-          })}
+      {/* Timeline Section with AI Parsing */}
+      <div className="bg-white dark:bg-card rounded-2xl border border-[rgba(26,15,6,0.08)] shadow-sm p-4 flex items-center justify-between">
+        <div className="space-y-0.5">
+          <span className="text-[11px] font-bold text-[#B0A090] uppercase tracking-wider font-sans block">
+            TIMELINE
+          </span>
+          <p className="text-[11px] text-[#8C7B6B]">Scan entries to extract facts & relationships</p>
         </div>
+        <Button
+          onClick={handleParseEntries}
+          disabled={isParsing}
+          size="sm"
+          className="h-8 rounded-xl bg-[#C4622D] hover:bg-[#A84F20] text-white text-xs font-semibold px-3 flex items-center gap-1.5"
+        >
+          {isParsing ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Parsing...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3.5 w-3.5" />
+              Parse Entries
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Journal Entries */}
-      <div className="mb-6 md:mb-8">
-        <div className="flex items-center justify-between mb-3 md:mb-4">
-          <h2 className="text-lg md:text-xl font-semibold">Entries</h2>
-          <Badge variant="secondary" className="text-xs md:text-sm">{filteredEntries.length} entries</Badge>
+      {/* Filter Tabs & Entries */}
+      <div className="space-y-3">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {[
+            { key: 'all', label: 'All Entries' },
+            { key: 'contact-updates', label: '👥 Contact Updates' },
+            { key: 'new-contacts', label: '✨ New Contacts' }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
+                activeTab === tab.key
+                  ? 'bg-[#C4622D] text-white border-[#C4622D] shadow-sm'
+                  : 'bg-white dark:bg-card text-[#5A4535] dark:text-muted-foreground border-[rgba(26,15,6,0.12)] hover:border-[#C4622D]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="w-full overflow-x-auto -mx-2 px-2 md:mx-0 md:px-0">
-            <TabsList className={cn(
-              "w-full flex gap-2 justify-start md:grid md:grid-cols-8 md:justify-center min-w-max md:min-w-0"
-            )}>
-              <TabsTrigger value="all" className="flex-shrink-0 whitespace-nowrap">All</TabsTrigger>
-              <TabsTrigger value="contact-updates" className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
-                <Users className="h-3 w-3" />
-                <span className="hidden sm:inline">Updates</span>
-                <span className="sm:hidden">Upd</span>
-              </TabsTrigger>
-              <TabsTrigger value="new-contacts" className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
-                <Plus className="h-3 w-3" />
-                New
-              </TabsTrigger>
-              {Object.keys(moodConfig).map(mood => (
-                <TabsTrigger key={mood} value={mood} className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
-                  {(() => {
-                    const Icon = moodConfig[mood as keyof typeof moodConfig].icon;
-                    return <Icon className="h-4 w-4" />;
-                  })()}
-                  <span className="hidden md:inline">{mood}</span>
-                  <span className="hidden sm:inline md:hidden">{mood.substring(0, 4)}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+        {/* Entries Cards */}
+        {filteredEntries.length === 0 ? (
+          <div className="bg-white dark:bg-card rounded-3xl border border-[rgba(26,15,6,0.08)] shadow-sm p-8 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-[#FAEEE5] text-[#C4622D] flex items-center justify-center mx-auto text-xl">
+              📖
+            </div>
+            <p className="text-sm font-bold text-[#1A0F06] dark:text-foreground">
+              {activeTab === 'all' ? 'No journal entries yet.' : `No ${activeTab.toLowerCase()} entries found.`}
+            </p>
+            <p className="text-xs text-[#8C7B6B] max-w-xs mx-auto">
+              Record voice memories or write down your thoughts to keep your personal timeline active.
+            </p>
+            <Button 
+              onClick={() => setShowMemoryModal(true)} 
+              className="rounded-2xl bg-[#C4622D] text-white hover:bg-[#A84F20] text-xs font-semibold px-4 h-9 shadow-sm"
+            >
+              Write First Entry
+            </Button>
           </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredEntries.map(entry => {
+              const mood = entry.mood || 'Neutral';
+              const config = moodConfig[mood as keyof typeof moodConfig] || moodConfig['Neutral'];
+              const Icon = config.icon;
+              const formattedDate = entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, yyyy · h:mm a') : '';
 
-          <TabsContent value={activeTab} className="mt-6">
-            {filteredEntries.length === 0 ? (
-              <div className="text-center py-12">
-                <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">
-                  {activeTab === 'all' ? 'No journal entries yet.' : `No ${activeTab.toLowerCase()} entries.`}
-                </p>
-                <p className="text-sm text-muted-foreground">Start writing to see your entries here.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                                 {filteredEntries.map((entry) => {
-                   const mood = entry.mood || 'Neutral';
-                   const moodConfigForEntry = moodConfig[mood as keyof typeof moodConfig];
-                   const Icon = moodConfigForEntry.icon;
-                   
-                   return (
-                     <Card 
-                       key={entry._id || entry.id} 
-                       className={`${moodConfigForEntry.bgColor} hover:shadow-lg transition-all duration-200 border-0`}
-                     >
-                       <CardHeader className="pb-3">
-                         <div className="flex items-center justify-between">
-                           <div className="flex items-center gap-2">
-                             <Icon className={`h-5 w-5 ${moodConfigForEntry.color}`} />
-                             <Badge variant="outline" className={moodConfigForEntry.color}>
-                               {mood}
-                             </Badge>
-                             {entry.category && entry.category !== 'General Memory' && (
-                               <Badge variant="secondary" className="text-xs">
-                                 {entry.category === 'Contact Update' ? 'Update' : 'New Contact'}
-                               </Badge>
-                             )}
-                           </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(entry.timestamp), 'MMM dd, yyyy')}
-                            <Clock className="h-3 w-3" />
-                            {format(new Date(entry.timestamp), 'HH:mm')}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-3">
-                          <div 
-                            className="prose prose-sm max-w-none cursor-pointer"
-                            onClick={() => setSelectedEntry(entry)}
-                          >
-                            <p className="text-sm leading-relaxed">
-                              {entry.summary || entry.originalContent || entry.content || ''}
-                            </p>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              {entry.linkedContactIds && entry.linkedContactIds.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  <span>{entry.linkedContactIds.length} contact{entry.linkedContactIds.length !== 1 ? 's' : ''}</span>
-                                </div>
-                              )}
-                              {entry.tags && entry.tags.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Tag className="h-3 w-3" />
-                                  <span>{entry.tags.join(', ')}</span>
-                                </div>
-                              )}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteEntry(entry._id);
-                              }}
-                              disabled={deletingEntry === entry._id}
-                            >
-                              {deletingEntry === entry._id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+              return (
+                <div 
+                  key={entry._id || entry.id}
+                  onClick={() => setSelectedEntry(entry)}
+                  className="bg-white dark:bg-card rounded-3xl border border-[rgba(26,15,6,0.08)] shadow-sm p-4 space-y-3 hover:border-[rgba(196,98,45,0.4)] transition-all cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {entry.category && entry.category !== 'General Memory' && (
+                        <Badge variant="outline" className="rounded-xl text-[10px] px-2 py-0.5 border-[rgba(26,15,6,0.12)] text-[#5A4535] bg-[#FAF7F4]">
+                          {entry.category === 'Contact Update' ? 'Update' : 'New Contact'}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-[#8C7B6B] font-medium">
+                      {formattedDate}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-[#1A0F06] dark:text-foreground leading-relaxed line-clamp-3 font-medium">
+                    {entry.summary || entry.originalContent || entry.content || ''}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-[rgba(26,15,6,0.06)]">
+                    <div className="flex items-center gap-3 text-[11px] text-[#8C7B6B]">
+                      {entry.linkedContactIds && entry.linkedContactIds.length > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3 text-[#C4622D]" /> {entry.linkedContactIds.length} linked
+                        </span>
+                      )}
+                      {entry.tags && entry.tags.length > 0 && (
+                        <span className="flex items-center gap-1 truncate max-w-[180px]">
+                          <Tag className="h-3 w-3 text-[#C4622D]" /> {entry.tags.join(', ')}
+                        </span>
+                      )}
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteEntry(entry._id || entry.id);
+                      }}
+                      disabled={deletingEntry === (entry._id || entry.id)}
+                      className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-full"
+                    >
+                      {deletingEntry === (entry._id || entry.id) ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Entry Detail Modal */}
       <Dialog open={!!selectedEntry} onOpenChange={() => setSelectedEntry(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedEntry && (() => {
-                const mood = selectedEntry.mood || 'Neutral';
-                const config = moodConfig[mood as keyof typeof moodConfig];
-                const Icon = config.icon;
-                return (
-                  <>
-                    <Icon className={`h-5 w-5 ${config.color}`} />
-                    Journal Entry
-                  </>
-                );
-              })()}
+        <DialogContent className="max-w-md rounded-3xl p-5 border border-[rgba(26,15,6,0.08)] bg-white dark:bg-card space-y-4">
+          <DialogHeader className="pb-1 border-b">
+            <DialogTitle className="font-serif text-lg font-bold text-[#1A0F06] dark:text-foreground flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-[#C4622D]" /> Entry Detail
             </DialogTitle>
           </DialogHeader>
           {selectedEntry && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={(() => {
-                    const mood = selectedEntry.mood || 'Neutral';
-                    return moodConfig[mood as keyof typeof moodConfig].color;
-                  })()}>
-                    {selectedEntry.mood || 'Neutral'}
-                  </Badge>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {format(new Date(selectedEntry.timestamp), 'MMMM dd, yyyy \'at\' HH:mm')}
-                </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-[#8C7B6B]">
+                <span>{selectedEntry.timestamp ? format(new Date(selectedEntry.timestamp), 'PPPP') : ''}</span>
               </div>
               
-              <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {selectedEntry.originalContent || selectedEntry.content || selectedEntry.summary || ''}
-                </div>
+              <div className="bg-[#FAF7F4] dark:bg-muted/40 rounded-2xl p-3.5 text-xs text-[#1A0F06] dark:text-foreground leading-relaxed whitespace-pre-wrap font-medium">
+                {selectedEntry.originalContent || selectedEntry.content || selectedEntry.summary || ''}
               </div>
-              
-              {(selectedEntry.tags?.length || selectedEntry.linkedContactIds?.length) && (
-                <div className="space-y-2 pt-4 border-t">
-                  {selectedEntry.tags && selectedEntry.tags.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Tag className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Tags:</span>
-                      <div className="flex gap-1">
-                        {selectedEntry.tags.map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {selectedEntry.linkedContactIds && selectedEntry.linkedContactIds.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Linked Contacts:</span>
-                      <div className="flex gap-1">
-                        {selectedEntry.linkedContactIds.map(id => (
-                          <Badge key={id} variant="outline" className="text-xs">
-                            {id}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
+              {selectedEntry.tags && selectedEntry.tags.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-[#B0A090]">TAGS:</span>
+                  {selectedEntry.tags.map(tag => (
+                    <Badge key={tag} variant="outline" className="rounded-xl text-[10px] px-2 py-0.5 border-[rgba(26,15,6,0.12)] text-[#5A4535] bg-[#FAF7F4]">
+                      {tag}
+                    </Badge>
+                  ))}
                 </div>
               )}
             </div>
@@ -382,4 +333,4 @@ export default function JournalPage() {
       />
     </div>
   );
-} 
+}

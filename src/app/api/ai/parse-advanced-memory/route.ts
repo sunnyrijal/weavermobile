@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseAdvancedMemory, AdvancedMemoryInput } from '@/ai/flows/advanced-memory-parser';
+import { runAdvancedMemoryParserFlow, AdvancedMemoryInput } from '@/ai/flows/advanced-memory-parser';
 import { ContactService } from '@/lib/mongodb/services/contactService';
 import { findPotentialContactMatches } from '@/lib/utils';
 
@@ -24,22 +24,22 @@ export async function POST(req: NextRequest) {
     console.log('✅ Retrieved existing contacts:', existingContacts.length);
     
     // Build a map for quick lookup of contact names by id
-    const contactIdToName = new Map(existingContacts.map(c => [c._id.toString(), c.name]));
+    const contactIdToName = new Map(existingContacts.map((c: any) => [c._id?.toString() || c.id || '', c.name]));
     
     const input: AdvancedMemoryInput = {
       memory,
-      existingContacts: existingContacts.map(contact => ({
-        id: contact._id.toString(),
+      existingContacts: existingContacts.map((contact: any) => ({
+        id: contact._id?.toString() || contact.id || '',
         name: contact.name,
         email: contact.email,
         phone: contact.phone,
         birthday: contact.birthday,
         occupation: contact.occupation,
         company: contact.company,
-        location: contact.location,
+        location: contact.currentLocation,
         notes: contact.notes,
-        relationships: contact.relationships?.map(rel => ({
-          contactId: rel.relatedContactId ? rel.relatedContactId.toString() : undefined,
+        relationships: contact.relationships?.map((rel: any) => ({
+          contactId: rel.relatedContactId ? rel.relatedContactId.toString() : '',
           type: rel.type,
           name: rel.relatedContactId ? contactIdToName.get(rel.relatedContactId.toString()) || '' : ''
         })) || []
@@ -53,9 +53,9 @@ export async function POST(req: NextRequest) {
 
     let result;
     try {
-      console.log('🤖 Calling parseAdvancedMemory...');
-      result = await parseAdvancedMemory(input);
-      console.log('✅ parseAdvancedMemory completed successfully');
+      console.log('🤖 Calling runAdvancedMemoryParserFlow...');
+      result = await runAdvancedMemoryParserFlow(input);
+      console.log('✅ runAdvancedMemoryParserFlow completed successfully');
     } catch(parseErr:any){
       console.error('❌ Raw parser error:', parseErr);
       console.error('❌ Error details:', {
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 
     // Debug: Log the new contacts being created
     if (result.newContacts && result.newContacts.length > 0) {
-      console.log('🔍 New contacts to be created:', result.newContacts.map(c => ({
+      console.log('🔍 New contacts to be created:', result.newContacts.map((c: any) => ({
         name: c.name,
         occupation: c.occupation,
         currentLocation: c.currentLocation,
@@ -373,13 +373,13 @@ export async function POST(req: NextRequest) {
         if (isParentType(upd.relationship.type)) {
           for (const c of existingContacts) {
             if (c.id === fromContact.id) continue;
-            if (c.relationships && c.relationships.find(r => r.relatedContactId === fromContact.id && ['Brother','Sister','Sibling'].includes(r.type))) {
+            if (c.relationships && c.relationships.find((r: any) => r.relatedContactId === fromContact.id && ['Brother','Sister','Sibling'].includes(r.type))) {
               // sibling of child
-              const hasParent = c.relationships.find(r => r.relatedContactId === toContact.id && isParentType(r.type));
+              const hasParent = c.relationships.find((r: any) => r.relatedContactId === toContact.id && isParentType(r.type));
               if (!hasParent) {
                 await ContactService.updateContact(c.id, { relationships: [...c.relationships, { relatedContactId: toContact.id, type: 'Parent' }] });
               }
-              const hasChildBack = toContact.relationships && toContact.relationships.find(r => r.relatedContactId === c.id && isChildType(r.type));
+              const hasChildBack = toContact.relationships && toContact.relationships.find((r: any) => r.relatedContactId === c.id && isChildType(r.type));
               if (!hasChildBack) {
                 await ContactService.updateContact(toContact.id, { relationships: [...(toContact.relationships||[]), { relatedContactId: c.id, type: 'Child' }] });
               }

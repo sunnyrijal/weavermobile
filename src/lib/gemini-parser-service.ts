@@ -391,7 +391,10 @@ export async function parseContactInfo(text: string): Promise<ParsedContactsResu
       },
     });
 
-    const jsonText = response.text.trim();
+    const jsonText = response.text?.trim() || '';
+    if (!jsonText) {
+      throw new Error('Empty response received from Gemini API');
+    }
     const parsedJson = JSON.parse(jsonText);
     return parsedJson as ParsedContactsResult;
   } catch (error) {

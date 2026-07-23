@@ -216,21 +216,17 @@ export function useMemories() {
       const response = await fetch(`/api/memories/search?ownerId=${currentUser.uid}&contactId=${encodeURIComponent(contactId)}`);
       
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        console.warn(`GET /api/memories/search returned status ${response.status}`);
+        return [];
       }
       
       const data = await response.json();
       return data.memories || [];
     } catch (err) {
-      console.error('Error fetching memories by contact ID:', err);
-      toast({ 
-        title: 'Error',
-        description: 'Failed to fetch memories by contact ID',
-        variant: 'destructive'
-      });
+      console.warn('Error fetching memories by contact ID:', err);
       return [];
     }
-  }, [currentUser, toast]);
+  }, [currentUser]);
 
   // Fetch memories on component mount and when currentUser changes
   useEffect(() => {

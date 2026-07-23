@@ -33,7 +33,7 @@ export default function NewContactPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const speechRecognitionRef = useRef<any | null>(null);
   const [formKey, setFormKey] = useState(Date.now()); // Used to re-mount ContactForm with new defaults
   const [dynamicDefaultValues, setDynamicDefaultValues] = useState<Partial<ContactFormValues>>({});
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string | null>(null);
@@ -124,8 +124,8 @@ export default function NewContactPage() {
   };
 
   const handleVoiceInput = async () => {
-    if (typeof window === 'undefined') return;
-    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const win = window as any;
+    const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
       toast({ title: "Voice Input Not Supported", description: "Your browser doesn't support voice recognition. Please check your browser settings or use a different browser.", variant: "destructive" });
@@ -152,7 +152,7 @@ export default function NewContactPage() {
       recognition.lang = 'en-US';
       speechRecognitionRef.current = recognition;
 
-      recognition.onresult = async (event) => {
+      recognition.onresult = async (event: any) => {
         const transcript = event.results[0][0].transcript;
         toast({ title: "Voice input received", description: "Parsing contact information..." });
         setIsParsing(true);
@@ -202,7 +202,7 @@ export default function NewContactPage() {
         }
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error, event.message);
         let errorMessage = `Speech recognition error: ${event.error}.`;
         if (event.message) errorMessage += ` Details: ${event.message}`;
@@ -266,29 +266,43 @@ export default function NewContactPage() {
 
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
-            <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-            <Button variant="outline" onClick={handleVoiceInput} disabled={isListening || isParsing} className="relative w-full sm:w-auto">
-                {isListening ? <MicOff className="mr-2 h-4 w-4 text-destructive" /> : <Mic className="mr-2 h-4 w-4" />}
-                {isListening ? "Stop Listening" : "Voice Input"}
-                {isParsing && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />}
-                <Sparkles className="ml-2 h-4 w-4 text-accent" />
-            </Button>
-        </div>
-        {microphonePermissionError && (
-          <Alert variant="destructive" className="mb-4">
-            <MicOff className="h-4 w-4" />
-            <AlertTitle>Microphone Access Denied</AlertTitle>
-            <AlertDescription>
-              {microphonePermissionError} Please enable microphone permissions in your browser settings to use voice input.
-            </AlertDescription>
-          </Alert>
-        )}
+    <div className="flex flex-col min-h-full bg-[#FAF7F4] dark:bg-background px-4 sm:px-6 pt-2 pb-32 space-y-4 max-w-xl mx-auto w-full overflow-y-auto">
+      {/* Top Navigation Bar */}
+      <div className="flex items-center justify-between py-1">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => router.back()} 
+          className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-white dark:bg-card text-xs font-semibold text-[#1A0F06] dark:text-foreground h-9 px-3 shadow-sm hover:bg-[#FAEEE5]"
+        >
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5 text-[#C4622D]" /> Back
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleVoiceInput} 
+          disabled={isListening || isParsing} 
+          className="rounded-2xl border-[rgba(26,15,6,0.12)] bg-white dark:bg-card text-xs font-semibold text-[#C4622D] h-9 px-3 shadow-sm hover:bg-[#FAEEE5] relative"
+        >
+          {isListening ? <MicOff className="mr-1.5 h-3.5 w-3.5 text-rose-500" /> : <Mic className="mr-1.5 h-3.5 w-3.5 text-[#C4622D]" />}
+          {isListening ? "Listening..." : "Voice Input"}
+          {isParsing && <Loader2 className="ml-1.5 h-3.5 w-3.5 animate-spin text-[#C4622D]" />}
+          <Sparkles className="ml-1.5 h-3.5 w-3.5 text-[#C4622D]" />
+        </Button>
+      </div>
+
+      {microphonePermissionError && (
+        <Alert variant="destructive" className="rounded-2xl">
+          <MicOff className="h-4 w-4" />
+          <AlertTitle>Microphone Access Denied</AlertTitle>
+          <AlertDescription>
+            {microphonePermissionError} Please enable microphone permissions in your browser settings to use voice input.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <ContactForm 
-        key={formKey} // Re-mounts the form when key changes, applying new defaultValues
+        key={formKey}
         onSubmit={handleSubmit} 
         isLoading={isLoading || isParsing}
         defaultValues={dynamicDefaultValues}

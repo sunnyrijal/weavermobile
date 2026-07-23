@@ -278,7 +278,7 @@ export class VaultService {
     }).select('activities');
     
     const recentActivities = contacts.flatMap(contact => 
-      contact.activities.filter(activity => 
+      contact.activities.filter((activity: any) => 
         new Date(activity.date) >= thirtyDaysAgo
       )
     );

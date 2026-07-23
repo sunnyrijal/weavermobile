@@ -30,8 +30,9 @@ export async function POST(req: NextRequest) {
         let existingContact = null;
         
         if (contactData.email) {
+          const searchEmail = contactData.email.toLowerCase();
           existingContact = allContacts.find((c: any) => 
-            c.email && c.email.toLowerCase() === contactData.email.toLowerCase()
+            c.email && c.email.toLowerCase() === searchEmail
           );
         }
         

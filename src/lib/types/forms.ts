@@ -1,5 +1,5 @@
 
-import type { z } from 'zod';
+import { z } from 'zod';
 // It's better to define the schema in ContactForm.tsx and import its inferred type here,
 // or define the schema here and import it into ContactForm.tsx.
 // For now, let's assume contactFormSchema will be defined elsewhere (e.g. in ContactForm.tsx)
@@ -9,7 +9,7 @@ import type { z } from 'zod';
 // This is just to make the ContactFormValues type available.
 // The actual schema definition will be in ContactForm.tsx to keep it co-located.
 const placeholderContactFormSchema = z.object({
-  name: z.string(),
+  name: z.string().optional(),
   firstName: z.string().optional(),
   middleName: z.string().optional(),
   lastName: z.string().optional(),
@@ -19,7 +19,8 @@ const placeholderContactFormSchema = z.object({
   occupation: z.string().optional(),
   company: z.string().optional(),
   college: z.string().optional(), 
-  category: z.string().optional(),
+  category: z.enum(["Family", "Friend", "Colleague", "Professional", "Partner", "Other", "Pet", ""]).optional(),
+  gender: z.enum(["Male", "Female", "Other", ""]).optional(),
   ownerRelationshipLabel: z.string().optional(), // User's specific relationship (e.g., "My Host Mom")
   hometown: z.string().optional(),
   currentLocation: z.string().optional(),

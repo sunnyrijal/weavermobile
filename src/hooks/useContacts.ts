@@ -120,7 +120,7 @@ export function useContacts(options: UseContactsOptions = { initialLoad: true })
       
       // Create forward relationship if it doesn't exist
       const existingRelationship = contact1.relationships?.find(
-        rel => rel.relatedContactId === relatedContactId
+        (rel: any) => rel.relatedContactId === relatedContactId
       );
       
       if (!existingRelationship) {
@@ -138,7 +138,7 @@ export function useContacts(options: UseContactsOptions = { initialLoad: true })
       
       // Create inverse relationship if it doesn't exist
       const existingInverseRelationship = contact2.relationships?.find(
-        rel => rel.relatedContactId === contactId
+        (rel: any) => rel.relatedContactId === contactId
       );
       
       if (!existingInverseRelationship) {

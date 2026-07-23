@@ -4,10 +4,10 @@ This guide helps you test different AI APIs to find the best one for parsing con
 
 ## Files Overview
 
-1. **`test-contact-parsing-prompt.txt`** - The core prompt template for testing
-2. **`test-parsing-apis.py`** - Python test script (recommended)
-3. **`test-parsing-apis.js`** - Node.js test script
-4. **`CONTACT_PARSING_PROMPT.md`** - Detailed documentation of the prompt
+1. **`tests/contact-parsing/test-contact-parsing-prompt.txt`** - The core prompt template for testing
+2. **`tests/contact-parsing/test_parsing_apis.py`** - Python test script (recommended)
+3. **`tests/contact-parsing/test-parsing-apis.js`** - Node.js test script
+4. **`docs/parsing/CONTACT_PARSING_PROMPT.md`** - Detailed documentation of the prompt
 
 ## Quick Start
 
@@ -38,12 +38,12 @@ export COHERE_API_KEY="your-cohere-key"
 
 **Python:**
 ```bash
-python test-parsing-apis.py
+python tests/contact-parsing/test_parsing_apis.py
 ```
 
 **Node.js:**
 ```bash
-node test-parsing-apis.js
+node tests/contact-parsing/test-parsing-apis.js
 ```
 
 ## Testing Individual APIs
@@ -90,7 +90,7 @@ print(json.dumps(result, indent=2))
 
 ## Using the Prompt Directly
 
-You can copy the prompt from `test-contact-parsing-prompt.txt` and test it directly in:
+You can copy the prompt from `tests/contact-parsing/test-contact-parsing-prompt.txt` and test it directly in:
 
 1. **OpenAI Playground**: https://platform.openai.com/playground
 2. **Anthropic Console**: https://console.anthropic.com/
@@ -263,6 +263,4 @@ For issues or questions:
 3. Test with simpler examples first
 4. Verify API keys are correct
 5. Check rate limits and quotas
-
-
 

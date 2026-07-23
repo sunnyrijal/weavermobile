@@ -101,6 +101,12 @@ export async function POST(req: NextRequest) {
     
     try {
       console.log('🚀 Attempting Gemini CLI parsing...');
+      const user = await UserService.getUserByUid(ownerId);
+      const userProfile = {
+        education: {
+          college: (user as any)?.education?.college || (user as any)?.college || ''
+        }
+      };
       geminiCliResult = await parseTextWithGeminiCli(transcript, userProfile, ownerId);
       
       if (geminiCliResult.contacts.length > 0) {
@@ -209,7 +215,7 @@ export async function POST(req: NextRequest) {
               })) || []
             };
 
-            const created = await ContactService.createContact(contactData);
+            const created = await ContactService.createContact(contactData as any);
             createdContacts.push(created);
             potentialMatches.push(created);
             console.log('✅ Created contact via Gemini CLI:', created.name);
@@ -243,7 +249,7 @@ export async function POST(req: NextRequest) {
       tags: []
     };
 
-    const savedMemory = await MemoryService.createMemory(memoryData);
+    const savedMemory = await MemoryService.createMemory(memoryData as any);
 
     // Increment AI parsing usage for free users
     await UserService.incrementAiParsingUsage(ownerId);

@@ -113,7 +113,6 @@ export function ReminderManager() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          contactId: formData.contactId,
           ...formData,
           date: new Date(formData.date),
         }),

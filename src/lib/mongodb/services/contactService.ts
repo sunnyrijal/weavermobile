@@ -112,7 +112,7 @@ export class ContactService {
       if (contact.relationships && Array.isArray(contact.relationships)) {
         for (const relationship of contact.relationships) {
           if (relationship.relatedContactId) {
-            const relatedContact = contacts.find(c => c._id.toString() === relationship.relatedContactId);
+            const relatedContact = contacts.find((c: any) => c._id.toString() === relationship.relatedContactId);
             if (relatedContact) {
               relationship.name = relatedContact.name;
             }

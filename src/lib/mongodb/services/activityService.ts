@@ -59,23 +59,23 @@ export class ActivityService {
     
     // Filter by type
     if (options?.type) {
-      activities = activities.filter(a => a.type === options.type);
+      activities = activities.filter((a: any) => a.type === options.type);
     }
     
     // Filter by date range
     if (options?.dateRange) {
-      activities = activities.filter(a => 
+      activities = activities.filter((a: any) => 
         a.date >= options.dateRange!.start && a.date <= options.dateRange!.end
       );
     }
     
     // Filter by mood
     if (options?.mood) {
-      activities = activities.filter(a => a.mood === options.mood);
+      activities = activities.filter((a: any) => a.mood === options.mood);
     }
     
     // Sort by date (newest first)
-    activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    activities.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     // Apply pagination
     if (options?.offset) {
@@ -121,7 +121,7 @@ export class ActivityService {
     const contacts = await Contact.find(query).select('name activities');
     
     const activities = contacts.flatMap(contact => 
-      contact.activities.map(activity => ({
+      contact.activities.map((activity: any) => ({
         ...activity.toObject(),
         contactName: contact.name,
         contactId: contact._id
@@ -129,7 +129,7 @@ export class ActivityService {
     );
     
     // Sort by date (newest first)
-    activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    activities.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     // Apply pagination
     if (options?.offset) {
@@ -152,7 +152,7 @@ export class ActivityService {
     const contact = await Contact.findById(contactId);
     if (!contact) throw new Error('Contact not found');
     
-    const activityIndex = contact.activities.findIndex(a => a.id === activityId);
+    const activityIndex = contact.activities.findIndex((a: any) => a.id === activityId);
     if (activityIndex === -1) throw new Error('Activity not found');
     
     contact.activities[activityIndex] = {
@@ -259,12 +259,12 @@ export class ActivityService {
    * Calculate average mood
    */
   private static calculateAverageMood(activities: any[]): string {
-    const moodScores = { positive: 1, neutral: 0, negative: -1 };
-    const activitiesWithMood = activities.filter(a => a.mood);
+    const moodScores: Record<string, number> = { positive: 1, neutral: 0, negative: -1 };
+    const activitiesWithMood = activities.filter((a: any) => a.mood);
     
     if (activitiesWithMood.length === 0) return 'neutral';
     
-    const totalScore = activitiesWithMood.reduce((sum, activity) => 
+    const totalScore = activitiesWithMood.reduce((sum: number, activity: any) => 
       sum + moodScores[activity.mood], 0
     );
     

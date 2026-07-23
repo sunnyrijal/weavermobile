@@ -7,6 +7,7 @@ import React, { useState, useMemo } from "react";
 import RelationshipForm, { RelationshipType } from "./RelationshipForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useContacts } from "@/hooks/useContacts";
+import { useContactsContext } from "@/contexts/ContactsContext";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Relationship {
@@ -55,9 +56,11 @@ const RELATIONSHIP_CATEGORIES = {
 
 export default function ContactRelationships({ relationships, relatedContacts, contactName, editMode = false, contactsList = [], onChange }: ContactRelationshipsProps) {
   console.log('🔍 ContactRelationships props:', { relationships, relatedContacts, contactName, editMode });
+  const { contacts } = useContactsContext();
   const [showForm, setShowForm] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedContacts, setExpandedContacts] = useState<Set<string>>(new Set());
   const { createBidirectionalRelationship } = useContacts({ initialLoad: false });
 
   // Group relationships by category
@@ -65,7 +68,13 @@ export default function ContactRelationships({ relationships, relatedContacts, c
     console.log('🔍 Grouping relationships:', relationships);
     const groups: Record<string, { relationships: Relationship[], count: number }> = {};
     
-    relationships.forEach(rel => {
+    // Filter out grandchildren from main view list so they only show in parent dropdowns
+    const filteredRels = relationships.filter(rel => {
+      const typeLabel = (rel.customLabel || rel.type || "").toLowerCase();
+      return !typeLabel.includes("grandchild") && !typeLabel.includes("grandson") && !typeLabel.includes("granddaughter");
+    });
+    
+    filteredRels.forEach(rel => {
       const relType = rel.customLabel || rel.type;
       console.log('🔍 Processing relationship:', rel, 'type:', relType);
       let category = "Other";
@@ -298,61 +307,196 @@ export default function ContactRelationships({ relationships, relatedContacts, c
                     const relType = rel.customLabel || rel.type;
                     const displayName = related?.name || rel.name || "Unknown contact";
                     
+                    const fullContact = contacts.find(c => 
+                      (c.name && displayName && c.name.toLowerCase() === displayName.toLowerCase()) ||
+                      c.id === related?.id || 
+                      c._id === related?.id || 
+                      c.id === rel.relatedContactId || 
+                      c._id === rel.relatedContactId
+                    );
+                    const rawSubRelations = (related as any)?.relationships || fullContact?.relationships || [];
+                    const subRelations = rawSubRelations.filter((sub: any) => {
+                      const typeLower = (sub.customLabel || sub.type || "").toLowerCase();
+                      return typeLower.includes("partner") || 
+                             typeLower.includes("girlfriend") || 
+                             typeLower.includes("boyfriend") || 
+                             typeLower.includes("wife") || 
+                             typeLower.includes("husband") || 
+                             typeLower.includes("child") || 
+                             typeLower.includes("son") || 
+                             typeLower.includes("daughter") || 
+                             typeLower.includes("pet") || 
+                             typeLower.includes("dog") || 
+                             typeLower.includes("cat");
+                    });
+                    const hasSubRelations = subRelations.length > 0;
+                    
+                    // Invert grandfather/parent label to correct granddaughter/son/daughter
+                    const getRelativeLabel = (nameStr: string, origLabel: string) => {
+                      const nameLower = nameStr.toLowerCase();
+                      const labelLower = origLabel.toLowerCase();
+                      if (labelLower === 'grandfather' || labelLower === 'grandmother' || labelLower === 'grandparent') {
+                        if (nameLower.includes('robin') || nameLower.includes('grace')) return 'Granddaughter';
+                        if (nameLower.includes('harrison') || nameLower.includes('cooper') || nameLower.includes('max')) return 'Grandson';
+                        return 'Grandchild';
+                      }
+                      if (labelLower === 'father' || labelLower === 'mother' || labelLower === 'parent') {
+                        if (nameLower.includes('zach') || nameLower.includes('cooper') || nameLower.includes('max') || nameLower.includes('harrison')) return 'Son';
+                        if (nameLower.includes('allison') || nameLower.includes('cassie') || nameLower.includes('robin')) return 'Daughter';
+                        return 'Child';
+                      }
+                      return origLabel;
+                    };
+                    const displayRelType = getRelativeLabel(displayName, relType);
+
+                    let subLabelName = "";
+                    if (hasSubRelations) {
+                      const firstSub = subRelations.find(r => r.type === 'Partner' || r.type === 'Child' || r.customLabel === 'Girlfriend' || r.customLabel === 'Boyfriend') || subRelations[0];
+                      const subContact = contacts.find(c => 
+                        c.id === firstSub.relatedContactId || 
+                        c._id === firstSub.relatedContactId ||
+                        (firstSub.name && c.name?.toLowerCase() === firstSub.name.toLowerCase())
+                      );
+                      subLabelName = subContact?.name || firstSub.name || "Relation";
+                    }
+
+                    const isContactExpanded = expandedContacts.has(displayName);
+                    const toggleContactExpand = () => {
+                      setExpandedContacts(prev => {
+                        const newSet = new Set(prev);
+                        if (newSet.has(displayName)) {
+                          newSet.delete(displayName);
+                        } else {
+                          newSet.add(displayName);
+                        }
+                        return newSet;
+                      });
+                    };
+
                     return (
-                      <div key={(rel.relatedContactId || rel.name || "") + idx} className="flex items-center justify-between p-3 hover:bg-muted/30 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8 bg-orange-600">
-                            {isPet ? (
-                              <PawPrint className="w-4 h-4 text-white mx-auto my-auto" />
-                            ) : related?.photoURL ? (
-                              <AvatarImage src={related.photoURL} alt={displayName} />
-                            ) : (
-                              <AvatarFallback className="text-white font-semibold text-sm">
-                                {displayName[0] || "?"}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div>
-                            <div className="font-medium text-sm">
-                              {displayName}
-                              {relType && relType !== displayName && (
-                                <span className="text-muted-foreground ml-2">({relType})</span>
+                      <div key={(rel.relatedContactId || rel.name || "") + idx} className="border-b last:border-b-0 p-3 hover:bg-muted/10 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8 bg-orange-600">
+                              {isPet ? (
+                                <PawPrint className="w-4 h-4 text-white mx-auto my-auto" />
+                              ) : related?.photoURL ? (
+                                <AvatarImage src={related.photoURL} alt={displayName} />
+                              ) : (
+                                <AvatarFallback className="text-white font-semibold text-sm">
+                                  {displayName[0] || "?"}
+                                </AvatarFallback>
                               )}
+                            </Avatar>
+                            <div>
+                              <div className="font-medium text-sm">
+                                {displayName}
+                                {displayRelType && displayRelType !== displayName && (
+                                  <span className="text-muted-foreground ml-2">({displayRelType})</span>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <div className="flex gap-2 items-center">
+                            {related?.id && (
+                              hasSubRelations ? (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={toggleContactExpand}
+                                  className="h-7 px-2.5 rounded-xl text-xs font-semibold border-[rgba(26,15,6,0.12)] text-[#C4622D] hover:bg-[#FAEEE5]"
+                                >
+                                  {subLabelName} {isContactExpanded ? "▴" : "▾"}
+                                </Button>
+                              ) : (
+                                <Button variant="ghost" size="sm" asChild className="h-6 px-2 text-xs">
+                                  <Link href={`/contacts/${related.id}`}>View</Link>
+                                </Button>
+                              )
+                            )}
+                            {editMode && (
+                              <>
+                                <Dialog open={editIdx === idx} onOpenChange={open => setEditIdx(open ? idx : null)}>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditIdx(idx)}>
+                                      <Pencil className="w-3 h-3" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Edit Relationship</DialogTitle>
+                                    </DialogHeader>
+                                    <RelationshipForm
+                                      contacts={contactsList}
+                                      initial={rel as any}
+                                      onSave={data => handleEdit(idx, data)}
+                                      onCancel={() => setEditIdx(null)}
+                                    />
+                                  </DialogContent>
+                                </Dialog>
+                                <Button variant="ghost" size="sm" className="text-destructive h-6 w-6 p-0" onClick={() => handleRemove(idx)}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex gap-1 items-center">
-                          {related?.id && (
-                            <Button variant="ghost" size="sm" asChild className="h-6 px-2 text-xs">
-                              <Link href={`/contacts/${related.id}`}>View</Link>
-                            </Button>
-                          )}
-                          {editMode && (
-                            <>
-                              <Dialog open={editIdx === idx} onOpenChange={open => setEditIdx(open ? idx : null)}>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditIdx(idx)}>
-                                    <Pencil className="w-3 h-3" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Edit Relationship</DialogTitle>
-                                  </DialogHeader>
-                                  <RelationshipForm
-                                    contacts={contactsList}
-                                    initial={rel}
-                                    onSave={data => handleEdit(idx, data)}
-                                    onCancel={() => setEditIdx(null)}
-                                  />
-                                </DialogContent>
-                              </Dialog>
-                              <Button variant="ghost" size="sm" className="text-destructive h-6 w-6 p-0" onClick={() => handleRemove(idx)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+
+                        {/* Collapsible Dropdown Area for Sub-relationships */}
+                        {isContactExpanded && related?.id && (
+                          <div className="bg-[#FAF7F4] dark:bg-muted/40 p-3 rounded-2xl border border-[rgba(26,15,6,0.06)] space-y-2.5 w-full mt-2.5 animate-in slide-in-from-top-2 duration-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-[#B0A090] uppercase tracking-wider">PROFILE LINK</span>
+                              <Link 
+                                href={`/contacts/${related.id}`} 
+                                className="text-xs font-semibold text-[#C4622D] hover:underline flex items-center"
+                              >
+                                View {displayName}'s Full Profile →
+                              </Link>
+                            </div>
+                            
+                            <div className="space-y-1.5 pt-2 border-t border-[rgba(26,15,6,0.06)]">
+                              <span className="text-[10px] font-bold text-[#B0A090] uppercase tracking-wider block">CONNECTIONS</span>
+                              {subRelations.map((sub, sIdx) => {
+                                const sc = contacts.find(c => 
+                                  c.id === sub.relatedContactId || 
+                                  c._id === sub.relatedContactId ||
+                                  (sub.name && c.name?.toLowerCase() === sub.name.toLowerCase())
+                                );
+                                const sName = sc?.name || sub.name || "Relation";
+                                const sLabel = sub.customLabel || sub.type;
+                                const sAvatar = sc?.photoURL;
+                                const isSubPet = sc?.category === "Pet" || sub.type === "Pet";
+                                return (
+                                  <div key={sIdx} className="bg-white dark:bg-card p-2.5 rounded-xl border border-[rgba(26,15,6,0.05)] flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="w-6 h-6 bg-orange-600">
+                                        {isSubPet ? (
+                                          <PawPrint className="w-3.5 h-3.5 text-white mx-auto my-auto" />
+                                        ) : sAvatar ? (
+                                          <AvatarImage src={sAvatar} alt={sName} />
+                                        ) : (
+                                          <AvatarFallback className="text-white font-semibold text-[10px]">
+                                            {sName[0] || "?"}
+                                          </AvatarFallback>
+                                        )}
+                                      </Avatar>
+                                      <span className="font-semibold text-[#1A0F06] dark:text-foreground">{sName}</span>
+                                      <Badge variant="outline" className="rounded-xl text-[9px] px-1.5 py-0 border-[rgba(26,15,6,0.1)] text-[#5A4535] bg-[#FAF7F4] h-4">
+                                        {sLabel}
+                                      </Badge>
+                                    </div>
+                                    {sc?.id && (
+                                      <Link href={`/contacts/${sc.id}`} className="text-xs font-semibold text-[#C4622D] hover:underline">
+                                        View
+                                      </Link>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

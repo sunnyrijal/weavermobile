@@ -261,7 +261,7 @@ async function parseContactsWithAdvancedLogic(text: string, userProfile?: { coll
     });
 
     // 7. Extract notes and dorm information
-    const notes = [];
+    const notes: string[] = [];
     const sentences = text.split(/[.!?]+/).filter(s => s.trim());
     
     // Extract dorm information
@@ -296,13 +296,21 @@ async function parseContactsWithAdvancedLogic(text: string, userProfile?: { coll
       savedAsJournalEntry: false,
       contactUpdates: [mainContact, ...additionalContacts],
       generalJournalNotes: '',
-      formatted: `Extracted Entities:\ndates: ${mainContact.attributes.birthday || 'Not found'}\nkey Events: ${mainContact.attributes.major || 'Not found'} major\nCurrently goes to ${mainContact.attributes.college || 'Not found'}\nlocations: ${mainContact.attributes.hometown || 'Not found'}, ${mainContact.attributes.currentLocation || 'Not found'}\norganizations: ${mainContact.attributes.college || 'Not found'}\npeople: ${canonicalPeople.join(' ')}\nrelationships: ${mainContact.relationships.map(r => `${r.relationshipType}: ${r.personName}`).join(' ')}\noccupation: ${mainContact.attributes.occupation || 'Not found'}\ninterests: ${mainContact.attributes.interests ? mainContact.attributes.interests.join(', ') : 'Not found'}`
-    };
+      formatted: `Extracted Entities:\ndates: ${mainContact.attributes.birthday || 'Not found'}\nkey Events: ${mainContact.attributes.major || 'Not found'} major\nCurrently goes to ${mainContact.attributes.college || 'Not found'}\nlocations: ${mainContact.attributes.hometown || 'Not found'}, ${mainContact.attributes.currentLocation || 'Not found'}\norganizations: ${mainContact.attributes.college || 'Not found'}\npeople: ${canonicalPeople.join(' ')}\nrelationships: ${mainContact.relationships.map((r: any) => `${r.relationshipType}: ${r.personName}`).join(' ')}\noccupation: ${mainContact.attributes.occupation || 'Not found'}\ninterests: ${mainContact.attributes.interests ? mainContact.attributes.interests.join(', ') : 'Not found'}`
+    } as any;
   }
 
   // Fallback for cases without nickname/full name pattern
-  const parseResult = await parseContactsWithAdvancedLogic(text);
-  return parseResult;
+  const names = extractAndNormalizeNames(text);
+  let contacts = extractAttributesForContacts(text, names);
+  contacts = extractBidirectionalRelationships(text, contacts);
+  contacts = calculateBirthYears(contacts);
+  contacts = assignRoles(contacts);
+  
+  return {
+    contacts,
+    formatted: formatContactInfo(contacts)
+  };
 }
 
 function extractAndNormalizeNames(text: string): string[] {
@@ -320,7 +328,7 @@ function extractAndNormalizeNames(text: string): string[] {
   
   // Pattern for "Full Name" format - only proper names with first and last
   const fullNamePattern = /\b([A-Z][a-z]+ [A-Z][a-z]+)\b/g;
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = fullNamePattern.exec(text)) !== null) {
     const name = match[1];
     // Filter out common non-name phrases
@@ -461,11 +469,13 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
 
     // Extract age for this person
     const agePattern = /(\d+)\s*(?:yrs?|years?)\s*old/gi;
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = agePattern.exec(contextText)) !== null) {
-      const age = parseInt(match[1]);
+      if (!match) continue;
+      const currentMatch = match;
+      const age = parseInt(currentMatch[1]);
       // Check if this age mention is in a sentence about this person
-      const ageSentence = relevantSentences.find(s => s.includes(match[0]));
+      const ageSentence = relevantSentences.find(s => s.includes(currentMatch[0]));
       if (ageSentence && relevantSentences.includes(ageSentence)) {
         contact.attributes.age = age;
         break;
@@ -480,14 +490,16 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
     
     birthdayPatterns.forEach(pattern => {
       while ((match = pattern.exec(contextText)) !== null) {
-        const birthday = match[1];
+        if (!match) continue;
+        const currentMatch = match;
+        const birthday = currentMatch[1];
         // Filter out non-birthday patterns
         if (!birthday.toLowerCase().includes('is') && 
             !birthday.toLowerCase().includes('yrs') &&
             !birthday.toLowerCase().includes('years') &&
             !birthday.toLowerCase().includes('old')) {
           // Check if this birthday mention is in a sentence about this person
-          const birthdaySentence = relevantSentences.find(s => s.includes(match[0]));
+          const birthdaySentence = relevantSentences.find(s => s.includes(currentMatch[0]));
           if (birthdaySentence && relevantSentences.includes(birthdaySentence)) {
             contact.attributes.birthday = birthday;
             break;
@@ -512,7 +524,9 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
     const locations: string[] = [];
     locationPatterns.forEach(pattern => {
       while ((match = pattern.exec(contextText)) !== null) {
-        const location = match[1];
+        if (!match) continue;
+        const currentMatch = match;
+        const location = currentMatch[1];
         if (!location.toLowerCase().includes('college') && 
             !location.toLowerCase().includes('university') &&
             !location.toLowerCase().includes('school') &&
@@ -520,7 +534,7 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
             !location.toLowerCase().includes('now') &&
             !location.toLowerCase().includes('dorm')) {
           // Check if this location mention is in a sentence about this person
-          const locationSentence = relevantSentences.find(s => s.includes(match[0]));
+          const locationSentence = relevantSentences.find(s => s.includes(currentMatch[0]));
           if (locationSentence && relevantSentences.includes(locationSentence)) {
             locations.push(location);
           }
@@ -562,7 +576,9 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
     
     majorPatterns.forEach(pattern => {
       while ((match = pattern.exec(contextText)) !== null) {
-        const major = match[1];
+        if (!match) continue;
+        const currentMatch = match;
+        const major = currentMatch[1];
         if (!major.toLowerCase().includes('is') && 
             !major.toLowerCase().includes('now') &&
             !major.toLowerCase().includes('from') &&
@@ -575,7 +591,7 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
           }
           
           // Check if this major mention is in a sentence about this person
-          const majorSentence = relevantSentences.find(s => s.includes(match[0]));
+          const majorSentence = relevantSentences.find(s => s.includes(currentMatch[0]));
           if (majorSentence && relevantSentences.includes(majorSentence)) {
             contact.attributes.major = correctedMajor.charAt(0).toUpperCase() + correctedMajor.slice(1);
             break;
@@ -595,7 +611,9 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
     
     eventPatterns.forEach(pattern => {
       while ((match = pattern.exec(contextText)) !== null) {
-        const event = match[0];
+        if (!match) continue;
+        const currentMatch = match;
+        const event = currentMatch[0];
         if (!event.toLowerCase().includes('is a') && 
             !event.toLowerCase().includes('took') &&
             !event.toLowerCase().includes('majored in') &&
@@ -605,7 +623,7 @@ function extractAttributesForContacts(text: string, names: string[]): Contact[] 
             !event.toLowerCase().includes('boyfriend')) {
           
           // Check if this event mention is in a sentence about this person
-          const eventSentence = relevantSentences.find(s => s.includes(match[0]));
+          const eventSentence = relevantSentences.find(s => s.includes(currentMatch[0]));
           if (eventSentence && relevantSentences.includes(eventSentence)) {
             notes.push(event);
           }
@@ -639,7 +657,7 @@ function extractBidirectionalRelationships(text: string, contacts: Contact[]): C
     return contactAttrCount > mainAttrCount ? contact : main;
   });
   relationshipPatterns.forEach(({ pattern, type }) => {
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = pattern.exec(text)) !== null) {
       if (type === 'subject') {
         const subjectName = cleanName(match[1]);

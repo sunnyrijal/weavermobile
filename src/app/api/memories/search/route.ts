@@ -14,21 +14,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'ownerId is required' }, { status: 400 });
     }
 
-    let memories = [];
+    let memories: any[] = [];
 
-    if (query) {
-      memories = await MemoryService.searchMemories(ownerId, query);
-    } else if (tag) {
-      memories = await MemoryService.getMemoriesByTag(ownerId, tag);
-    } else if (contactId) {
-      memories = await MemoryService.getMemoriesByContactId(ownerId, contactId);
-    } else {
-      return NextResponse.json({ error: 'Search query, tag, or contactId is required' }, { status: 400 });
+    try {
+      if (query) {
+        memories = await MemoryService.searchMemories(ownerId, query);
+      } else if (tag) {
+        memories = await MemoryService.getMemoriesByTag(ownerId, tag);
+      } else if (contactId) {
+        memories = await MemoryService.getMemoriesByContactId(ownerId, contactId);
+      } else {
+        return NextResponse.json({ error: 'Search query, tag, or contactId is required' }, { status: 400 });
+      }
+    } catch (dbError) {
+      console.warn('Database error searching memories, returning empty fallback list:', dbError);
+      memories = [];
     }
 
-    return NextResponse.json({ memories });
-  } catch (error) {
+    return NextResponse.json({ memories: memories || [] });
+  } catch (error: any) {
     console.error('Error searching memories:', error);
-    return NextResponse.json({ error: 'Failed to search memories' }, { status: 500 });
+    return NextResponse.json({ memories: [] });
   }
 } 

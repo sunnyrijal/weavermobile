@@ -203,7 +203,10 @@ Provide a summary and extract all entities as specified.`;
       },
     });
 
-    const jsonText = response.text.trim();
+    const jsonText = (response.text || "").trim();
+    if (!jsonText) {
+      throw new Error("Empty model response text");
+    }
     const parsedOutput = JSON.parse(jsonText) as ProcessVoiceInputOutput;
 
     // Post-process to ensure clean data and remove duplicates

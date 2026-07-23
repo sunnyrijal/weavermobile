@@ -14,6 +14,7 @@ interface Relationship {
   type: string;
   customLabel?: string;
   notes?: string;
+  name?: string;
 }
 
 // Define the SocialProfiles interface
@@ -125,6 +126,7 @@ export interface IContact extends Document {
   lastName?: string;
   preferredName?: string;
   nickname?: string;
+  gender?: string;
   hiddenNotes?: string;
   photoURL?: string;
   birthday?: string;
@@ -207,6 +209,9 @@ export interface IContact extends Document {
   distinguishingFeatures?: string;
   voice?: string;
   accent?: string;
+  isCompanyContact?: boolean;
+  companyContextType?: 'shared' | 'private';
+  lastUpdatedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -221,6 +226,7 @@ const ContactSchema = new Schema<IContact>(
     lastName: { type: String },
     preferredName: { type: String },
     nickname: { type: String },
+    gender: { type: String },
     hiddenNotes: { type: String },
     photoURL: String,
     birthday: String,
@@ -232,6 +238,9 @@ const ContactSchema = new Schema<IContact>(
     company: String,
     college: String,
     major: String,
+    isCompanyContact: { type: Boolean, default: false },
+    companyContextType: { type: String, enum: ['shared', 'private'] },
+    lastUpdatedBy: String,
     socialProfiles: {
       linkedin: String,
       instagram: String,

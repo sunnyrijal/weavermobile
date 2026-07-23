@@ -37,7 +37,7 @@ export function AdvancedNlpTest() {
         toast({ 
           title: "Advanced NLP Test Success!", 
           description: `Processed memory with ${data.result.updates.length} updates.`,
-          variant: "success"
+          variant: "default"
         });
       } else {
         const error = await response.json();

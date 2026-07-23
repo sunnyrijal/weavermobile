@@ -116,12 +116,15 @@ export class GeminiCliParser {
       return this.fallbackProcessing(text);
     }
 
+    let tempFile: string | null = null;
+    let promptFile: string | null = null;
+
     try {
       console.log('🚀 Starting Gemini CLI parsing...');
       console.log('🔍 Text to parse:', text.substring(0, 200) + '...');
       
       // Create a temporary file with the text to process
-      const tempFile = join(tmpdir(), `gemini-parse-${Date.now()}.txt`);
+      tempFile = join(tmpdir(), `gemini-parse-${Date.now()}.txt`);
       await writeFile(tempFile, text, 'utf8');
 
       // Create the prompt for Gemini CLI
@@ -132,7 +135,7 @@ export class GeminiCliParser {
       console.log('🔧 Executing Gemini CLI command...');
       
       // Write the prompt to a temporary file
-      const promptFile = join(tmpdir(), `gemini-prompt-${Date.now()}.txt`);
+      promptFile = join(tmpdir(), `gemini-prompt-${Date.now()}.txt`);
       await writeFile(promptFile, prompt, 'utf8');
       
       console.log('🔧 Executing Gemini CLI command...');
@@ -147,8 +150,9 @@ export class GeminiCliParser {
       );
       console.log('🔧 Gemini CLI command executed successfully');
       
-      // Clean up temporary files
+      // Clean up prompt file early since command succeeded
       await unlink(promptFile).catch(() => {});
+      promptFile = null;
       
       console.log('📤 Gemini CLI stdout:', stdout);
       if (stderr) {
@@ -185,7 +189,12 @@ export class GeminiCliParser {
     } finally {
       // Clean up temporary files
       try {
-        await unlink(tempFile).catch(() => {});
+        if (tempFile) {
+          await unlink(tempFile).catch(() => {});
+        }
+        if (promptFile) {
+          await unlink(promptFile).catch(() => {});
+        }
       } catch (e) {
         // Ignore cleanup errors
       }

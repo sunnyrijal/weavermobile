@@ -32,7 +32,7 @@ export class ReminderService {
     const contacts = await Contact.find(query).select('name reminders');
     
     const reminders = contacts.flatMap(contact => 
-      contact.reminders.map(reminder => ({
+      contact.reminders.map((reminder: any) => ({
         ...reminder.toObject(),
         contactName: contact.name,
         contactId: contact._id
@@ -120,7 +120,7 @@ export class ReminderService {
     const contact = await Contact.findById(contactId);
     if (!contact) throw new Error('Contact not found');
     
-    const reminderIndex = contact.reminders.findIndex(r => r.id === reminderId);
+    const reminderIndex = contact.reminders.findIndex((r: any) => r.id === reminderId);
     if (reminderIndex === -1) throw new Error('Reminder not found');
     
     contact.reminders[reminderIndex] = {
